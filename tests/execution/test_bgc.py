@@ -639,7 +639,9 @@ def test_history_positions_stops_and_account(clock: ManualClock) -> None:
     assert stops[0].stop_price == Decimal("90000")
     assert stops[0].venue_id == "111111111111111111"
     account = transport.account()
-    assert account.equity_usdt == Decimal("11.13921165")
+    # The book's equity is the USDT row (6.19...), not the account's usdtEquity (11.14), which
+    # values every coin the account holds; see environment.account_from_assets.
+    assert account.equity_usdt == Decimal("6.19300826")
     assert account.available_usdt == Decimal("6.19300826")
 
 

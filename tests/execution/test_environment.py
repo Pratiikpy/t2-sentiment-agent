@@ -306,7 +306,8 @@ def test_proof_passes_when_demo_accepts_and_live_refuses(
     assert proof.live_read_code == "400"
     assert proof.hold_mode == "one_way_mode"
     assert proof.account is not None
-    assert str(proof.account.equity_usdt) == "11.13921165"
+    # The USDT row's equity, not usdtEquity (11.13921165) — see account_from_assets.
+    assert str(proof.account.equity_usdt) == "6.19300826"
     assert proof.credentials_file == ".secrets/demo.env"
     assert proof.bgc_package == BGC_PACKAGE
     assert (

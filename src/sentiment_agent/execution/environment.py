@@ -614,16 +614,22 @@ def _decimal(value: Any) -> Decimal | None:
 def account_from_assets(data: Any, *, at: datetime, blob: BlobRef | None) -> AccountSnapshot:
     """``GET /api/v3/account/assets`` data (legacy-docs/uta/account/Get-Account, 2026-09-24).
 
-    ``usdtEquity`` is the account equity in USDT; ``available`` is read from the USDT asset row.
-    Both are ``None`` when absent. The documented shape is not yet pinned by a Demo response
-    (DESIGN.md §20), so the raw answer always travels in ``blob``.
+    **Equity is the USDT asset row's equity, not the account's ``usdtEquity``.** The first real Demo
+    read (2026-09-24) showed a unified account holding seventeen gifted demo coins — BTC, UNI, SOL,
+    a pre-IPO token and more — worth 3.78M USDT in total beside 50,000 USDT. ``usdtEquity`` values
+    all of them, so the book's starting equity would have been 3.78M and every BTC or UNI move would
+    have opened an ``equity_gap`` in reconciliation and blocked new exposure. The strategy trades
+    USDT-margined perpetuals only; its capital is the USDT it can margin with, and that is what the
+    book starts from and is reconciled against. ``None`` when the account has no USDT row.
+    ``available`` is read from the same row.
     """
-    equity = _decimal(_dig(data, "usdtEquity"))
+    equity: Decimal | None = None
     available: Decimal | None = None
     assets = _dig(data, "assets")
     if isinstance(assets, list):
         for row in assets:
             if isinstance(row, Mapping) and row.get("coin") == "USDT":
+                equity = _decimal(row.get("equity"))
                 available = _decimal(row.get("available"))
                 break
     return AccountSnapshot(at=at, equity_usdt=equity, available_usdt=available, blob=blob)

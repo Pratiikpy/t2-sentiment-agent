@@ -438,6 +438,9 @@ def _result(name: str, *, equity: str | None = None) -> Any:
         if isinstance(node, dict) and "usdtEquity" in node:
             node["usdtEquity"] = equity
             node["accountEquity"] = equity
+            for row in node.get("assets") or []:
+                if isinstance(row, dict) and row.get("coin") == "USDT":
+                    row["equity"] = equity  # the book's equity is the USDT row
     return BgcResult(
         exit_code=raw["exit_code"], stdout=raw["stdout"], stderr=raw["stderr"], duration_ms=1
     )

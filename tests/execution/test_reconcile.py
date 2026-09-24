@@ -282,6 +282,9 @@ def _account_assets(equity: str) -> BgcResult:
     assert ok.stdout is not None
     stdout: dict[str, Any] = json_copy(ok.stdout)
     stdout["data"]["usdtEquity"] = equity
+    for row in stdout["data"].get("assets") or []:
+        if row.get("coin") == "USDT":
+            row["equity"] = equity  # the book reconciles against the USDT row
     return BgcResult(0, stdout, None, 1)
 
 
