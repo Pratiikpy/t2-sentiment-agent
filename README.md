@@ -16,12 +16,22 @@ Market Sentiment Agent.
 
 ## Status
 
-Pre-genesis. Every module in [DESIGN.md](DESIGN.md) §18 is built, wired and tested, and a full
-cycle has run end to end in dry-run mode on live public Bitget data (perception, decision, the
-kernel's eleven checks, a `bgc --paper-trading --dry-run` order preview, the ledger, the decision
-card and the demo page). No paper order has been placed and no live model call has been made. The
-paper log starts when the Demo API key exists: [RUNBOOK.md](RUNBOOK.md) is the owner's procedure,
-and `t2sa go-live` is the one command that starts it.
+**Paper run live on Bitget Demo since 2026-09-24 17:06:23 UTC.** Genesis hash
+`ebbf607a8fe199bccc0f612ededf2a6902e4884a38d21fbfea498dff7da453a5`, timestamped with
+OpenTimestamps, pins the code commit, the dependency locks, the policy and the metric definitions
+before the first decision. Starting equity 49,999.98 USDT. The agent ticks every 30 seconds and
+decides on pre-registered heartbeats (the US open, each funding settlement) and on event triggers.
+
+- Live record, republished hourly from the log: https://t2-sentiment-agent-live.vercel.app
+- Check it yourself: `t2sa verify` (hash chain and head anchor), `t2sa status`, and
+  `scripts/recompute.py` for every published figure.
+- Known gap, disclosed rather than patched under a live run: `bitget-signal`'s hosted server
+  returns empty envelopes for `news_feed` and `reddit_trending` (reproduced through a second MCP
+  client, while their upstreams answer directly). Mood and positioning come from
+  `bitget-mcp-server`, which answers. Every failed call is in the log as failed.
+
+[RUNBOOK.md](RUNBOOK.md) is the operator's procedure; `t2sa go-live` is the one command that
+starts or resumes the run.
 
 ## Safety model
 
