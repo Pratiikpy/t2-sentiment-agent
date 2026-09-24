@@ -1,0 +1,30 @@
+# The same gate every change passes locally: ruff, ruff format, mypy --strict, pytest.
+#
+# Offline by design. The tests never touch the network, never see a credential and never call the
+# model (tests/conftest.py), so a green run here says the code is sound, not that Bitget or Qwen
+# happened to be up. The live paper run is checked with `t2sa verify`, not here.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: lint · format · types · tests
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Gate
+        run: python scripts/check_all.py
