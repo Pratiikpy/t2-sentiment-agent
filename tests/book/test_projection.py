@@ -746,6 +746,23 @@ def test_a_paper_ledger_without_an_account_read_before_its_first_fill_has_no_boo
         projection.book(at=AT, marks=MARKS, mark_source=PriceSource.DEMO)
 
 
+def test_the_latest_account_read_before_the_first_fill_is_the_starting_equity() -> None:
+    # 2026-09-24: an early Demo read valued gifted coins at 3.78M; the read just before trading
+    # was 50,000 USDT. A superseded pre-trade read is stale, so the latest one starts the book.
+    ledger = one_fill_ledger(
+        RunMode.PAPER,
+        (EventKind.ENVIRONMENT_PROOF, make_proof("3782464.95")),
+        (EventKind.ENVIRONMENT_PROOF, make_proof("50000")),
+    )
+    assert Projection.from_ledger(ledger, POLICY_V1).starting_equity == d(50000)
+
+
+def test_an_account_read_after_the_first_fill_never_moves_the_start() -> None:
+    ledger = one_fill_ledger(RunMode.PAPER, (EventKind.ENVIRONMENT_PROOF, make_proof("50000")))
+    ledger.append(EventKind.ENVIRONMENT_PROOF, make_proof("61000", at=T0 + H))
+    assert Projection.from_ledger(ledger, POLICY_V1).starting_equity == d(50000)
+
+
 def test_a_non_positive_account_read_is_skipped() -> None:
     ledger = one_fill_ledger(
         RunMode.PAPER,

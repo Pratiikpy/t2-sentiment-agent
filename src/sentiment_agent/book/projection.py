@@ -266,9 +266,15 @@ class Projection:
             self._reset_book_scope()
 
     def _note_account(self, equity: Decimal | None) -> None:
-        if self._fill_seen or self._recorded_equity is not None:
+        # Until the first fill, the LATEST account read is the starting equity, not the first:
+        # a read superseded before anything traded is simply stale. The first real Demo run showed
+        # why: an early read valued seventeen gifted demo coins (3.78M USDT) and, kept as the start,
+        # left the book 3.73M away from the venue and every increase refused (2026-09-24).
+        if self._fill_seen:
             return
         if equity is not None and equity.is_finite() and equity > 0:
+            if equity == self._recorded_equity:
+                return
             self._recorded_equity = equity
             if self._builder is not None and self._builder.starting_equity != equity:
                 # Built from the fallback before the log said otherwise; no fill has been booked,

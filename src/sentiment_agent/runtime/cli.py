@@ -57,7 +57,7 @@ from sentiment_agent.analysis.mirror import live_mirror, weekend_counterfactual
 from sentiment_agent.analysis.simcheck import SimulatorCheck, simulator_check
 from sentiment_agent.analysis.twin import governed_replica, twin_report, ungoverned_arm
 from sentiment_agent.book.projection import ORDER_EVENT_KINDS, Projection
-from sentiment_agent.clock import ManualClock, SystemClock
+from sentiment_agent.clock import ManualClock, VenueClock
 from sentiment_agent.crowd.adapters import CompositeCrowd
 from sentiment_agent.decision.agent import DecisionAgent
 from sentiment_agent.decision.contract import ATTEMPT_MEDIA_TYPE, replay_calls
@@ -257,7 +257,7 @@ def run_cli(
     args = parser.parse_args(list(sys.argv[1:] if argv is None else argv))
     ctx = Context(
         root=(root or _discover_root(args.root)).resolve(),
-        clock=clock or SystemClock(),
+        clock=clock or VenueClock(),
         out=out or sys.stdout,
         parts=parts or Parts(),
         command_runner=command_runner or _run_command,

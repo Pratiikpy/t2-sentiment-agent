@@ -66,6 +66,11 @@ def _signed(fill: Fill) -> Decimal:
     return fill.exec_qty if fill.side is Side.BUY else -fill.exec_qty
 
 
+VENUE_CLOCK_SLACK = timedelta(seconds=60)
+"""How far past the local clock a sweep reads, so a fill stamped on a faster venue clock is not
+left outside the window."""
+
+
 class Reconciler:
     """Compares the ledger's picture with the venue's and logs the report."""
 
@@ -113,11 +118,16 @@ class Reconciler:
 
         discrepancies: list[Discrepancy] = []
         observed, resolved, checked = self._orders(now, discrepancies)
+        # The venue stamps orders and fills on its own clock. This machine measured 3.27 s behind
+        # Bitget's server time on 2026-09-24, and a sweep one second after a fill used ``until =
+        # now`` and missed it: the fill was stamped "in the future". Reading ahead by a bounded
+        # slack costs nothing, because fills are deduplicated by id.
+        until = now + VENUE_CLOCK_SLACK
         if full_history:
-            checked += self._history(since, now, discrepancies)
+            checked += self._history(since, until, discrepancies)
 
         new_fills, fills_read = self._fills(
-            book, since, now, known_fill_ids, observed, discrepancies
+            book, since, until, known_fill_ids, observed, discrepancies
         )
         expected = self._expected_positions(book, new_fills)
         self._positions(expected, discrepancies)
