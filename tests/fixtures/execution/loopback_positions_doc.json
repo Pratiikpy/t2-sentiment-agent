@@ -1,0 +1,116 @@
+{
+  "fixture": "loopback_positions_doc",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "loopback: real bgc, throwaway credential, answered by a local server",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "position",
+    "--action",
+    "info",
+    "--category",
+    "USDT-FUTURES",
+    "--view",
+    "full",
+    "--paper-trading"
+  ],
+  "extra_argv": [
+    "--base-url",
+    "http://127.0.0.1:<port>"
+  ],
+  "served": {
+    "GET /api/v3/position/current-position": {
+      "status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1753103840140,
+        "data": {
+          "list": [
+            {
+              "category": "USDT-FUTURES",
+              "symbol": "BTCUSDT",
+              "marginCoin": "USDT",
+              "holdMode": "hedge_mode",
+              "posSide": "long",
+              "marginMode": "crossed",
+              "positionBalance": "4701531.84941582",
+              "available": "119.2068",
+              "frozen": "0",
+              "total": "119.2068",
+              "leverage": "3",
+              "curRealisedPnl": "0",
+              "avgPrice": "108674",
+              "positionStatus": "normal",
+              "unrealisedPnl": "1124573.04243999",
+              "liquidationPrice": "43099.9",
+              "mmr": "0.015",
+              "profitRate": "0.2391929010498401",
+              "markPrice": "118097",
+              "breakEvenPrice": "109208.6",
+              "totalFunding": "-53076.32433032",
+              "openFeeTotal": "-2842.86603479",
+              "closeFeeTotal": "0",
+              "cashDividend": "0",
+              "createdTime": "1736378720620",
+              "updatedTime": "1753102803148"
+            }
+          ]
+        }
+      },
+      "source": "https://www.bitget.com/legacy-docs/uta/trade/Get-Position"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v3/position/current-position",
+      "query": {
+        "category": "USDT-FUTURES"
+      },
+      "paptrading": "1",
+      "signed": true,
+      "body": null
+    }
+  ],
+  "result": {
+    "exit_code": 0,
+    "stdout": {
+      "endpoint": "GET /api/v3/position/current-position",
+      "requestTime": "2026-09-24T11:56:41.710Z",
+      "data": {
+        "list": [
+          {
+            "category": "USDT-FUTURES",
+            "symbol": "BTCUSDT",
+            "marginCoin": "USDT",
+            "holdMode": "hedge_mode",
+            "posSide": "long",
+            "marginMode": "crossed",
+            "positionBalance": "4701531.84941582",
+            "available": "119.2068",
+            "frozen": "0",
+            "total": "119.2068",
+            "leverage": "3",
+            "curRealisedPnl": "0",
+            "avgPrice": "108674",
+            "positionStatus": "normal",
+            "unrealisedPnl": "1124573.04243999",
+            "liquidationPrice": "43099.9",
+            "mmr": "0.015",
+            "profitRate": "0.2391929010498401",
+            "markPrice": "118097",
+            "breakEvenPrice": "109208.6",
+            "totalFunding": "-53076.32433032",
+            "openFeeTotal": "-2842.86603479",
+            "closeFeeTotal": "0",
+            "cashDividend": "0",
+            "createdTime": "1736378720620",
+            "updatedTime": "1753102803148"
+          }
+        ]
+      }
+    },
+    "stderr": null
+  }
+}

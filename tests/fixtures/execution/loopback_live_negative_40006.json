@@ -1,0 +1,56 @@
+{
+  "fixture": "loopback_live_negative_40006",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "loopback: real bgc, throwaway credential, answered by a local server",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "raw",
+    "--operationId",
+    "getAccountAssets",
+    "--read-only"
+  ],
+  "extra_argv": [
+    "--base-url",
+    "http://127.0.0.1:<port>"
+  ],
+  "served": {
+    "GET /api/v3/account/assets": {
+      "status": 400,
+      "body": {
+        "code": "40006",
+        "msg": "Invalid ACCESS_KEY",
+        "requestTime": 1790248948185,
+        "data": null
+      },
+      "source": "measured 2026-09-24: unsigned GET /api/v3/account/assets, HTTP 400"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v3/account/assets",
+      "query": {},
+      "paptrading": null,
+      "signed": true,
+      "body": null
+    }
+  ],
+  "result": {
+    "exit_code": 1,
+    "stdout": null,
+    "stderr": {
+      "ok": false,
+      "error": {
+        "type": "BitgetApiError",
+        "code": "400",
+        "category": "unknown",
+        "message": "HTTP 400 from Bitget: Invalid ACCESS_KEY",
+        "suggestion": "Retry later or verify endpoint parameters.",
+        "retryable": false,
+        "endpoint": "GET /api/v3/account/assets"
+      },
+      "timestamp": "2026-09-24T11:56:43.407Z"
+    }
+  }
+}

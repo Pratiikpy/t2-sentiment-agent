@@ -1,0 +1,8 @@
+{
+  "ok": false,
+  "schema_version": "1",
+  "error": {
+    "code": "rate_limited",
+    "message": "Twitter API error (HTTP 429): Rate limit exceeded"
+  }
+}

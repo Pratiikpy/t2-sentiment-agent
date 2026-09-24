@@ -1,0 +1,53 @@
+{
+  "fixture": "loopback_place_network_error",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "loopback: real bgc, throwaway credential, nothing listening on the port",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "order",
+    "--action",
+    "place",
+    "--category",
+    "USDT-FUTURES",
+    "--symbol",
+    "NVDAUSDT",
+    "--side",
+    "buy",
+    "--orderType",
+    "market",
+    "--qty",
+    "1",
+    "--clientOid",
+    "sa48e0e1719b846183d9d228164cd597",
+    "--stopLoss",
+    "213.9264",
+    "--slTriggerBy",
+    "mark",
+    "--slOrderType",
+    "market",
+    "--paper-trading"
+  ],
+  "extra_argv": [
+    "--base-url",
+    "http://127.0.0.1:<port>"
+  ],
+  "served": {},
+  "requests": [],
+  "result": {
+    "exit_code": 1,
+    "stdout": null,
+    "stderr": {
+      "ok": false,
+      "error": {
+        "type": "NetworkError",
+        "category": "network",
+        "message": "Failed to call Bitget endpoint POST /api/v3/trade/place-order.",
+        "suggestion": "Please check network connectivity and retry the request in a few seconds.",
+        "retryable": true,
+        "endpoint": "POST /api/v3/trade/place-order"
+      },
+      "timestamp": "2026-09-24T11:56:44.561Z"
+    }
+  }
+}

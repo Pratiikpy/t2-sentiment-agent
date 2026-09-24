@@ -1,0 +1,64 @@
+{
+  "fixture": "dryrun_place_stop",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "dry-run: production argv, no credential in the child environment, nothing sent",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "strategy_order",
+    "--action",
+    "place",
+    "--category",
+    "USDT-FUTURES",
+    "--symbol",
+    "NVDAUSDT",
+    "--type",
+    "tpsl",
+    "--tpslMode",
+    "full",
+    "--posSide",
+    "long",
+    "--qty",
+    "1",
+    "--stopLoss",
+    "213.93",
+    "--slTriggerBy",
+    "mark",
+    "--slOrderType",
+    "market",
+    "--clientOid",
+    "sa48e0e1719b846183d9d228164cd597",
+    "--paper-trading",
+    "--dry-run"
+  ],
+  "extra_argv": [],
+  "served": {},
+  "requests": [],
+  "result": {
+    "exit_code": 0,
+    "stdout": {
+      "endpoint": "POST /api/v3/trade/place-strategy-order",
+      "requestTime": "2026-09-24T11:56:40.841Z",
+      "data": {
+        "dryRun": true,
+        "operationId": "placeStrategyOrder",
+        "method": "POST",
+        "path": "/api/v3/trade/place-strategy-order",
+        "riskLevel": "write",
+        "wouldSend": {
+          "category": "USDT-FUTURES",
+          "symbol": "NVDAUSDT",
+          "type": "tpsl",
+          "tpslMode": "full",
+          "posSide": "long",
+          "qty": "1",
+          "stopLoss": "213.93",
+          "slTriggerBy": "mark",
+          "slOrderType": "market",
+          "clientOid": "sa48e0e1719b846183d9d228164cd597"
+        }
+      }
+    },
+    "stderr": null
+  }
+}

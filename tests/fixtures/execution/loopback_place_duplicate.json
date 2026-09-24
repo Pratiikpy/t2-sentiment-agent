@@ -1,0 +1,84 @@
+{
+  "fixture": "loopback_place_duplicate",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "loopback: real bgc, throwaway credential, answered by a local server",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "order",
+    "--action",
+    "place",
+    "--category",
+    "USDT-FUTURES",
+    "--symbol",
+    "NVDAUSDT",
+    "--side",
+    "buy",
+    "--orderType",
+    "market",
+    "--qty",
+    "1",
+    "--clientOid",
+    "sa48e0e1719b846183d9d228164cd597",
+    "--stopLoss",
+    "213.9264",
+    "--slTriggerBy",
+    "mark",
+    "--slOrderType",
+    "market",
+    "--paper-trading"
+  ],
+  "extra_argv": [
+    "--base-url",
+    "http://127.0.0.1:<port>"
+  ],
+  "served": {
+    "POST /api/v3/trade/place-order": {
+      "status": 400,
+      "body": {
+        "code": "25212",
+        "msg": "Duplicate clientOid",
+        "requestTime": 1790248948185,
+        "data": null
+      },
+      "source": "constructed: Bitget's error shape, message text NOT VERIFIED"
+    }
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/v3/trade/place-order",
+      "query": {},
+      "paptrading": "1",
+      "signed": true,
+      "body": {
+        "category": "USDT-FUTURES",
+        "symbol": "NVDAUSDT",
+        "side": "buy",
+        "orderType": "market",
+        "qty": "1",
+        "clientOid": "sa48e0e1719b846183d9d228164cd597",
+        "stopLoss": "213.9264",
+        "slTriggerBy": "mark",
+        "slOrderType": "market"
+      }
+    }
+  ],
+  "result": {
+    "exit_code": 1,
+    "stdout": null,
+    "stderr": {
+      "ok": false,
+      "error": {
+        "type": "BitgetApiError",
+        "code": "400",
+        "category": "unknown",
+        "message": "HTTP 400 from Bitget: Duplicate clientOid",
+        "suggestion": "Retry later or verify endpoint parameters.",
+        "retryable": false,
+        "endpoint": "POST /api/v3/trade/place-order"
+      },
+      "timestamp": "2026-09-24T11:56:44.227Z"
+    }
+  }
+}

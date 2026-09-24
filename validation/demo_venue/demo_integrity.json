@@ -1,0 +1,254 @@
+{
+ "BTCUSDT": {
+  "hours": 2200,
+  "first": "06-23",
+  "mark_hilo_vs_index_over3pct": 24,
+  "over3pct_last30d": 0,
+  "worst": [
+   [
+    "06-25 13",
+    5.2
+   ],
+   [
+    "06-27 05",
+    14.2
+   ],
+   [
+    "06-27 06",
+    15.1
+   ],
+   [
+    "06-28 23",
+    22.6
+   ],
+   [
+    "06-29 00",
+    65.6
+   ],
+   [
+    "06-30 04",
+    34.7
+   ]
+  ],
+  "demo_vs_live_close_gap_median_bps": 0.8,
+  "gap_p99_bps": 8.3
+ },
+ "ETHUSDT": {
+  "hours": 2200,
+  "first": "06-23",
+  "mark_hilo_vs_index_over3pct": 466,
+  "over3pct_last30d": 4,
+  "worst": [
+   [
+    "06-23 21",
+    13.1
+   ],
+   [
+    "06-23 22",
+    13.3
+   ],
+   [
+    "06-23 23",
+    12.7
+   ],
+   [
+    "06-24 00",
+    13.1
+   ],
+   [
+    "06-24 01",
+    13.3
+   ],
+   [
+    "06-24 02",
+    11.7
+   ]
+  ],
+  "demo_vs_live_close_gap_median_bps": 11.2,
+  "gap_p99_bps": 2817.6
+ },
+ "SOLUSDT": {
+  "hours": 2200,
+  "first": "06-23",
+  "mark_hilo_vs_index_over3pct": 35,
+  "over3pct_last30d": 8,
+  "worst": [
+   [
+    "06-24 20",
+    3.5
+   ],
+   [
+    "06-25 13",
+    5.4
+   ],
+   [
+    "06-25 14",
+    4.2
+   ],
+   [
+    "06-26 03",
+    4.3
+   ],
+   [
+    "06-26 06",
+    3.9
+   ],
+   [
+    "06-26 13",
+    4.4
+   ]
+  ],
+  "demo_vs_live_close_gap_median_bps": 98.7,
+  "gap_p99_bps": 108.4
+ },
+ "XRPUSDT": {
+  "hours": 2200,
+  "first": "06-23",
+  "mark_hilo_vs_index_over3pct": 633,
+  "over3pct_last30d": 252,
+  "worst": [
+   [
+    "06-25 13",
+    6.0
+   ],
+   [
+    "07-22 07",
+    3.3
+   ],
+   [
+    "07-23 13",
+    3.9
+   ],
+   [
+    "07-23 15",
+    3.8
+   ],
+   [
+    "07-23 16",
+    4.2
+   ],
+   [
+    "07-23 17",
+    4.7
+   ]
+  ],
+  "demo_vs_live_close_gap_median_bps": 28.5,
+  "gap_p99_bps": 19096.1
+ },
+ "DOGEUSDT": {
+  "hours": 2200,
+  "first": "06-23",
+  "mark_hilo_vs_index_over3pct": 29,
+  "over3pct_last30d": 11,
+  "worst": [
+   [
+    "06-24 02",
+    3.0
+   ],
+   [
+    "06-24 03",
+    3.4
+   ],
+   [
+    "06-24 15",
+    3.1
+   ],
+   [
+    "06-25 13",
+    6.6
+   ],
+   [
+    "06-26 03",
+    3.2
+   ],
+   [
+    "07-11 01",
+    7.1
+   ]
+  ],
+  "demo_vs_live_close_gap_median_bps": 21.6,
+  "gap_p99_bps": 34.3
+ },
+ "BTCPERP": {
+  "hours": 2200,
+  "first": "06-23",
+  "mark_hilo_vs_index_over3pct": 5,
+  "over3pct_last30d": 1,
+  "worst": [
+   [
+    "06-25 13",
+    5.3
+   ],
+   [
+    "08-19 15",
+    4.3
+   ],
+   [
+    "08-21 07",
+    4.0
+   ],
+   [
+    "08-21 08",
+    3.6
+   ],
+   [
+    "09-23 13",
+    5.4
+   ]
+  ],
+  "demo_vs_live_close_gap_median_bps": 7.8,
+  "gap_p99_bps": 199.2
+ },
+ "ETHPERP": {
+  "hours": 2200,
+  "first": "06-23",
+  "mark_hilo_vs_index_over3pct": 15,
+  "over3pct_last30d": 3,
+  "worst": [
+   [
+    "06-24 01",
+    3.3
+   ],
+   [
+    "06-24 02",
+    3.3
+   ],
+   [
+    "06-25 13",
+    6.6
+   ],
+   [
+    "07-14 12",
+    3.6
+   ],
+   [
+    "08-08 02",
+    19.6
+   ],
+   [
+    "08-08 11",
+    4.7
+   ]
+  ],
+  "demo_vs_live_close_gap_median_bps": 1.7,
+  "gap_p99_bps": 918.3
+ },
+ "SP500USDT": {
+  "hours": 500,
+  "first": "09-03",
+  "mark_hilo_vs_index_over3pct": 0,
+  "over3pct_last30d": 0,
+  "worst": [],
+  "demo_vs_live_close_gap_median_bps": 4.7,
+  "gap_p99_bps": 266.5
+ },
+ "NDX100USDT": {
+  "hours": 500,
+  "first": "09-03",
+  "mark_hilo_vs_index_over3pct": 0,
+  "over3pct_last30d": 0,
+  "worst": [],
+  "demo_vs_live_close_gap_median_bps": 9.2,
+  "gap_p99_bps": 63.2
+ }
+}

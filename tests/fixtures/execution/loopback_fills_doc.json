@@ -1,0 +1,121 @@
+{
+  "fixture": "loopback_fills_doc",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "loopback: real bgc, throwaway credential, answered by a local server",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "order",
+    "--action",
+    "fills",
+    "--category",
+    "USDT-FUTURES",
+    "--startTime",
+    "1790208000000",
+    "--endTime",
+    "1790294400000",
+    "--limit",
+    "100",
+    "--view",
+    "full",
+    "--paper-trading"
+  ],
+  "extra_argv": [
+    "--base-url",
+    "http://127.0.0.1:<port>"
+  ],
+  "served": {
+    "GET /api/v3/trade/fills": {
+      "status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1750142995229,
+        "data": {
+          "list": [
+            {
+              "execId": "131111111111111111",
+              "execLinkId": "131111111111111111",
+              "orderId": "131111111111111111",
+              "clientOid": "131111111111111111",
+              "category": "USDT-FUTURES",
+              "symbol": "BTCUSDT",
+              "orderType": "market",
+              "side": "sell",
+              "execPrice": "106950.1",
+              "execQty": "0.01",
+              "execValue": "1069.501",
+              "tradeScope": "taker",
+              "tradeSide": "open",
+              "feeDetail": [
+                {
+                  "feeCoin": "USDT",
+                  "fee": "0.6417006"
+                }
+              ],
+              "createdTime": "1750141421721",
+              "updatedTime": "1750141421728",
+              "execPnl": "-0.002",
+              "isRPI": "no"
+            }
+          ],
+          "cursor": "131111111111111111"
+        }
+      },
+      "source": "https://www.bitget.com/legacy-docs/uta/trade/Get-Order-Fills"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v3/trade/fills",
+      "query": {
+        "category": "USDT-FUTURES",
+        "endTime": "1790294400000",
+        "limit": "100",
+        "startTime": "1790208000000"
+      },
+      "paptrading": "1",
+      "signed": true,
+      "body": null
+    }
+  ],
+  "result": {
+    "exit_code": 0,
+    "stdout": {
+      "endpoint": "GET /api/v3/trade/fills",
+      "requestTime": "2026-09-24T11:56:41.453Z",
+      "data": {
+        "list": [
+          {
+            "execId": "131111111111111111",
+            "execLinkId": "131111111111111111",
+            "orderId": "131111111111111111",
+            "clientOid": "131111111111111111",
+            "category": "USDT-FUTURES",
+            "symbol": "BTCUSDT",
+            "orderType": "market",
+            "side": "sell",
+            "execPrice": "106950.1",
+            "execQty": "0.01",
+            "execValue": "1069.501",
+            "tradeScope": "taker",
+            "tradeSide": "open",
+            "feeDetail": [
+              {
+                "feeCoin": "USDT",
+                "fee": "0.6417006"
+              }
+            ],
+            "createdTime": "1750141421721",
+            "updatedTime": "1750141421728",
+            "execPnl": "-0.002",
+            "isRPI": "no"
+          }
+        ],
+        "cursor": "131111111111111111"
+      }
+    },
+    "stderr": null
+  }
+}

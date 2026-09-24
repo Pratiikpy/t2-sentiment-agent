@@ -1,0 +1,369 @@
+{
+ "captured_at": "2026-09-24T11:36:26+00:00",
+ "captured_with": "tests/fixtures/sources/record_fixtures.py",
+ "note": "Public upstream replies, recorded to pin the field names bitget-signal's parsers accept. bitget-signal's own success shape has never been observed (NOT VERIFIED); these are what its tool descriptions say it wraps.",
+ "replies": {
+  "binance_global_long_short": {
+   "url": "https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=1h&limit=3",
+   "payload": [
+    {
+     "symbol": "BTCUSDT",
+     "longAccount": "0.5496",
+     "longShortRatio": "1.2202",
+     "shortAccount": "0.4504",
+     "timestamp": 1790240400000
+    },
+    {
+     "symbol": "BTCUSDT",
+     "longAccount": "0.5521",
+     "longShortRatio": "1.2326",
+     "shortAccount": "0.4479",
+     "timestamp": 1790244000000
+    },
+    {
+     "symbol": "BTCUSDT",
+     "longAccount": "0.5584",
+     "longShortRatio": "1.2645",
+     "shortAccount": "0.4416",
+     "timestamp": 1790247600000
+    }
+   ]
+  },
+  "binance_top_long_short": {
+   "url": "https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=BTCUSDT&period=1h&limit=3",
+   "payload": [
+    {
+     "symbol": "BTCUSDT",
+     "longAccount": "0.5692",
+     "longShortRatio": "1.3213",
+     "shortAccount": "0.4308",
+     "timestamp": 1790240400000
+    },
+    {
+     "symbol": "BTCUSDT",
+     "longAccount": "0.5744",
+     "longShortRatio": "1.3496",
+     "shortAccount": "0.4256",
+     "timestamp": 1790244000000
+    },
+    {
+     "symbol": "BTCUSDT",
+     "longAccount": "0.5790",
+     "longShortRatio": "1.3753",
+     "shortAccount": "0.4210",
+     "timestamp": 1790247600000
+    }
+   ]
+  },
+  "binance_taker_ratio": {
+   "url": "https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=BTCUSDT&period=1h&limit=3",
+   "payload": [
+    {
+     "buySellRatio": "0.6697",
+     "sellVol": "9744.8430",
+     "buyVol": "6526.4130",
+     "timestamp": 1790236800000
+    },
+    {
+     "buySellRatio": "0.8899",
+     "sellVol": "7965.2050",
+     "buyVol": "7087.9120",
+     "timestamp": 1790240400000
+    },
+    {
+     "buySellRatio": "1.3345",
+     "sellVol": "2897.1240",
+     "buyVol": "3866.2840",
+     "timestamp": 1790244000000
+    }
+   ]
+  },
+  "binance_open_interest_hist": {
+   "url": "https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=1h&limit=3",
+   "payload": [
+    {
+     "symbol": "BTCUSDT",
+     "sumOpenInterest": "97029.58800000",
+     "sumOpenInterestValue": "8112692367.47400000",
+     "CMCCirculatingSupply": "20088518.00000000",
+     "timestamp": 1790240400000
+    },
+    {
+     "symbol": "BTCUSDT",
+     "sumOpenInterest": "97380.83000000",
+     "sumOpenInterestValue": "8104614265.49377200",
+     "CMCCirculatingSupply": "20088518.00000000",
+     "timestamp": 1790244000000
+    },
+    {
+     "symbol": "BTCUSDT",
+     "sumOpenInterest": "96621.11200000",
+     "sumOpenInterestValue": "8065564579.52053800",
+     "CMCCirculatingSupply": "20088518.00000000",
+     "timestamp": 1790247600000
+    }
+   ]
+  },
+  "binance_funding_rate": {
+   "url": "https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=10",
+   "payload": [
+    {
+     "symbol": "BTCUSDT",
+     "fundingTime": 1789977600004,
+     "fundingRate": "0.00010000",
+     "markPrice": "81699.90000000",
+     "rateType": "Regular"
+    },
+    {
+     "symbol": "BTCUSDT",
+     "fundingTime": 1790006400002,
+     "fundingRate": "0.00005485",
+     "markPrice": "85878.15870290",
+     "rateType": "Regular"
+    },
+    {
+     "symbol": "BTCUSDT",
+     "fundingTime": 1790035200000,
+     "fundingRate": "0.00007663",
+     "markPrice": "86584.61502174",
+     "rateType": "Regular"
+    },
+    {
+     "symbol": "BTCUSDT",
+     "fundingTime": 1790064000004,
+     "fundingRate": "0.00010000",
+     "markPrice": "85324.70000000",
+     "rateType": "Regular"
+    },
+    {
+     "symbol": "BTCUSDT",
+     "fundingTime": 1790092800000,
+     "fundingRate": "0.00002784",
+     "markPrice": "86367.50000000",
+     "rateType": "Regular"
+    },
+    {
+     "symbol": "BTCUSDT",
+     "fundingTime": 1790121600000,
+     "fundingRate": "0.00001021",
+     "markPrice": "86161.48418116",
+     "rateType": "Regular"
+    },
+    {
+     "symbol": "BTCUSDT",
+     "fundingTime": 1790150400004,
+     "fundingRate": "0.00000334",
+     "markPrice": "86100.00000000",
+     "rateType": "Regular"
+    },
+    {
+     "symbol": "BTCUSDT",
+     "fundingTime": 1790179200004,
+     "fundingRate": "0.00001286",
+     "markPrice": "83965.70000000",
+     "rateType": "Regular"
+    },
+    {
+     "symbol": "BTCUSDT",
+     "fundingTime": 1790208000002,
+     "fundingRate": "0.00000132",
+     "markPrice": "84355.10000000",
+     "rateType": "Regular"
+    },
+    {
+     "symbol": "BTCUSDT",
+     "fundingTime": 1790236800000,
+     "fundingRate": "0.00004796",
+     "markPrice": "84472.24256522",
+     "rateType": "Regular"
+    }
+   ]
+  },
+  "alternative_me_fng": {
+   "url": "https://api.alternative.me/fng/?limit=2",
+   "payload": {
+    "name": "Fear and Greed Index",
+    "data": [
+     {
+      "value": "71",
+      "value_classification": "Greed",
+      "timestamp": "1790208000",
+      "time_until_update": "44577"
+     },
+     {
+      "value": "71",
+      "value_classification": "Greed",
+      "timestamp": "1790121600"
+     }
+    ],
+    "metadata": {
+     "error": null
+    }
+   }
+  },
+  "apewisdom_all_crypto": {
+   "url": "https://apewisdom.io/api/v1.0/filter/all-crypto/page/1",
+   "payload": {
+    "count": 129,
+    "pages": 2,
+    "current_page": 1,
+    "results": [
+     {
+      "rank": 1,
+      "ticker": "BTC.X",
+      "name": "Bitcoin",
+      "mentions": 103,
+      "upvotes": 305,
+      "rank_24h_ago": 1,
+      "mentions_24h_ago": 109
+     },
+     {
+      "rank": 2,
+      "ticker": "ETH.X",
+      "name": "Ethereum",
+      "mentions": 32,
+      "upvotes": 166,
+      "rank_24h_ago": 2,
+      "mentions_24h_ago": 27
+     },
+     {
+      "rank": 3,
+      "ticker": "BCH.X",
+      "name": "Bitcoin Cash",
+      "mentions": 6,
+      "upvotes": -4,
+      "rank_24h_ago": 6,
+      "mentions_24h_ago": 5
+     },
+     {
+      "rank": 4,
+      "ticker": "CSM.X",
+      "name": "Consentium",
+      "mentions": 5,
+      "upvotes": 16,
+      "rank_24h_ago": 0,
+      "mentions_24h_ago": null
+     },
+     {
+      "rank": 5,
+      "ticker": "DEX.X",
+      "name": "DEX",
+      "mentions": 3,
+      "upvotes": 4,
+      "rank_24h_ago": 60,
+      "mentions_24h_ago": 1
+     },
+     {
+      "rank": 6,
+      "ticker": "BF.X",
+      "name": "BitForex Token",
+      "mentions": 3,
+      "upvotes": 23,
+      "rank_24h_ago": 0,
+      "mentions_24h_ago": null
+     },
+     {
+      "rank": 7,
+      "ticker": "USDT.X",
+      "name": "Tether",
+      "mentions": 3,
+      "upvotes": 38,
+      "rank_24h_ago": 9,
+      "mentions_24h_ago": null
+     },
+     {
+      "rank": 8,
+      "ticker": "APY.X",
+      "name": "APY.Finance",
+      "mentions": 2,
+      "upvotes": 13,
+      "rank_24h_ago": 63,
+      "mentions_24h_ago": 1
+     }
+    ]
+   }
+  },
+  "apewisdom_all_stocks": {
+   "url": "https://apewisdom.io/api/v1.0/filter/all-stocks/page/1",
+   "payload": {
+    "count": 907,
+    "pages": 10,
+    "current_page": 1,
+    "results": [
+     {
+      "rank": 1,
+      "ticker": "SPY",
+      "name": "SPDR S&amp;P 500 ETF Trust",
+      "mentions": 239,
+      "upvotes": 652,
+      "rank_24h_ago": 1,
+      "mentions_24h_ago": 272
+     },
+     {
+      "rank": 2,
+      "ticker": "META",
+      "name": "Meta Platforms (Facebook)",
+      "mentions": 201,
+      "upvotes": 467,
+      "rank_24h_ago": 3,
+      "mentions_24h_ago": 159
+     },
+     {
+      "rank": 3,
+      "ticker": "MU",
+      "name": "Micron Technology",
+      "mentions": 143,
+      "upvotes": 561,
+      "rank_24h_ago": 2,
+      "mentions_24h_ago": 245
+     },
+     {
+      "rank": 4,
+      "ticker": "GOOGL",
+      "name": "Alphabet (Google)",
+      "mentions": 99,
+      "upvotes": 278,
+      "rank_24h_ago": 14,
+      "mentions_24h_ago": 31
+     },
+     {
+      "rank": 5,
+      "ticker": "MCD",
+      "name": "McDonald",
+      "mentions": 91,
+      "upvotes": 1506,
+      "rank_24h_ago": 40,
+      "mentions_24h_ago": 12
+     },
+     {
+      "rank": 6,
+      "ticker": "QQQ",
+      "name": "Invesco QQQ ETF",
+      "mentions": 84,
+      "upvotes": 181,
+      "rank_24h_ago": 4,
+      "mentions_24h_ago": 125
+     },
+     {
+      "rank": 7,
+      "ticker": "GOOG",
+      "name": "Alphabet (Google)",
+      "mentions": 77,
+      "upvotes": 231,
+      "rank_24h_ago": 10,
+      "mentions_24h_ago": 50
+     },
+     {
+      "rank": 8,
+      "ticker": "AMD",
+      "name": "AMD",
+      "mentions": 71,
+      "upvotes": 468,
+      "rank_24h_ago": 5,
+      "mentions_24h_ago": 100
+     }
+    ]
+   }
+  }
+ }
+}

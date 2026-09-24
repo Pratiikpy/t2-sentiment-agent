@@ -1,0 +1,48 @@
+{
+ "_what": "Every distinct item the live ARGUS desk ever withheld, hand-audited on 2026-09-20: all six were false positives (withholding precision 0.00). Author handles removed; claim text kept verbatim because the characters in it (bidi isolates, ZWJ, all-caps retail prose) are the test.",
+ "_vendored_from": "ARGUS@3dec6baf9dfa7be37c7b452e26a9b139df252f75:argus/data/quarantine_production_withholdings.json",
+ "items": [
+  {
+   "id": "twitter-1519849720247513089",
+   "claim": "Yup, ⁦@elonmusk⁩ has been selling  https://t.co/od67bHiOgA",
+   "withheld_as": "hidden_characters",
+   "verdict": "false_positive",
+   "audit_reason": "U+2066 LEFT-TO-RIGHT ISOLATE and U+2069 POP DIRECTIONAL ISOLATE, inserted by Twitter's own client around the @elonmusk mention. Isolates cannot reorder rendered text the way an override can; nothing is hidden. Ordinary 2022 tweet about Musk selling TSLA."
+  },
+  {
+   "id": "twitter-1669359921123700738",
+   "claim": "🔊#Monsterra $MSTR Staking Competition Is LIVE🔥\n\n💁‍♀️Stake $MSTR to win $7000 reward pool. It's your time $MSTR holders, stakers &amp; potentail owners.\n\n✅Venue: https://t.co/PIJrezuDxu\n\n⏰ 15:00 UTC June.15th - July.6th\n\n📌Full details: https://t.co/vbYAftlQ4M \n\nLike &amp; RT to WI",
+   "withheld_as": "hidden_characters",
+   "verdict": "false_positive",
+   "audit_reason": "U+200D ZERO WIDTH JOINER inside the emoji sequence U+1F481 ZWJ U+2640 U+FE0F. That is how a composite emoji is built. The tweet is off-topic promotion for an unrelated $MSTR token, which is a relevance problem for the feed, not an injection."
+  },
+  {
+   "id": "twitter-2100576431012991215",
+   "claim": "$QQQ IS GOING TO BE A BIG WIN, I WILL SPTP INTO THE POP! 🐦‍⬛",
+   "withheld_as": "hidden_characters",
+   "verdict": "false_positive",
+   "audit_reason": "U+200D ZERO WIDTH JOINER inside the emoji sequence U+1F426 ZWJ U+2B1B. Ordinary retail options post about QQQ."
+  },
+  {
+   "id": "twitter-1959968483552247870",
+   "claim": "No Gas Tokens\n\nOn most blockchains, you need to buy the native token just to pay fees (ETH, SOL, etc.). That’s a huge friction point.\n\n-> XION uses Fee Abstraction so you can pay in any token (like USDC) or not pay at all — apps can cover your fees.\n\n-> Behind the scenes, XION co",
+   "withheld_as": "directed_trading_order",
+   "verdict": "false_positive",
+   "audit_reason": "'you need to buy the native token just to pay fees' is explanatory prose about gas tokens in a thread on fee abstraction. No instruction is addressed to the reader, and the thread is not about METAUSDT at all."
+  },
+  {
+   "id": "reddit-1wdialp",
+   "claim": "SELL EVERYTHING NOWWWW ITS OVER BROTHER",
+   "withheld_as": "directed_trading_order",
+   "verdict": "false_positive",
+   "audit_reason": "Organic r/TQQQ meme post, score 433 with 340 comments, image link. 'SELL EVERYTHING NOWWWW ITS OVER BROTHER' is retail panic, not an instruction planted for an agent."
+  },
+  {
+   "id": "reddit-1wg69dq",
+   "claim": "is now a good time to buy TQQQ? — 10% down this past month  \nBuy now or is it still a falling knife?",
+   "withheld_as": "directed_trading_order",
+   "verdict": "false_positive",
+   "audit_reason": "Organic r/TQQQ question, score 15. 'Buy now or is it still a falling knife?' is the poster asking, not instructing."
+  }
+ ]
+}

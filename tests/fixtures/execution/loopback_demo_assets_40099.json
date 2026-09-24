@@ -1,0 +1,56 @@
+{
+  "fixture": "loopback_demo_assets_40099",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "loopback: real bgc, throwaway credential, answered by a local server",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "raw",
+    "--operationId",
+    "getAccountAssets",
+    "--paper-trading"
+  ],
+  "extra_argv": [
+    "--base-url",
+    "http://127.0.0.1:<port>"
+  ],
+  "served": {
+    "GET /api/v3/account/assets": {
+      "status": 400,
+      "body": {
+        "code": "40099",
+        "msg": "exchange environment is incorrect",
+        "requestTime": 1790248948185,
+        "data": null
+      },
+      "source": "code and msg as observed by ARGUS execution/bitget_client.py:251-263"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v3/account/assets",
+      "query": {},
+      "paptrading": "1",
+      "signed": true,
+      "body": null
+    }
+  ],
+  "result": {
+    "exit_code": 1,
+    "stdout": null,
+    "stderr": {
+      "ok": false,
+      "error": {
+        "type": "BitgetApiError",
+        "code": "400",
+        "category": "unknown",
+        "message": "HTTP 400 from Bitget: exchange environment is incorrect",
+        "suggestion": "Retry later or verify endpoint parameters.",
+        "retryable": false,
+        "endpoint": "GET /api/v3/account/assets"
+      },
+      "timestamp": "2026-09-24T11:56:43.285Z"
+    }
+  }
+}

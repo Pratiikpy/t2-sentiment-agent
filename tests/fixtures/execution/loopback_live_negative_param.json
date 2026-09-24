@@ -1,0 +1,56 @@
+{
+  "fixture": "loopback_live_negative_param",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "loopback: real bgc, throwaway credential, answered by a local server",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "raw",
+    "--operationId",
+    "getAccountAssets",
+    "--read-only"
+  ],
+  "extra_argv": [
+    "--base-url",
+    "http://127.0.0.1:<port>"
+  ],
+  "served": {
+    "GET /api/v3/account/assets": {
+      "status": 400,
+      "body": {
+        "code": "25245",
+        "msg": "Account is not in unified mode",
+        "requestTime": 1790248948185,
+        "data": null
+      },
+      "source": "constructed: Bitget's error shape, message text NOT VERIFIED"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v3/account/assets",
+      "query": {},
+      "paptrading": null,
+      "signed": true,
+      "body": null
+    }
+  ],
+  "result": {
+    "exit_code": 1,
+    "stdout": null,
+    "stderr": {
+      "ok": false,
+      "error": {
+        "type": "BitgetApiError",
+        "code": "400",
+        "category": "unknown",
+        "message": "HTTP 400 from Bitget: Account is not in unified mode",
+        "suggestion": "Retry later or verify endpoint parameters.",
+        "retryable": false,
+        "endpoint": "GET /api/v3/account/assets"
+      },
+      "timestamp": "2026-09-24T11:56:43.752Z"
+    }
+  }
+}

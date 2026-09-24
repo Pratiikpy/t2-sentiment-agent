@@ -1,0 +1,12 @@
+[
+  {
+    "stance": "flat_with_reasons",
+    "targets": [],
+    "rejected_alternatives": [
+      {"action": "open a position", "reason": "a rehearsal tick should not decide"}
+    ],
+    "mandate_response": "Decline the budget for this rehearsal.",
+    "flat_reasons": ["tick rehearsal"],
+    "summary": "Rehearsal: flat with reasons."
+  }
+]

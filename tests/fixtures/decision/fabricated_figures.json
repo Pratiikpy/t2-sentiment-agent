@@ -1,0 +1,121 @@
+{
+  "provenance": {
+    "source": "ARGUS data/explainability_comparison.json at commit 3dec6baf9dfa7be37c7b452e26a9b139df252f75 (MIT, same author; licence and pins in third_party/argus/PROVENANCE.md), written by argus/src/argus/eval/explainability_comparison.py",
+    "source_sha256": "8233378e9ec9317522f8ee0a4ab44d8416b7f6b64e775032a1625a1054f292a8",
+    "captured": "the ARGUS run of 2026-09-22 (file modified 2026-09-22 01:29 +0530); prices are live Bitget tickers read by that run",
+    "construction": "fabricated_entry_price = round(real_current_price * factor, 4) for factor in (7.3, 0.03, -1.0, 1000.0); thesis template 'Entry near {fabricated} on {symbol}.'",
+    "copied_verbatim": "cases, positive_control and ablation are copied field for field; nothing is recomputed here"
+  },
+  "thesis_template": "Entry near {figure} on {symbol}.",
+  "cases": [
+    {
+      "symbol": "NVDAUSDT",
+      "factor": 7.3,
+      "fabricated_entry_price": 1660.677,
+      "real_current_price": 227.49,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "NVDAUSDT",
+      "factor": 0.03,
+      "fabricated_entry_price": 6.8247,
+      "real_current_price": 227.49,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "NVDAUSDT",
+      "factor": -1.0,
+      "fabricated_entry_price": -227.49,
+      "real_current_price": 227.49,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "NVDAUSDT",
+      "factor": 1000.0,
+      "fabricated_entry_price": 227490.0,
+      "real_current_price": 227.49,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "AAPLUSDT",
+      "factor": 7.3,
+      "fabricated_entry_price": 2478.131,
+      "real_current_price": 339.47,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "AAPLUSDT",
+      "factor": 0.03,
+      "fabricated_entry_price": 10.1841,
+      "real_current_price": 339.47,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "AAPLUSDT",
+      "factor": -1.0,
+      "fabricated_entry_price": -339.47,
+      "real_current_price": 339.47,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "AAPLUSDT",
+      "factor": 1000.0,
+      "fabricated_entry_price": 339470.0,
+      "real_current_price": 339.47,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "MSFTUSDT",
+      "factor": 7.3,
+      "fabricated_entry_price": 3664.454,
+      "real_current_price": 501.98,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "MSFTUSDT",
+      "factor": 0.03,
+      "fabricated_entry_price": 15.0594,
+      "real_current_price": 501.98,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "MSFTUSDT",
+      "factor": -1.0,
+      "fabricated_entry_price": -501.98,
+      "real_current_price": 501.98,
+      "argus_grounding_flags_it": true
+    },
+    {
+      "symbol": "MSFTUSDT",
+      "factor": 1000.0,
+      "fabricated_entry_price": 501980.0,
+      "real_current_price": 501.98,
+      "argus_grounding_flags_it": true
+    }
+  ],
+  "positive_control": [
+    {
+      "symbol": "NVDAUSDT",
+      "real_price": 227.48,
+      "argus_resolves_the_real_figure": true
+    },
+    {
+      "symbol": "AAPLUSDT",
+      "real_price": 339.51,
+      "argus_resolves_the_real_figure": true
+    },
+    {
+      "symbol": "MSFTUSDT",
+      "real_price": 501.98,
+      "argus_resolves_the_real_figure": true
+    }
+  ],
+  "ablation": {
+    "real_value": 189.4991,
+    "just_inside_tolerance": 191.3941,
+    "just_inside_resolves": true,
+    "just_outside_tolerance": 200.869,
+    "just_outside_resolves": false,
+    "tolerance_is_the_load_bearing_boundary": true
+  }
+}

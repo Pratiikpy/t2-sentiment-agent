@@ -1,0 +1,55 @@
+{
+  "fixture": "dryrun_place_close_one_way",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "dry-run: production argv, no credential in the child environment, nothing sent",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "order",
+    "--action",
+    "place",
+    "--category",
+    "USDT-FUTURES",
+    "--symbol",
+    "NVDAUSDT",
+    "--side",
+    "sell",
+    "--orderType",
+    "market",
+    "--qty",
+    "1",
+    "--clientOid",
+    "sa286d2454b3693e588fe8009cbe2ae3",
+    "--reduceOnly",
+    "yes",
+    "--paper-trading",
+    "--dry-run"
+  ],
+  "extra_argv": [],
+  "served": {},
+  "requests": [],
+  "result": {
+    "exit_code": 0,
+    "stdout": {
+      "endpoint": "POST /api/v3/trade/place-order",
+      "requestTime": "2026-09-24T11:56:40.605Z",
+      "data": {
+        "dryRun": true,
+        "operationId": "placeOrder",
+        "method": "POST",
+        "path": "/api/v3/trade/place-order",
+        "riskLevel": "write",
+        "wouldSend": {
+          "category": "USDT-FUTURES",
+          "symbol": "NVDAUSDT",
+          "side": "sell",
+          "orderType": "market",
+          "qty": "1",
+          "clientOid": "sa286d2454b3693e588fe8009cbe2ae3",
+          "reduceOnly": "yes"
+        }
+      }
+    },
+    "stderr": null
+  }
+}

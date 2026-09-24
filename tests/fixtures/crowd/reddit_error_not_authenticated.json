@@ -1,0 +1,8 @@
+{
+  "ok": false,
+  "schema_version": "1",
+  "error": {
+    "code": "not_authenticated",
+    "message": "Search failed: Session expired. Please re-login: rdt logout && rdt login"
+  }
+}

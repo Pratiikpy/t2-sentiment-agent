@@ -1,0 +1,240 @@
+{
+ "tracking": {
+  "HOODUSDT": {
+   "demo_hours": 716,
+   "first": "2026-08-25",
+   "common": 713,
+   "close_gap_median_bps": 16.56,
+   "close_gap_p99_bps": 383.0,
+   "close_gap_max_bps": 441.7,
+   "weekend_gap_median_bps": 97.64,
+   "mark_index_hours": 716,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 0.13
+  },
+  "COINUSDT": {
+   "demo_hours": 716,
+   "first": "2026-08-25",
+   "common": 713,
+   "close_gap_median_bps": 15.28,
+   "close_gap_p99_bps": 165.0,
+   "close_gap_max_bps": 233.2,
+   "weekend_gap_median_bps": 54.57,
+   "mark_index_hours": 716,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 0.18
+  },
+  "MSTRUSDT": {
+   "demo_hours": 716,
+   "first": "2026-08-25",
+   "common": 713,
+   "close_gap_median_bps": 19.56,
+   "close_gap_p99_bps": 316.2,
+   "close_gap_max_bps": 404.6,
+   "weekend_gap_median_bps": 94.31,
+   "mark_index_hours": 716,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 0.3
+  },
+  "METAUSDT": {
+   "demo_hours": 717,
+   "first": "2026-08-25",
+   "common": 714,
+   "close_gap_median_bps": 6.87,
+   "close_gap_p99_bps": 67.2,
+   "close_gap_max_bps": 86.9,
+   "weekend_gap_median_bps": 23.31,
+   "mark_index_hours": 717,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 0.08
+  },
+  "AMZNUSDT": {
+   "demo_hours": 717,
+   "first": "2026-08-25",
+   "common": 714,
+   "close_gap_median_bps": 9.38,
+   "close_gap_p99_bps": 92.0,
+   "close_gap_max_bps": 121.8,
+   "weekend_gap_median_bps": 23.26,
+   "mark_index_hours": 717,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 0.18
+  },
+  "GOOGLUSDT": {
+   "demo_hours": 717,
+   "first": "2026-08-25",
+   "common": 714,
+   "close_gap_median_bps": 42.6,
+   "close_gap_p99_bps": 104.7,
+   "close_gap_max_bps": 123.5,
+   "weekend_gap_median_bps": 43.09,
+   "mark_index_hours": 717,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 0.12
+  },
+  "AAPLUSDT": {
+   "demo_hours": 717,
+   "first": "2026-08-25",
+   "common": 714,
+   "close_gap_median_bps": 12.04,
+   "close_gap_p99_bps": 82.3,
+   "close_gap_max_bps": 103.5,
+   "weekend_gap_median_bps": 28.36,
+   "mark_index_hours": 717,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 0.05
+  },
+  "CRCLUSDT": {
+   "demo_hours": 717,
+   "first": "2026-08-25",
+   "common": 714,
+   "close_gap_median_bps": 18.85,
+   "close_gap_p99_bps": 308.7,
+   "close_gap_max_bps": 380.3,
+   "weekend_gap_median_bps": 73.27,
+   "mark_index_hours": 717,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 0.02
+  },
+  "NVDAUSDT": {
+   "demo_hours": 717,
+   "first": "2026-08-25",
+   "common": 714,
+   "close_gap_median_bps": 38.85,
+   "close_gap_p99_bps": 129.9,
+   "close_gap_max_bps": 158.5,
+   "weekend_gap_median_bps": 46.58,
+   "mark_index_hours": 717,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 1.09
+  },
+  "TSLAUSDT": {
+   "demo_hours": 712,
+   "first": "2026-08-25",
+   "common": 709,
+   "close_gap_median_bps": 10.88,
+   "close_gap_p99_bps": 113.7,
+   "close_gap_max_bps": 171.3,
+   "weekend_gap_median_bps": 52.01,
+   "mark_index_hours": 712,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 0.67
+  },
+  "SNDKUSDT": {
+   "demo_hours": 712,
+   "first": "2026-08-25",
+   "common": 709,
+   "close_gap_median_bps": 16.37,
+   "close_gap_p99_bps": 348.2,
+   "close_gap_max_bps": 421.5,
+   "weekend_gap_median_bps": 103.59,
+   "mark_index_hours": 713,
+   "mark_index_over_3pct": 0,
+   "mark_index_max_pct": 0.65
+  }
+ },
+ "fade": {
+  "LIVE all43 Sun21": {
+   "label": "LIVE all43 exit Sun21",
+   "weekends_total": 28,
+   "weekends_triggered": 14,
+   "trades": 62,
+   "trade_mean_bps": 160.8,
+   "trade_win": 0.82,
+   "wk_mean_bps": 113.1,
+   "wk_win": 0.71,
+   "wk_t": 2.47,
+   "worst_trade_bps": -318.1,
+   "worst_wk_bps": -244.0,
+   "placebo_p": 0.0,
+   "top3_weekend_trade_share": 0.61
+  },
+  "LIVE all43 Sun12": {
+   "label": "LIVE all43 exit Sun12",
+   "weekends_total": 27,
+   "weekends_triggered": 13,
+   "trades": 47,
+   "trade_mean_bps": 66.3,
+   "trade_win": 0.6,
+   "wk_mean_bps": 76.1,
+   "wk_win": 0.69,
+   "wk_t": 1.64,
+   "worst_trade_bps": -227.6,
+   "worst_wk_bps": -136.9,
+   "placebo_p": 0.0045,
+   "top3_weekend_trade_share": 0.6
+  },
+  "LIVE all43 Sun11": {
+   "label": "LIVE all43 exit Sun11",
+   "weekends_total": 28,
+   "weekends_triggered": 14,
+   "trades": 62,
+   "trade_mean_bps": 130.7,
+   "trade_win": 0.68,
+   "wk_mean_bps": 98.6,
+   "wk_win": 0.71,
+   "wk_t": 2.2,
+   "worst_trade_bps": -269.3,
+   "worst_wk_bps": -170.4,
+   "placebo_p": 0.0,
+   "top3_weekend_trade_share": 0.61
+  },
+  "LIVE demo11 Sun21": {
+   "label": "LIVE demo11 exit Sun21",
+   "weekends_total": 28,
+   "weekends_triggered": 6,
+   "trades": 16,
+   "trade_mean_bps": 100.0,
+   "trade_win": 0.88,
+   "wk_mean_bps": 91.8,
+   "wk_win": 0.83,
+   "wk_t": 1.19,
+   "worst_trade_bps": -259.0,
+   "worst_wk_bps": -244.0,
+   "placebo_p": 0.0925,
+   "top3_weekend_trade_share": 0.69
+  },
+  "LIVE demo11 Sun12": {
+   "label": "LIVE demo11 exit Sun12",
+   "weekends_total": 27,
+   "weekends_triggered": 5,
+   "trades": 12,
+   "trade_mean_bps": 57.1,
+   "trade_win": 0.58,
+   "wk_mean_bps": 51.6,
+   "wk_win": 0.6,
+   "wk_t": 0.53,
+   "worst_trade_bps": -152.9,
+   "worst_wk_bps": -136.9,
+   "placebo_p": 0.3135,
+   "top3_weekend_trade_share": 0.75
+  },
+  "LIVE demo11 Sun11": {
+   "label": "LIVE demo11 exit Sun11",
+   "weekends_total": 28,
+   "weekends_triggered": 6,
+   "trades": 16,
+   "trade_mean_bps": 119.6,
+   "trade_win": 0.75,
+   "wk_mean_bps": 101.3,
+   "wk_win": 0.67,
+   "wk_t": 1.09,
+   "worst_trade_bps": -173.5,
+   "worst_wk_bps": -170.4,
+   "placebo_p": 0.02,
+   "top3_weekend_trade_share": 0.69
+  },
+  "DEMO demo11 Sun21": {
+   "label": "DEMO demo11 exit Sun21",
+   "trades": 0
+  },
+  "DEMO demo11 Sun12": {
+   "label": "DEMO demo11 exit Sun12",
+   "trades": 0
+  },
+  "DEMO demo11 Sun11": {
+   "label": "DEMO demo11 exit Sun11",
+   "trades": 0
+  }
+ }
+}

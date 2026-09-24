@@ -1,0 +1,416 @@
+{
+  "about": "Response examples from Bitget's UTA v3 documentation, verbatim. Fetched 2026-09-24 through a reader (r.jina.ai) from the URLs given. These are Bitget's own examples, not Demo responses: the owner-approved plumbing test replaces them with recorded Demo answers (DESIGN.md \u00a720). tests/fixtures/execution/capture.py serves them to the real bgc from a loopback server to record how bgc 3.0.0 prints each one.",
+  "fetched": "2026-09-24",
+  "responses": {
+    "GET /api/v3/trade/order-info": {
+      "source": "https://www.bitget.com/legacy-docs/uta/trade/Get-Order-Details",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1730369201783,
+        "data": {
+          "orderId": "111111111111111111",
+          "clientOid": "111111111111111111",
+          "category": "SPOT",
+          "symbol": "ETHUSDT",
+          "orderType": "market",
+          "side": "buy",
+          "price": "0",
+          "qty": "0",
+          "amount": "100",
+          "cumExecQty": "0.0372",
+          "cumExecValue": "99.853356",
+          "avgPrice": "2684.23",
+          "timeInForce": "gtc",
+          "orderStatus": "filled",
+          "posSide": "",
+          "holdMode": "",
+          "tradeSide": "open",
+          "reduceOnly": "NO",
+          "marginMode": "crossed",
+          "stpMode": "none",
+          "takeProfit": "",
+          "stopLoss": "",
+          "tpTriggerBy": "",
+          "slTriggerBy": "",
+          "tpOrderType": "",
+          "slOrderType": "",
+          "tpLimitPrice": "",
+          "slLimitPrice": "",
+          "feeDetail": [
+            {
+              "feeCoin": "ETH",
+              "fee": "0.00000744"
+            }
+          ],
+          "delegateType": "normal",
+          "cancelReason": "",
+          "execType": "",
+          "createdTime": "1730295766596",
+          "updatedTime": "1730295766691"
+        }
+      }
+    },
+    "GET /api/v3/trade/fills": {
+      "source": "https://www.bitget.com/legacy-docs/uta/trade/Get-Order-Fills",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1750142995229,
+        "data": {
+          "list": [
+            {
+              "execId": "131111111111111111",
+              "execLinkId": "131111111111111111",
+              "orderId": "131111111111111111",
+              "clientOid": "131111111111111111",
+              "category": "USDT-FUTURES",
+              "symbol": "BTCUSDT",
+              "orderType": "market",
+              "side": "sell",
+              "execPrice": "106950.1",
+              "execQty": "0.01",
+              "execValue": "1069.501",
+              "tradeScope": "taker",
+              "tradeSide": "open",
+              "feeDetail": [
+                {
+                  "feeCoin": "USDT",
+                  "fee": "0.6417006"
+                }
+              ],
+              "createdTime": "1750141421721",
+              "updatedTime": "1750141421728",
+              "execPnl": "-0.002",
+              "isRPI": "no"
+            }
+          ],
+          "cursor": "131111111111111111"
+        }
+      }
+    },
+    "GET /api/v3/trade/history-orders": {
+      "source": "https://www.bitget.com/legacy-docs/uta/trade/Get-Order-History",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1730186348272,
+        "data": {
+          "list": [
+            {
+              "orderId": "111111111111111111",
+              "clientOid": "111111111111111111",
+              "category": "USDT-FUTURES",
+              "symbol": "BTCUSDT",
+              "orderType": "limit",
+              "side": "sell",
+              "price": "49534.4",
+              "qty": "0.429",
+              "amount": "0",
+              "cumExecQty": "0.429",
+              "cumExecValue": "21250.2929",
+              "avgPrice": "49534.4",
+              "timeInForce": "gtc",
+              "orderStatus": "filled",
+              "posSide": "long",
+              "holdMode": "hedge_mode",
+              "delegateType": "normal",
+              "reduceOnly": "NO",
+              "marginMode": "crossed",
+              "stpMode": "none",
+              "takeProfit": "",
+              "stopLoss": "",
+              "tpTriggerBy": "",
+              "slTriggerBy": "",
+              "tpOrderType": "",
+              "slOrderType": "",
+              "tpLimitPrice": "",
+              "slLimitPrice": "",
+              "feeDetail": [
+                {
+                  "feeCoin": "USDT",
+                  "fee": "4.2500586"
+                }
+              ],
+              "cancelReason": "normal_cancel",
+              "execType": "liquidation",
+              "createdTime": "1730181468493",
+              "updatedTime": "1730181468493"
+            }
+          ],
+          "cursor": "1233319323918499840"
+        }
+      }
+    },
+    "GET /api/v3/position/current-position": {
+      "source": "https://www.bitget.com/legacy-docs/uta/trade/Get-Position",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1753103840140,
+        "data": {
+          "list": [
+            {
+              "category": "USDT-FUTURES",
+              "symbol": "BTCUSDT",
+              "marginCoin": "USDT",
+              "holdMode": "hedge_mode",
+              "posSide": "long",
+              "marginMode": "crossed",
+              "positionBalance": "4701531.84941582",
+              "available": "119.2068",
+              "frozen": "0",
+              "total": "119.2068",
+              "leverage": "3",
+              "curRealisedPnl": "0",
+              "avgPrice": "108674",
+              "positionStatus": "normal",
+              "unrealisedPnl": "1124573.04243999",
+              "liquidationPrice": "43099.9",
+              "mmr": "0.015",
+              "profitRate": "0.2391929010498401",
+              "markPrice": "118097",
+              "breakEvenPrice": "109208.6",
+              "totalFunding": "-53076.32433032",
+              "openFeeTotal": "-2842.86603479",
+              "closeFeeTotal": "0",
+              "cashDividend": "0",
+              "createdTime": "1736378720620",
+              "updatedTime": "1753102803148"
+            }
+          ]
+        }
+      }
+    },
+    "GET /api/v3/trade/unfilled-strategy-orders": {
+      "source": "https://www.bitget.com/legacy-docs/uta/strategy/Get-Unfilled-Strategy-Orders",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1730186730084,
+        "data": [
+          {
+            "orderId": "111111111111111111",
+            "clientOid": "111111111111111111",
+            "category": "USDT-FUTURES",
+            "symbol": "BTCUSDT",
+            "qty": "0.01",
+            "posSide": "long",
+            "status": "pending",
+            "tpTriggerBy": "market",
+            "slTriggerBy": "market",
+            "takeProfit": "110000",
+            "stopLoss": "90000",
+            "tpOrderType": "market",
+            "slOrderType": "market",
+            "tpLimitPrice": "91000",
+            "slLimitPrice": "111000",
+            "triggerBy": "market",
+            "triggerPrice": "100000",
+            "triggerOrderType": "limit",
+            "triggerOrderPrice": "100500",
+            "createdTime": "1730186725663",
+            "updatedTime": "1730186725691"
+          }
+        ]
+      }
+    },
+    "GET /api/v3/account/assets": {
+      "source": "https://www.bitget.com/legacy-docs/uta/account/Get-Account",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1746687063471,
+        "data": {
+          "accountEquity": "11.13919278",
+          "usdtEquity": "11.13921165",
+          "btcEquity": "0.00011256",
+          "unrealisedPnl": "0",
+          "usdtUnrealisedPnl": "0",
+          "btcUnrealizedPnl": "0",
+          "effEquity": "6.19299777",
+          "mmr": "0",
+          "imr": "0",
+          "mgnRatio": "0",
+          "positionMgnRatio": "0",
+          "positionValue": "0",
+          "leverage": "1",
+          "assets": [
+            {
+              "coin": "USDT",
+              "equity": "6.19300826",
+              "usdValue": "6.19299777",
+              "balance": "6.19300826",
+              "balanceOriginal": "6.19300826",
+              "available": "6.19300826",
+              "debt": "0",
+              "locked": "0",
+              "bonus": "10",
+              "interestBase": "0"
+            },
+            {
+              "coin": "BGB",
+              "equity": "1.15582129",
+              "usdValue": "4.94618029",
+              "balance": "1.15582129",
+              "balanceOriginal": "1.15582129",
+              "available": "1.15582129",
+              "debt": "0",
+              "locked": "0",
+              "bonus": "0",
+              "interestBase": "0"
+            }
+          ]
+        }
+      }
+    },
+    "GET /api/v3/account/settings": {
+      "source": "https://www.bitget.com/legacy-docs/uta/account/Get-Account-Setting",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1753787749280,
+        "data": {
+          "uid": "1111111111",
+          "accountMode": "hybrid",
+          "assetMode": "multi_assets",
+          "accountLevel": "advanced",
+          "holdMode": "one_way_mode",
+          "stpMode": "none",
+          "deltaSwitch": "no",
+          "repayMode": "manual",
+          "symbolConfigList": [
+            {
+              "category": "USDT-FUTURES",
+              "symbol": "BGBUSDT",
+              "marginMode": "crossed",
+              "leverage": "20"
+            },
+            {
+              "category": "USDT-FUTURES",
+              "symbol": "BMTUSDT",
+              "marginMode": "crossed",
+              "leverage": "20"
+            },
+            {
+              "category": "USDT-FUTURES",
+              "symbol": "1000SATSUSDT",
+              "marginMode": "crossed",
+              "leverage": "20"
+            },
+            {
+              "category": "USDT-FUTURES",
+              "symbol": "FUNUSDT",
+              "marginMode": "crossed",
+              "leverage": "20"
+            },
+            {
+              "category": "USDT-FUTURES",
+              "symbol": "1000BONKUSDT",
+              "marginMode": "crossed",
+              "leverage": "20"
+            },
+            {
+              "category": "USDT-FUTURES",
+              "symbol": "BTCUSDT",
+              "marginMode": "crossed",
+              "leverage": "1"
+            },
+            {
+              "category": "USDT-FUTURES",
+              "symbol": "IOTAUSDT",
+              "marginMode": "crossed",
+              "leverage": "20"
+            },
+            {
+              "category": "USDT-FUTURES",
+              "symbol": "C98USDT",
+              "marginMode": "crossed",
+              "leverage": "20"
+            }
+          ],
+          "coinConfigList": [
+            {
+              "coin": "USDT",
+              "leverage": "6"
+            },
+            {
+              "coin": "SHIB",
+              "leverage": "2"
+            },
+            {
+              "coin": "BTC",
+              "leverage": "3"
+            }
+          ]
+        }
+      }
+    },
+    "GET /api/v3/account/funding-assets": {
+      "source": "https://www.bitget.com/legacy-docs/uta/account/Get-Account-Funding-Assets",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1750396239013,
+        "data": [
+          {
+            "coin": "BGB",
+            "available": "0.01",
+            "frozen": "0",
+            "balance": "0.01"
+          },
+          {
+            "coin": "USDT",
+            "available": "0.04",
+            "frozen": "0",
+            "balance": "0.04"
+          }
+        ]
+      }
+    },
+    "POST /api/v3/trade/place-strategy-order": {
+      "source": "https://www.bitget.com/legacy-docs/uta/strategy/Place-Strategy-Order",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1695806875837,
+        "data": {
+          "clientOid": "121211212122",
+          "orderId": "121211212122"
+        }
+      }
+    },
+    "POST /api/v3/trade/cancel-strategy-order": {
+      "source": "https://www.bitget.com/legacy-docs/uta/strategy/Cancel-Strategy-Order",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1695806875837,
+        "data": null
+      }
+    },
+    "POST /api/v3/trade/place-order": {
+      "source": "https://www.bitget.com/legacy-docs/uta/trade/Place-Order",
+      "http_status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1695806875837,
+        "data": {
+          "clientOid": "121211212122",
+          "orderId": "121211212122"
+        }
+      }
+    }
+  }
+}

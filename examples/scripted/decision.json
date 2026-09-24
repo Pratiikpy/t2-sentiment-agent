@@ -1,0 +1,27 @@
+[
+  {
+    "stance": "act",
+    "targets": [
+      {
+        "symbol": "BTCUSDT",
+        "target": -0.4,
+        "thesis": "The crypto crowd reads greedier than the broader market and retail accounts lean long; a crowded long is the setup the mandate fades.",
+        "invalidation": "Crypto Fear & Greed falls back into the neutral band, or retail positioning flips net short.",
+        "horizon_hours": 48,
+        "crowd_belief": "Retail believes the rally continues and is positioned long.",
+        "our_view": "We fade the crowded long with a small, stopped short.",
+        "confidence": 0.55,
+        "evidence": ["mood.crypto_fear_greed", "mood.market_fear_greed", "BTCUSDT.retail_long_short_ratio"],
+        "invalidation_triggered": false,
+        "invalidation_evidence": null
+      }
+    ],
+    "rejected_alternatives": [
+      {"action": "short the equity perps", "reason": "the equity mood is not greedy; nothing to fade there"},
+      {"action": "stay flat", "reason": "the gap between the crypto and market moods is the clearest extreme"}
+    ],
+    "mandate_response": "Deploy a small part of the risk budget on one contrarian short; the rest waits for a second extreme.",
+    "flat_reasons": [],
+    "summary": "Fade crypto greed: a small stopped BTC short while the crypto mood runs ahead of the market mood."
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "ok": false,
+  "schema_version": "1",
+  "error": {
+    "code": "forbidden",
+    "message": "Search failed: Access forbidden: Resource"
+  }
+}

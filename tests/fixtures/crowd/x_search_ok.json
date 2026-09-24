@@ -1,0 +1,238 @@
+{
+  "ok": true,
+  "schema_version": "1",
+  "data": [
+    {
+      "id": "2103079760826100001",
+      "text": "Watching $NVDA into the close, the crowd is all-in on the AI trade again and funding is hot. https://t.co/AbCdEf1234",
+      "author": {
+        "id": "1087168568037934350",
+        "name": "Chart Watcher",
+        "screenName": "chart_watcher",
+        "profileImageUrl": "https://pbs.twimg.com/profile_images/0/chart_watcher_normal.jpg",
+        "verified": false
+      },
+      "metrics": {
+        "likes": 3,
+        "retweets": 0,
+        "replies": 1,
+        "quotes": 0,
+        "views": 412,
+        "bookmarks": 0
+      },
+      "createdAt": "Wed Sep 23 12:41:00 +0000 2026",
+      "createdAtLocal": "2026-09-23 12:41",
+      "createdAtISO": "2026-09-23T12:41:00+00:00",
+      "media": [],
+      "urls": [],
+      "isRetweet": false,
+      "retweetedBy": null,
+      "lang": "en",
+      "score": 1.5
+    },
+    {
+      "id": "2103079760826100002",
+      "text": "$NVDA and $TSLA both look extended here, trimming into strength",
+      "author": {
+        "id": "1087168568037694311",
+        "name": "Trim Trader",
+        "screenName": "trim_trader",
+        "profileImageUrl": "https://pbs.twimg.com/profile_images/0/trim_trader_normal.jpg",
+        "verified": false
+      },
+      "metrics": {
+        "likes": 3,
+        "retweets": 0,
+        "replies": 1,
+        "quotes": 0,
+        "views": 412,
+        "bookmarks": 0
+      },
+      "createdAt": "Wed Sep 23 12:30:00 +0000 2026",
+      "createdAtLocal": "2026-09-23 12:30",
+      "createdAtISO": "2026-09-23T12:30:00+00:00",
+      "media": [],
+      "urls": [],
+      "isRetweet": false,
+      "retweetedBy": null,
+      "lang": "en",
+      "score": 1.5
+    },
+    {
+      "id": "2103079760826100003",
+      "text": "RT: $NVDA to the moon",
+      "author": {
+        "id": "1087168568037706349",
+        "name": "Amplifier 01",
+        "screenName": "amplifier_01",
+        "profileImageUrl": "https://pbs.twimg.com/profile_images/0/amplifier_01_normal.jpg",
+        "verified": false
+      },
+      "metrics": {
+        "likes": 3,
+        "retweets": 0,
+        "replies": 1,
+        "quotes": 0,
+        "views": 412,
+        "bookmarks": 0
+      },
+      "createdAt": "Wed Sep 23 12:20:00 +0000 2026",
+      "createdAtLocal": "2026-09-23 12:20",
+      "createdAtISO": "2026-09-23T12:20:00+00:00",
+      "media": [],
+      "urls": [],
+      "isRetweet": true,
+      "retweetedBy": "someone_else",
+      "lang": "en",
+      "score": 1.5
+    },
+    {
+      "id": "2103079760826100004",
+      "text": "Good morning everyone, coffee first",
+      "author": {
+        "id": "1087168568037627074",
+        "name": "Morning Person",
+        "screenName": "morning_person",
+        "profileImageUrl": "https://pbs.twimg.com/profile_images/0/morning_person_normal.jpg",
+        "verified": false
+      },
+      "metrics": {
+        "likes": 3,
+        "retweets": 0,
+        "replies": 1,
+        "quotes": 0,
+        "views": 412,
+        "bookmarks": 0
+      },
+      "createdAt": "Wed Sep 23 12:10:00 +0000 2026",
+      "createdAtLocal": "2026-09-23 12:10",
+      "createdAtISO": "2026-09-23T12:10:00+00:00",
+      "media": [],
+      "urls": [],
+      "isRetweet": false,
+      "retweetedBy": null,
+      "lang": "en",
+      "score": 1.5
+    },
+    {
+      "id": "not-a-number",
+      "text": "$NVDA spoofed id row",
+      "author": {
+        "id": "1087168568037226148",
+        "name": "Spoofed Row",
+        "screenName": "spoofed_row",
+        "profileImageUrl": "https://pbs.twimg.com/profile_images/0/spoofed_row_normal.jpg",
+        "verified": false
+      },
+      "metrics": {
+        "likes": 3,
+        "retweets": 0,
+        "replies": 1,
+        "quotes": 0,
+        "views": 412,
+        "bookmarks": 0
+      },
+      "createdAt": "Wed Sep 23 12:05:00 +0000 2026",
+      "createdAtLocal": "2026-09-23 12:05",
+      "createdAtISO": "2026-09-23T12:05:00+00:00",
+      "media": [],
+      "urls": [],
+      "isRetweet": false,
+      "retweetedBy": null,
+      "lang": "en",
+      "score": 1.5
+    },
+    {
+      "id": "2103079760826100006",
+      "text": "$NVDA earnings are next month, positioning is light",
+      "author": {
+        "id": "1087168568037233557",
+        "name": "Calendar Nerd",
+        "screenName": "calendar_nerd",
+        "profileImageUrl": "https://pbs.twimg.com/profile_images/0/calendar_nerd_normal.jpg",
+        "verified": false
+      },
+      "metrics": {
+        "likes": 3,
+        "retweets": 0,
+        "replies": 1,
+        "quotes": 0,
+        "views": 412,
+        "bookmarks": 0
+      },
+      "createdAt": "Wed Sep 23 11:55:00 +0000 2026",
+      "createdAtLocal": "2026-09-23 11:55",
+      "createdAtISO": "Wed Sep 23 11:55:00 +0000 2026",
+      "media": [],
+      "urls": [],
+      "isRetweet": false,
+      "retweetedBy": null,
+      "lang": "en",
+      "score": 1.5
+    },
+    {
+      "id": "2103079760826100007",
+      "text": "$NVDA from last week, stale by now",
+      "author": {
+        "id": "1087168568037803799",
+        "name": "Old Poster",
+        "screenName": "old_poster",
+        "profileImageUrl": "https://pbs.twimg.com/profile_images/0/old_poster_normal.jpg",
+        "verified": false
+      },
+      "metrics": {
+        "likes": 3,
+        "retweets": 0,
+        "replies": 1,
+        "quotes": 0,
+        "views": 412,
+        "bookmarks": 0
+      },
+      "createdAt": "Mon Sep 21 09:00:00 +0000 2026",
+      "createdAtLocal": "2026-09-21 09:00",
+      "createdAtISO": "2026-09-21T09:00:00+00:00",
+      "media": [],
+      "urls": [],
+      "isRetweet": false,
+      "retweetedBy": null,
+      "lang": "en",
+      "score": 1.5
+    },
+    {
+      "id": "2103079760826100008",
+      "text": "This take is wrong",
+      "author": {
+        "id": "1087168568037675312",
+        "name": "Quote Poster",
+        "screenName": "quote_poster",
+        "profileImageUrl": "https://pbs.twimg.com/profile_images/0/quote_poster_normal.jpg",
+        "verified": false
+      },
+      "metrics": {
+        "likes": 3,
+        "retweets": 0,
+        "replies": 1,
+        "quotes": 0,
+        "views": 412,
+        "bookmarks": 0
+      },
+      "createdAt": "Wed Sep 23 12:00:00 +0000 2026",
+      "createdAtLocal": "2026-09-23 12:00",
+      "createdAtISO": "2026-09-23T12:00:00+00:00",
+      "media": [],
+      "urls": [],
+      "isRetweet": false,
+      "retweetedBy": null,
+      "lang": "en",
+      "score": 1.5,
+      "quotedTweet": {
+        "id": "2103079760826000000",
+        "text": "$NVDA is going to 300",
+        "author": {
+          "screenName": "someone",
+          "name": "Someone"
+        }
+      }
+    }
+  ]
+}

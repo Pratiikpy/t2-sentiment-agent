@@ -1,0 +1,128 @@
+{
+  "fixture": "loopback_live_negative_accepted",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "loopback: real bgc, throwaway credential, answered by a local server",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "raw",
+    "--operationId",
+    "getAccountAssets",
+    "--read-only"
+  ],
+  "extra_argv": [
+    "--base-url",
+    "http://127.0.0.1:<port>"
+  ],
+  "served": {
+    "GET /api/v3/account/assets": {
+      "status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1746687063471,
+        "data": {
+          "accountEquity": "11.13919278",
+          "usdtEquity": "11.13921165",
+          "btcEquity": "0.00011256",
+          "unrealisedPnl": "0",
+          "usdtUnrealisedPnl": "0",
+          "btcUnrealizedPnl": "0",
+          "effEquity": "6.19299777",
+          "mmr": "0",
+          "imr": "0",
+          "mgnRatio": "0",
+          "positionMgnRatio": "0",
+          "positionValue": "0",
+          "leverage": "1",
+          "assets": [
+            {
+              "coin": "USDT",
+              "equity": "6.19300826",
+              "usdValue": "6.19299777",
+              "balance": "6.19300826",
+              "balanceOriginal": "6.19300826",
+              "available": "6.19300826",
+              "debt": "0",
+              "locked": "0",
+              "bonus": "10",
+              "interestBase": "0"
+            },
+            {
+              "coin": "BGB",
+              "equity": "1.15582129",
+              "usdValue": "4.94618029",
+              "balance": "1.15582129",
+              "balanceOriginal": "1.15582129",
+              "available": "1.15582129",
+              "debt": "0",
+              "locked": "0",
+              "bonus": "0",
+              "interestBase": "0"
+            }
+          ]
+        }
+      },
+      "source": "https://www.bitget.com/legacy-docs/uta/account/Get-Account"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v3/account/assets",
+      "query": {},
+      "paptrading": null,
+      "signed": true,
+      "body": null
+    }
+  ],
+  "result": {
+    "exit_code": 0,
+    "stdout": {
+      "endpoint": "GET /api/v3/account/assets",
+      "requestTime": "2026-09-24T11:56:43.638Z",
+      "data": {
+        "accountEquity": "11.13919278",
+        "usdtEquity": "11.13921165",
+        "btcEquity": "0.00011256",
+        "unrealisedPnl": "0",
+        "usdtUnrealisedPnl": "0",
+        "btcUnrealizedPnl": "0",
+        "effEquity": "6.19299777",
+        "mmr": "0",
+        "imr": "0",
+        "mgnRatio": "0",
+        "positionMgnRatio": "0",
+        "positionValue": "0",
+        "leverage": "1",
+        "assets": [
+          {
+            "coin": "USDT",
+            "equity": "6.19300826",
+            "usdValue": "6.19299777",
+            "balance": "6.19300826",
+            "balanceOriginal": "6.19300826",
+            "available": "6.19300826",
+            "debt": "0",
+            "locked": "0",
+            "bonus": "10",
+            "interestBase": "0"
+          },
+          {
+            "coin": "BGB",
+            "equity": "1.15582129",
+            "usdValue": "4.94618029",
+            "balance": "1.15582129",
+            "balanceOriginal": "1.15582129",
+            "available": "1.15582129",
+            "debt": "0",
+            "locked": "0",
+            "bonus": "0",
+            "interestBase": "0"
+          }
+        ]
+      }
+    },
+    "stderr": null
+  }
+}

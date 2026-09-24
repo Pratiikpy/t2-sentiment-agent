@@ -1,0 +1,151 @@
+{
+  "fixture": "loopback_history_doc",
+  "captured_at": "2026-09-24T11:56:40.369030+00:00",
+  "how": "loopback: real bgc, throwaway credential, answered by a local server",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "order",
+    "--action",
+    "history",
+    "--category",
+    "USDT-FUTURES",
+    "--startTime",
+    "1790208000000",
+    "--endTime",
+    "1790294400000",
+    "--limit",
+    "100",
+    "--view",
+    "full",
+    "--paper-trading"
+  ],
+  "extra_argv": [
+    "--base-url",
+    "http://127.0.0.1:<port>"
+  ],
+  "served": {
+    "GET /api/v3/trade/history-orders": {
+      "status": 200,
+      "body": {
+        "code": "00000",
+        "msg": "success",
+        "requestTime": 1730186348272,
+        "data": {
+          "list": [
+            {
+              "orderId": "111111111111111111",
+              "clientOid": "111111111111111111",
+              "category": "USDT-FUTURES",
+              "symbol": "BTCUSDT",
+              "orderType": "limit",
+              "side": "sell",
+              "price": "49534.4",
+              "qty": "0.429",
+              "amount": "0",
+              "cumExecQty": "0.429",
+              "cumExecValue": "21250.2929",
+              "avgPrice": "49534.4",
+              "timeInForce": "gtc",
+              "orderStatus": "filled",
+              "posSide": "long",
+              "holdMode": "hedge_mode",
+              "delegateType": "normal",
+              "reduceOnly": "NO",
+              "marginMode": "crossed",
+              "stpMode": "none",
+              "takeProfit": "",
+              "stopLoss": "",
+              "tpTriggerBy": "",
+              "slTriggerBy": "",
+              "tpOrderType": "",
+              "slOrderType": "",
+              "tpLimitPrice": "",
+              "slLimitPrice": "",
+              "feeDetail": [
+                {
+                  "feeCoin": "USDT",
+                  "fee": "4.2500586"
+                }
+              ],
+              "cancelReason": "normal_cancel",
+              "execType": "liquidation",
+              "createdTime": "1730181468493",
+              "updatedTime": "1730181468493"
+            }
+          ],
+          "cursor": "1233319323918499840"
+        }
+      },
+      "source": "https://www.bitget.com/legacy-docs/uta/trade/Get-Order-History"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v3/trade/history-orders",
+      "query": {
+        "category": "USDT-FUTURES",
+        "endTime": "1790294400000",
+        "limit": "100",
+        "startTime": "1790208000000"
+      },
+      "paptrading": "1",
+      "signed": true,
+      "body": null
+    }
+  ],
+  "result": {
+    "exit_code": 0,
+    "stdout": {
+      "endpoint": "GET /api/v3/trade/history-orders",
+      "requestTime": "2026-09-24T11:56:41.590Z",
+      "data": {
+        "list": [
+          {
+            "orderId": "111111111111111111",
+            "clientOid": "111111111111111111",
+            "category": "USDT-FUTURES",
+            "symbol": "BTCUSDT",
+            "orderType": "limit",
+            "side": "sell",
+            "price": "49534.4",
+            "qty": "0.429",
+            "amount": "0",
+            "cumExecQty": "0.429",
+            "cumExecValue": "21250.2929",
+            "avgPrice": "49534.4",
+            "timeInForce": "gtc",
+            "orderStatus": "filled",
+            "posSide": "long",
+            "holdMode": "hedge_mode",
+            "delegateType": "normal",
+            "reduceOnly": "NO",
+            "marginMode": "crossed",
+            "stpMode": "none",
+            "takeProfit": "",
+            "stopLoss": "",
+            "tpTriggerBy": "",
+            "slTriggerBy": "",
+            "tpOrderType": "",
+            "slOrderType": "",
+            "tpLimitPrice": "",
+            "slLimitPrice": "",
+            "feeDetail": [
+              {
+                "feeCoin": "USDT",
+                "fee": "4.2500586"
+              }
+            ],
+            "cancelReason": "normal_cancel",
+            "execType": "liquidation",
+            "createdTime": "1730181468493",
+            "updatedTime": "1730181468493"
+          }
+        ],
+        "cursor": "1233319323918499840"
+      }
+    },
+    "stderr": null
+  }
+}

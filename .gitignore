@@ -1,0 +1,38 @@
+# Credentials never leave the machine. The Demo key lives in .secrets/demo.env, the Qwen key in
+# .secrets/qwen.env; both are created by the owner and read only by execution/environment.py and
+# llm/client.py.
+.secrets/
+*.env
+*.pem
+*.key
+
+# Working state. The published record is exported into public/ and committed from there.
+var/
+
+# Node dependencies for the pinned Agent Hub CLI (tools/agent-hub/package-lock.json is committed).
+node_modules/
+
+# Python tooling
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+.venv/
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Re-running the validation scripts caches raw API responses here.
+validation/demo_venue/cache/
+
+# Crash dumps (Cygwin/MSYS tools write these into the working directory).
+*.stackdump
