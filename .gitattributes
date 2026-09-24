@@ -1,0 +1,5 @@
+# The committed Playbook package must be byte-identical to a fresh build
+# (tests/playbook/test_playbook_package.py), and the build writes LF. A Windows checkout with
+# core.autocrlf=true rewrote these files to CRLF and failed that check on CI, so they are pinned to
+# LF on every platform.
+playbook/** text eol=lf

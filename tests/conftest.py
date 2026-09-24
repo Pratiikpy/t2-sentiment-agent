@@ -38,6 +38,10 @@ _PYTHON_NAME = re.compile(r"python(?:3(?:\.\d+)*)?w?")
 _OS_VERSION_QUERIES = frozenset({"ver", "cmd /c ver", "command /c ver"})
 """What ``platform._syscmd_ver`` runs on Windows (CPython 3.11 ``Lib/platform.py``)."""
 
+_OS_PROCESSOR_QUERIES = frozenset({("uname", "-p")})
+"""What ``platform._Processor.from_subprocess`` runs on Linux and macOS, without a shell (CPython
+3.11 ``Lib/platform.py``). Found by CI: ``platform.platform()`` on ubuntu-latest was refused."""
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
@@ -119,6 +123,13 @@ def _no_foreign_processes(monkeypatch: pytest.MonkeyPatch) -> None:
     def guarded_popen_init(self: subprocess.Popen[Any], args: Any, *a: Any, **kw: Any) -> None:
         program = _program_of(args, kw)
         if kw.get("shell") and isinstance(args, str) and args in _OS_VERSION_QUERIES:
+            _real_popen_init(self, args, *a, **kw)
+            return
+        if (
+            not kw.get("shell")
+            and isinstance(args, list | tuple)
+            and tuple(str(x) for x in args) in _OS_PROCESSOR_QUERIES
+        ):
             _real_popen_init(self, args, *a, **kw)
             return
         if kw.get("shell") or not _is_python(program):
