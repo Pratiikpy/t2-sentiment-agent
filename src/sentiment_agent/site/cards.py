@@ -58,6 +58,7 @@ from sentiment_agent.types import (
     DecisionRecord,
     DryRunPreview,
     EventKind,
+    FeedHealthReport,
     Fill,
     KernelRuling,
     LedgerEvent,
@@ -203,6 +204,8 @@ class _Index:
     order_events: dict[str, list[_At]] = field(default_factory=lambda: defaultdict(list))
     fills: list[_At] = field(default_factory=list)
     protective_actions: dict[str, list[_At]] = field(default_factory=lambda: defaultdict(list))
+    feed_health: dict[str, list[_At]] = field(default_factory=lambda: defaultdict(list))
+    """Feed-health reports by the snapshot they describe (contract 1.1.0)."""
 
 
 def _oid_of(payload: Model) -> str | None:
@@ -247,6 +250,8 @@ def _index(events: Iterable[LedgerEvent]) -> _Index:
             index.fills.append(at)
         elif isinstance(payload, ProtectiveAction):
             index.protective_actions[payload.ruling_id].append(at)
+        elif isinstance(payload, FeedHealthReport):
+            index.feed_health[payload.snapshot_id].append(at)
     return index
 
 
@@ -491,6 +496,11 @@ def _decision_card(
 
     coverage: dict[str, SourceHealth] = snapshot.coverage()
     shown: tuple[ScreenedItem, ...] = snapshot.text
+    feeds_at = _latest_before(index.feed_health.get(record.snapshot_id, []), at.seq)
+    feeds: FeedHealthReport | None = None
+    if feeds_at is not None and isinstance(feeds_at.payload, FeedHealthReport):
+        feeds = feeds_at.payload
+        seqs.append(feeds_at.seq)
     ledger_seqs = tuple(sorted(set(seqs)))
     card = DecisionCard(
         card_id=card_id,
@@ -508,6 +518,7 @@ def _decision_card(
         orders=tuple(t.order for t in trails),
         ledger_seqs=ledger_seqs,
         blobs=_proof(ledger_seqs, index, blobs, card_id),
+        feed_health=feeds,
     )
     return card, trails
 

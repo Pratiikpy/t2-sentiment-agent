@@ -21,7 +21,7 @@ no code path can write a history this module would reject.
 """
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Final
 
 from pydantic import ValidationError
@@ -38,11 +38,13 @@ from sentiment_agent.types import (
     PROJECT_SLUG,
     Amendment,
     Clock,
+    DeclaredChange,
     EventKind,
     Genesis,
     LedgerEvent,
     LedgerReader,
     Policy,
+    PredecessorRun,
     RunMode,
 )
 
@@ -107,6 +109,8 @@ def build_genesis(
     lock_hashes: Mapping[str, str],
     bgc_package: str,
     clock: Clock,
+    predecessor: PredecessorRun | None = None,
+    declared_changes: Sequence[DeclaredChange] = (),
 ) -> Genesis:
     """The pre-registration for a run of ``policy`` in ``mode``, stamped with the clock's time.
 
@@ -115,6 +119,10 @@ def build_genesis(
     from; ``bgc_package`` is the pinned Agent Hub CLI, e.g. ``@bitget-ai/bitget-agent-cli@3.0.0``.
     A PAPER genesis must name at least one prompt and one lockfile: a pre-registration that leaves
     out what the model is told, or what code runs, pre-registers nothing.
+
+    ``predecessor`` and ``declared_changes`` (contract 1.1.0) name the run this one follows and
+    every change against it (``sentiment_agent.run2``); the genesis refuses a policy that differs
+    from the predecessor's without a declared amendment that installs it.
     """
     mode = RunMode(mode)
     if not _COMMIT.fullmatch(code_commit) or set(code_commit) == {"0"}:
@@ -153,6 +161,8 @@ def build_genesis(
             bgc_package=bgc_package,
             expected_envelope=dict(policy.expected_envelope),
             statement=_statement(mode),
+            predecessor=predecessor,
+            declared_changes=tuple(declared_changes),
         )
     except ValidationError as exc:
         raise GenesisError(f"the genesis does not validate: {exc.errors()[0]['msg']}") from None

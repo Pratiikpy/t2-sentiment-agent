@@ -153,6 +153,7 @@ def test_every_policy_field_is_rendered_and_equal(generated: ModuleType) -> None
                 "fear_greed_high": "TRIGGER_FEAR_GREED_HIGH",
                 "funding_z_threshold": "TRIGGER_FUNDING_Z_THRESHOLD",
                 "funding_z_lookback_settlements": "TRIGGER_FUNDING_Z_LOOKBACK_SETTLEMENTS",
+                "funding_z_asset_classes": "TRIGGER_FUNDING_Z_ASSET_CLASSES",
                 "oi_jump_quantile": "TRIGGER_OI_JUMP_QUANTILE",
                 "oi_jump_lookback_days": "TRIGGER_OI_JUMP_LOOKBACK_DAYS",
                 "coordinated_min_sources": "TRIGGER_COORDINATED_MIN_SOURCES",

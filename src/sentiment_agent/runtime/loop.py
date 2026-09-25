@@ -6,16 +6,26 @@ default) and each tick does only what is due (DESIGN.md §4-§11):
 ========================  ===================================================================
 Every tick                Fold in events another process appended; poll the simulated venue so its
                           stops can fire (SIMULATED); take any owner request from the inbox.
-Every 5 min               A light snapshot, logged, and trigger evaluation on it (first, so the
-                          protective check below rules on a fresh snapshot).
+Every 5 min               A light snapshot, logged, and the light-snapshot trigger kinds
+                          evaluated on it (first, so the protective check below rules on a fresh
+                          snapshot).
 Every 60 s                The protective check: fresh keyless quotes, the breaker assessed, and
                           :meth:`RiskKernel.protective` (daily kill, weekend pre-flatten and freeze,
                           venue integrity, breaker halts). It can only reduce.
 Every tick                Due heartbeats (the US open, each funding settlement) and owner requests
                           join the candidates; the trigger engine admits or refuses every one, and
                           every one is logged either way.
+Before admission          When the candidates will start a decision
+                          (:meth:`~sentiment_agent.events.triggers.TriggerEngine.preview`), the
+                          full snapshot is taken first and the full-snapshot trigger kinds
+                          (coordinated clusters, earnings, filings) are evaluated on it and admitted
+                          in the same batch, so they join that decision (run 2, ``run2-d1``).
 On an admitted set        :meth:`RunLoop.decision_cycle`: full snapshot -> DecisionAgent -> kernel
                           -> planner -> approval -> Executor -> reconciliation -> stop sync.
+Every snapshot            Feed health (:mod:`sentiment_agent.perception.feeds`): a ``feed_health``
+                          event on every full snapshot, and on a light one whenever a source
+                          starts or stops failing or the instruments Fear & Greed, funding or open
+                          interest cannot be evaluated for change (run 2, ``run2-d2``).
 Every 15 min, 00:05 UTC   Reconciliation (read-only), and the full order history once a day; the
                           stop manager keeps one venue stop per open position.
 First tick of a record    The anchor MARK: the starting equity on the current hour, flat, before
@@ -54,7 +64,12 @@ from typing import Final, Literal
 
 from sentiment_agent.book.marks import MARK_MAX_LATENESS, MarkError, hour_floor, mark_point
 from sentiment_agent.events.schedule import heartbeats_between
-from sentiment_agent.events.triggers import REFUSED_BUDGET, UNCONDITIONAL_KINDS
+from sentiment_agent.events.triggers import (
+    FULL_SNAPSHOT_KINDS,
+    LIGHT_SNAPSHOT_KINDS,
+    REFUSED_BUDGET,
+    UNCONDITIONAL_KINDS,
+)
 from sentiment_agent.execution.environment import EnvironmentRefused
 from sentiment_agent.hashing import content_hash
 from sentiment_agent.kernel.approval import ApprovalError
@@ -63,6 +78,7 @@ from sentiment_agent.ledger.anchor import stamp, upgrade
 from sentiment_agent.ledger.chain import GenesisError, LedgerError, referenced_blobs
 from sentiment_agent.ledger.genesis import require_genesis
 from sentiment_agent.llm.budget import MEASURED_PROMPT_BYTES, decision_bound
+from sentiment_agent.perception.feeds import changed, feed_report, summary_line
 from sentiment_agent.runtime.health import beat_for, write_health
 from sentiment_agent.runtime.wiring import App, ruling_context_blob
 from sentiment_agent.sources.toolkit import ToolkitFacade, probe_all
@@ -76,8 +92,10 @@ from sentiment_agent.types import (
     DecisionEvent,
     DecisionRecord,
     EventKind,
+    FeedHealthReport,
     KernelInputs,
     KernelRuling,
+    LedgerEvent,
     LlmOutcome,
     MarkPoint,
     Model,
@@ -163,6 +181,15 @@ class _Acted:
     sent: bool
 
 
+@dataclass(frozen=True)
+class _Prepared:
+    """A full snapshot taken before admission, and the full-snapshot events it shows."""
+
+    snapshot: PerceptionSnapshot
+    book: BookState
+    riders: tuple[Trigger, ...]
+
+
 class RunLoop:
     """Drives one :class:`App`. Holds only schedule markers; every fact is read from the ledger."""
 
@@ -205,6 +232,9 @@ class RunLoop:
         self._failures = 0
         self._last_error = ""
         self._pending_owner: list[Trigger] = []
+        self._feeds: FeedHealthReport | None = self._replay_feeds()
+        """The feed health as of the newest snapshot, rebuilt from every logged snapshot so a
+        restart continues the same streaks (:mod:`sentiment_agent.perception.feeds` is pure)."""
         self._probe_worker: threading.Thread | None = None
         self._probe_result: ToolkitProbe | str | None = None
         self.last_card: DecisionCard | None = None
@@ -258,7 +288,7 @@ class RunLoop:
             snapshot, book = self._snapshot(light=True)
             self._last_light = snapshot.taken_at
             did.append("light_snapshot")
-            candidates.extend(app.triggers.evaluate(snapshot, book))
+            candidates.extend(app.triggers.evaluate(snapshot, book, kinds=LIGHT_SNAPSHOT_KINDS))
 
         if _due(self._last_protective, now, PROTECTIVE_EVERY):
             self._protective(now, did)
@@ -270,9 +300,12 @@ class RunLoop:
             self._pending_owner = []
         self._since = now
         if candidates:
+            prepared = self._prepare(candidates, did)
+            if prepared is not None:
+                candidates.extend(prepared.riders)
             admitted = self._admit(candidates, did)
             if admitted:
-                self.decision_cycle(admitted)
+                self.decision_cycle(admitted, prepared=prepared)
                 did.append("decision_cycle")
 
         if app.mode is not RunMode.DRYRUN:
@@ -405,8 +438,65 @@ class RunLoop:
         before = app.book(at=now, demo=previous.demo_quotes if previous is not None else {})
         snapshot = app.snapshots.build(book=before, light=light)
         app.log(EventKind.SNAPSHOT, SnapshotEvent(snapshot=snapshot))
+        self._log_feeds(snapshot, light=light)
         book = app.book(at=app.clock.now(), demo=snapshot.demo_quotes)
         return snapshot, book
+
+    def _feed_report(
+        self, snapshot: PerceptionSnapshot, previous: FeedHealthReport | None
+    ) -> FeedHealthReport:
+        app = self._app
+        return feed_report(
+            snapshot,
+            policy=app.policy,
+            previous=previous,
+            oi_thresholds=app.oi_thresholds,
+            funding_scope=app.triggers.funding_scope,
+        )
+
+    def _replay_feeds(self) -> FeedHealthReport | None:
+        report: FeedHealthReport | None = None
+        for snapshot in self._app.projection.snapshots:
+            report = self._feed_report(snapshot, report)
+        return report
+
+    def _log_feeds(self, snapshot: PerceptionSnapshot, *, light: bool) -> FeedHealthReport:
+        """Feed health after ``snapshot``: logged on every full snapshot (its decision card
+        carries it) and on a light one when :func:`~sentiment_agent.perception.feeds.changed`."""
+        previous = self._feeds
+        report = self._feed_report(snapshot, previous)
+        self._feeds = report
+        if not light or changed(report, previous):
+            self._app.log(EventKind.FEED_HEALTH, report)
+        return report
+
+    @property
+    def feed_health(self) -> FeedHealthReport | None:
+        """The feed health as of the newest snapshot this loop knows."""
+        return self._feeds
+
+    def _prepare(self, candidates: Sequence[Trigger], did: list[str]) -> _Prepared | None:
+        """The full snapshot for a decision the candidates will start, taken before admission.
+
+        Returns ``None`` (nothing taken) unless the engine would admit at least one candidate and
+        :meth:`_admit` would not then refuse the batch for budget or a missing anchor mark. The
+        snapshot's full-snapshot trigger kinds become riders in the same admission batch, so a
+        coordinated cluster, an earnings date or a filing seen on it joins the decision rather than
+        waking another one; heartbeat batches still count nothing against the daily cap."""
+        app = self._app
+        would = app.triggers.preview(candidates)
+        if not would or self._budget_short(would) is not None or not app.projection.marks:
+            return None
+        snapshot, book = self._snapshot(light=False)
+        self._last_light = snapshot.taken_at
+        known = {t.trigger_id for t in candidates}
+        riders = tuple(
+            t
+            for t in app.triggers.evaluate(snapshot, book, kinds=FULL_SNAPSHOT_KINDS)
+            if t.trigger_id not in known
+        )
+        did.append(f"full_snapshot_riders_{len(riders)}")
+        return _Prepared(snapshot=snapshot, book=book, riders=riders)
 
     def _inbox(self, did: list[str]) -> list[Trigger]:
         app = self._app
@@ -497,17 +587,25 @@ class RunLoop:
     # The decision cycle
     # ============================================================================================
 
-    def decision_cycle(self, triggers: Sequence[Trigger]) -> DecisionCard | None:
+    def decision_cycle(
+        self, triggers: Sequence[Trigger], *, prepared: _Prepared | None = None
+    ) -> DecisionCard | None:
         """One decision over the whole book for an admitted trigger set, end to end.
 
-        Returns the cycle's decision card, built from the events this cycle logged, or ``None``
-        when there is nothing to decide on (no trigger)."""
+        ``prepared`` is the full snapshot :meth:`tick` took before admission; without it the cycle
+        takes its own. Returns the cycle's decision card, built from the events this cycle logged
+        (from the prepared snapshot's own events on), or ``None`` when there is nothing to decide
+        on (no trigger)."""
         if not triggers:
             return None
         app = self._app
-        first = len(app.ledger.appended)
-        snapshot, book = self._snapshot(light=False)
-        self._last_light = snapshot.taken_at
+        if prepared is not None:
+            first = _first_seq_index(app.ledger.appended, prepared.snapshot.snapshot_id)
+            snapshot, book = prepared.snapshot, prepared.book
+        else:
+            first = len(app.ledger.appended)
+            snapshot, book = self._snapshot(light=False)
+            self._last_light = snapshot.taken_at
         record = app.agent.decide(snapshot, book, triggers)
         app.log(EventKind.DECISION, DecisionEvent(record=record))
         app.log(EventKind.BUDGET_STATE, app.budget.state())
@@ -568,7 +666,10 @@ class RunLoop:
                     proposed=None,
                     llm_outage=True,
                 )
-        card = self._card(record, snapshot, triggers, acted, first)
+        feeds = self._feeds
+        if feeds is not None and feeds.snapshot_id != snapshot.snapshot_id:
+            feeds = None  # pragma: no cover - every snapshot is reported as it is logged
+        card = self._card(record, snapshot, triggers, acted, first, feeds)
         self.last_card = card
         return card
 
@@ -908,7 +1009,10 @@ class RunLoop:
     def _health(self, now: datetime, did: list[str]) -> None:
         app = self._app
         beat = beat_for(
-            app, iteration=self._iteration, last_decision_at=self._last_decision_at, detail=""
+            app,
+            iteration=self._iteration,
+            last_decision_at=self._last_decision_at,
+            detail=summary_line(self._feeds),
         )
         write_health(app.paths.health, beat)
         if _due(self._last_health_event, now, HEALTH_EVENT_EVERY):
@@ -927,6 +1031,7 @@ class RunLoop:
         triggers: Sequence[Trigger],
         acted: _Acted | None,
         first: int,
+        feeds: FeedHealthReport | None,
     ) -> DecisionCard:
         app = self._app
         events = app.ledger.appended[first:]
@@ -955,7 +1060,20 @@ class RunLoop:
             orders=() if acted is None else tuple(acted.orders),
             ledger_seqs=tuple(e.seq for e in events),
             blobs=tuple(refs.values()),
+            feed_health=feeds,
         )
+
+
+def _first_seq_index(appended: Sequence[LedgerEvent], snapshot_id: str) -> int:
+    """Where the SNAPSHOT event of ``snapshot_id`` sits in ``appended`` (the card's first
+    event); the end of the list when it is not there."""
+    for i in range(len(appended) - 1, -1, -1):
+        event = appended[i]
+        if event.kind is EventKind.SNAPSHOT and (
+            event.payload.get("snapshot", {}).get("snapshot_id") == snapshot_id
+        ):
+            return i
+    return len(appended)
 
 
 def _due(last: datetime | None, now: datetime, every: timedelta) -> bool:

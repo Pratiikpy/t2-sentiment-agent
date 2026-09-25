@@ -24,6 +24,8 @@
                       mirror and weekend-counterfactual arms
 ``redteam.json``      the red-team report, when one was run
 ``toolkit.json``      the Bitget toolkit coverage matrix, with the health the log shows
+``feeds.json``        feed health (contract 1.1.0): the failing sources now, every alarm raised
+                      and cleared, and each trigger kind a snapshot could not evaluate, with why
 ``replay.json``       a replay of a recorded venue-integrity refusal, labelled as a replay
 ``summary.json``      the headline numbers the page opens with
 ``verify.md``         how to check all of it
@@ -89,7 +91,7 @@ from sentiment_agent.ledger.chain import (
 )
 from sentiment_agent.ledger.genesis import x_post_text
 from sentiment_agent.perception.features import index_move_bps_3h
-from sentiment_agent.policy import POLICY_V1
+from sentiment_agent.policy import ACTIVE_POLICY, POLICY_V1
 from sentiment_agent.site.cards import CardBundle, CardError, OrderTrail, build_card_bundle
 from sentiment_agent.site.coverage import coverage_counts, declared_uses, ledger_health
 from sentiment_agent.types import (
@@ -106,6 +108,7 @@ from sentiment_agent.types import (
     DecisionEvent,
     EnvironmentProof,
     EventKind,
+    FeedHealthReport,
     Fill,
     Genesis,
     GuardId,
@@ -403,7 +406,7 @@ class _Events:
 
 
 def _active_policy(events: Sequence[LedgerEvent]) -> Policy:
-    policy = POLICY_V1
+    policy = ACTIVE_POLICY
     for event in events:
         if event.kind is EventKind.GENESIS:
             policy = Genesis.model_validate(event.payload).policy
@@ -544,6 +547,54 @@ def _genesis_doc(record: _Record) -> dict[str, Any]:
         "genesis_anchors": genesis_anchors,
         "amendments": amendments,
         "x_post_text": post,
+    }
+
+
+FEED_HISTORY_LIMIT: Final = 500
+"""Most recent alarm raises and clears listed in ``feeds.json`` (every one is in the ledger)."""
+
+
+def _feeds_doc(record: _Record) -> dict[str, Any]:
+    """Feed health from the ``feed_health`` events: the latest report, the history of alarms raised
+    and cleared, and the counts. A 1.0.0 ledger has none and says so rather than showing health."""
+    reports = [
+        (e, FeedHealthReport.model_validate(e.payload))
+        for e in record.events
+        if e.kind is EventKind.FEED_HEALTH
+    ]
+    if not reports:
+        return {
+            "status": "not_logged",
+            "note": "this ledger has no feed_health events (it predates contract 1.1.0); the "
+            "health of each source is in its snapshots' source calls",
+            "latest": None,
+            "history": [],
+            "counts": {"reports": 0, "raised": 0, "cleared": 0, "open": 0, "blind_by_failure": 0},
+        }
+    latest_event, latest = reports[-1]
+    history = [
+        {
+            "seq": e.seq,
+            "at": _iso(r.at),
+            "snapshot_id": r.snapshot_id,
+            "raised": list(r.raised),
+            "cleared": list(r.cleared),
+        }
+        for e, r in reports
+        if r.raised or r.cleared
+    ]
+    return {
+        "status": "logged",
+        "latest_seq": latest_event.seq,
+        "latest": _dump(latest),
+        "history": history[-FEED_HISTORY_LIMIT:],
+        "counts": {
+            "reports": len(reports),
+            "raised": sum(len(r.raised) for _, r in reports),
+            "cleared": sum(len(r.cleared) for _, r in reports),
+            "open": len(latest.alarms),
+            "blind_by_failure": len(latest.failure_blind()),
+        },
     }
 
 
@@ -1141,6 +1192,8 @@ def _summary_doc(
     funnel: Mapping[str, Any],
     bundle: CardBundle,
     generated_at: datetime,
+    *,
+    feeds: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     events = record.events
     genesis = next((e for e in events if e.kind is EventKind.GENESIS), None)
@@ -1180,6 +1233,10 @@ def _summary_doc(
             "kernel_changed_decisions": decisions["counts"]["changed_by_kernel"],
             "protective_rulings": funnel["protective"]["rulings"],
             "hourly_marks": len(record.marks),
+            "feed_alarms_open": (feeds or {}).get("counts", {}).get("open", 0),
+            "trigger_kinds_blind_by_failure": (feeds or {})
+            .get("counts", {})
+            .get("blind_by_failure", 0),
         },
     }
 
@@ -1357,7 +1414,11 @@ def export_public(
             {"rows": [_dump(r) for r in rows], "counts": coverage_counts(rows)},
         )
         stage.json("replay.json", replay_venue_integrity(record.policy))
-        summary = _summary_doc(record, book, decisions, orders, funnel, bundle, generated_at)
+        feeds = _feeds_doc(record)
+        stage.json("feeds.json", feeds)
+        summary = _summary_doc(
+            record, book, decisions, orders, funnel, bundle, generated_at, feeds=feeds
+        )
         stage.json("summary.json", summary)
         stage.write("verify.md", _verify_md(summary, genesis))
 

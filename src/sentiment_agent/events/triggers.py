@@ -12,8 +12,11 @@ Events (thresholds from ``policy.triggers``, frozen at genesis):
     Bitget's own (``bitget-signal/skills/sentiment-analyst/SKILL.md``). Staying inside a band never
     re-fires. The first reading on record fires only if it is already extreme.
 ``funding_zscore``
-    Live funding z-score of a crypto leg (BTCUSDT) strictly beyond ``±2`` against the last 90
-    settlements (``PositioningFeatures.funding_z_live``, computed by perception).
+    Live funding z-score strictly beyond ``±2`` against the last 90 settlements
+    (``PositioningFeatures.funding_z_live``, computed by perception), for every instrument whose
+    asset class is in ``policy.triggers.funding_z_asset_classes``: the crypto leg (BTCUSDT) under
+    policy v1, the whole universe under policy v2 (run 2, declared change ``run2-a1``). An equity or
+    index leg's event is still refused while the weekend freeze holds it flat (admission rule 3).
 ``open_interest_jump``
     Absolute 1-hour open-interest change strictly above the instrument's frozen threshold, the
     99th percentile of the trailing 30 days of 1-hour changes (:func:`oi_jump_thresholds`, run once
@@ -47,6 +50,18 @@ Admission (:meth:`TriggerEngine.admit`) applies, in order:
 
 Every trigger ``admit`` receives comes back, admitted or refused with a reason, so the runtime can
 log all of them and a reader can see what the agent chose not to wake up for.
+
+**Which snapshot each kind is evaluated on (run 2, declared change ``run2-d1``).** A light snapshot
+(every 5 minutes) carries quotes, funding, Fear & Greed and positioning, and not crowd text or the
+calendar (DESIGN.md §7); a full snapshot is taken for every decision and carries both. So the
+kinds in :data:`LIGHT_SNAPSHOT_KINDS` are evaluated on light snapshots and the kinds in
+:data:`FULL_SNAPSHOT_KINDS` on full ones, and no kind on both, which is what keeps one condition
+from being emitted twice. In run 1 only light snapshots reached :meth:`TriggerEngine.evaluate`,
+so the full-snapshot kinds could never fire. The runtime asks :meth:`TriggerEngine.preview` whether
+a candidate set will start a decision; if it will, it takes the full snapshot first, evaluates the
+full-snapshot kinds on it and admits everything in one batch, so those events join the decision
+that is about to happen (counted against the daily cap exactly as rule 5 says) instead of waking a
+second one.
 
 **How the runtime drives it, and why restore is exact.** The engine's state is a fold over the
 triggers ``admit`` has processed, and nothing else: :meth:`evaluate` and :meth:`due_heartbeats` only
@@ -106,6 +121,25 @@ UNCONDITIONAL_KINDS: Final[frozenset[TriggerKind]] = frozenset(
 FEAR_GREED_SERIES: Final[tuple[str, ...]] = ("crypto_fear_greed", "market_fear_greed")
 """The two indices, named as their ``MarketMood`` fields; ``Trigger.source`` is
 ``mood.<series>``."""
+
+LIGHT_SNAPSHOT_KINDS: Final[frozenset[TriggerKind]] = frozenset(
+    {
+        TriggerKind.FEAR_GREED_EXTREME,
+        TriggerKind.FUNDING_ZSCORE,
+        TriggerKind.OPEN_INTEREST_JUMP,
+    }
+)
+"""Kinds whose inputs a light snapshot carries: evaluated on light snapshots only."""
+
+FULL_SNAPSHOT_KINDS: Final[frozenset[TriggerKind]] = frozenset(
+    {
+        TriggerKind.COORDINATED_CLUSTER,
+        TriggerKind.EARNINGS_EVENT,
+        TriggerKind.FILING_EVENT,
+    }
+)
+"""Kinds that read crowd text or the calendar, which only a full snapshot carries (DESIGN.md §7):
+evaluated on full snapshots only."""
 
 REFUSED_DUPLICATE: Final = "duplicate"
 REFUSED_WEEKEND: Final = "weekend_freeze"
@@ -286,6 +320,9 @@ class TriggerEngine:
         self._cooldown = timedelta(minutes=rule.cooldown_minutes)
         universe = policy.universe
         self._crypto = tuple(u.symbol for u in universe if u.asset_class is AssetClass.CRYPTO)
+        self._funding_scope = tuple(
+            u.symbol for u in universe if u.asset_class in rule.funding_z_asset_classes
+        )
         self._us_session = tuple(u.symbol for u in universe if u.asset_class.follows_us_session)
         self._equities = frozenset(
             u.symbol for u in universe if u.asset_class is AssetClass.US_EQUITY
@@ -367,9 +404,22 @@ class TriggerEngine:
 
     # --- evaluation -----------------------------------------------------------------------------
 
-    def evaluate(self, snapshot: PerceptionSnapshot, book: BookState) -> list[Trigger]:
+    @property
+    def funding_scope(self) -> tuple[str, ...]:
+        """The instruments ``funding_zscore`` is evaluated for, in universe order."""
+        return self._funding_scope
+
+    def evaluate(
+        self,
+        snapshot: PerceptionSnapshot,
+        book: BookState,
+        *,
+        kinds: frozenset[TriggerKind] | None = None,
+    ) -> list[Trigger]:
         """The events ``snapshot`` shows, as candidates for :meth:`admit`. Reads state, never
-        writes it. ``book`` says which equities are held (filings)."""
+        writes it. ``book`` says which equities are held (filings). ``kinds`` restricts the
+        evaluation (:data:`LIGHT_SNAPSHOT_KINDS` or :data:`FULL_SNAPSHOT_KINDS`); ``None``
+        evaluates every kind."""
         if snapshot.policy_version != self._policy.version:
             raise ValueError(
                 f"snapshot was taken under {snapshot.policy_version!r}, "
@@ -384,16 +434,15 @@ class TriggerEngine:
                 seen.add(trigger.trigger_id)
                 out.append(trigger)
 
-        for trigger in self._fear_greed(snapshot, now):
-            add(trigger)
-        for trigger in self._level_triggers(snapshot, now):
-            add(trigger)
-        for trigger in self._clusters(snapshot, now):
-            add(trigger)
-        for trigger in self._earnings(snapshot, now):
-            add(trigger)
-        for trigger in self._filings(snapshot, book, now):
-            add(trigger)
+        for trigger in (
+            *self._fear_greed(snapshot, now),
+            *self._level_triggers(snapshot, now),
+            *self._clusters(snapshot, now),
+            *self._earnings(snapshot, now),
+            *self._filings(snapshot, book, now),
+        ):
+            if kinds is None or trigger.kind in kinds:
+                add(trigger)
         return out
 
     def _fear_greed(self, snapshot: PerceptionSnapshot, now: datetime) -> list[Trigger]:
@@ -456,7 +505,7 @@ class TriggerEngine:
     def _level_triggers(self, snapshot: PerceptionSnapshot, now: datetime) -> list[Trigger]:
         rule = self._policy.triggers
         out: list[Trigger] = []
-        for symbol in self._crypto:
+        for symbol in self._funding_scope:
             features = snapshot.features.get(symbol)
             z = None if features is None else features.funding_z_live
             if z is None or not math.isfinite(z) or abs(z) <= rule.funding_z_threshold:
@@ -650,6 +699,34 @@ class TriggerEngine:
         batch = [t.model_copy(update={"fired_at": stamp}) for t in triggers]
         return self._apply(batch, stamp)
 
+    def preview(self, triggers: Sequence[Trigger]) -> list[Trigger]:
+        """What :meth:`admit` would admit if called now with ``triggers``, changing nothing.
+
+        The runtime asks this before it spends a full snapshot on a decision (module docstring).
+        The answer holds for an :meth:`admit` made moments later with the same triggers plus
+        full-snapshot kinds, except when the clock crosses the weekend freeze in between (then a
+        US-session event previewed as admitted is refused, and the full snapshot is logged with
+        no decision)."""
+        if not triggers:
+            return []
+        saved = self.state()
+        try:
+            stamp = self._next_stamp()
+            batch = [t.model_copy(update={"fired_at": stamp}) for t in triggers]
+            admitted, _ = self._apply(batch, stamp)
+        finally:
+            self._load(saved)
+        return admitted
+
+    def _load(self, state: EngineState) -> None:
+        """Put back a state taken by :meth:`state` (what :meth:`preview` changed)."""
+        self._last_stamp = state.last_stamp
+        self._bands = dict(state.bands)
+        self._last_admitted = dict(state.last_admitted)
+        self._emissions = {key: (at, sign) for key, at, sign in state.emissions}
+        self._event_decisions = dict(state.event_decisions)
+        self._processed = set(state.processed)
+
     def _canonical(self, trigger: Trigger) -> tuple[int, int, str, str]:
         return (
             0 if trigger.kind in UNCONDITIONAL_KINDS else 1,
@@ -743,7 +820,9 @@ class TriggerEngine:
 
 __all__ = [
     "FEAR_GREED_SERIES",
+    "FULL_SNAPSHOT_KINDS",
     "HOUR",
+    "LIGHT_SNAPSHOT_KINDS",
     "PAIR_TOLERANCE",
     "REFUSED_BUDGET",
     "REFUSED_COOLDOWN",

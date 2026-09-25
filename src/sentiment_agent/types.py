@@ -27,6 +27,7 @@ text, the chat model, the ledger, and the venue transport.
 
 import copy
 import enum
+import itertools
 import re
 from collections.abc import Iterator, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
@@ -34,11 +35,23 @@ from decimal import Decimal
 from types import MappingProxyType
 from typing import Annotated, Any, Final, Literal, Protocol, Self
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from sentiment_agent.hashing import HASH_HEX_LENGTH, content_hash
 
-CONTRACT_VERSION: Final = "1.0.0"
+CONTRACT_VERSION: Final = "1.1.0"
+"""1.1.0 (run 2) adds the ``feed_health`` ledger event, a genesis's declared changes against the run
+it follows, and the funding z-score scope of :class:`TriggerRule`. Each addition is written only
+when it is set, so every 1.0.0 record (run 1's ledger included) still reads, re-serialises and
+hashes exactly as it was written."""
 PROJECT_SLUG: Final = "t2-sentiment-agent"
 
 
@@ -434,6 +447,8 @@ class EventKind(enum.StrEnum):
     ANCHOR = "anchor"
     HEALTH = "health"
     NOTE = "note"
+    FEED_HEALTH = "feed_health"
+    """Contract 1.1.0: a source started or stopped failing, or a trigger kind went blind."""
 
 
 # ================================================================================================
@@ -770,6 +785,92 @@ class Trigger(Model):
     threshold: float | None = None
     source: str
     snapshot_id: str | None = None
+
+
+# ================================================================================================
+# Feed health (module: perception.feeds; contract 1.1.0)
+# ================================================================================================
+
+FAILING_HEALTH: Final[frozenset[SourceHealth]] = frozenset(
+    {SourceHealth.ERROR, SourceHealth.TIMEOUT, SourceHealth.HOLLOW}
+)
+"""A source in one of these states was asked and gave nothing usable. ``EMPTY`` (answered, no rows)
+and ``DISABLED`` (deliberately not asked) are not failures."""
+
+BlindCause = Literal["feed_failed", "no_data", "cadence", "no_threshold"]
+"""Why a trigger kind cannot fire on a snapshot: a source it reads failed or came back hollow; its
+sources answered but carried nothing it can use; the snapshot does not read those sources by design
+(a light snapshot, DESIGN.md §7); or no threshold was frozen for the instrument at genesis."""
+
+
+class FeedAlarm(Model):
+    """One source that is failing now, and for how long it has been."""
+
+    feed: str
+    """The source name exactly as the snapshot's :class:`SourceCall` records it."""
+    surface: ToolkitSurface
+    health: SourceHealth
+    since: UtcDatetime
+    """When the current failing streak began (the first failing snapshot of it)."""
+    snapshots: int = Field(ge=1)
+    """Consecutive snapshots that asked this source and got a failure."""
+    error: str | None = None
+
+    @model_validator(mode="after")
+    def _a_failure(self) -> "FeedAlarm":
+        if self.health not in FAILING_HEALTH:
+            raise ValueError(f"an alarm is raised only for a failing source, not {self.health}")
+        return self
+
+
+class BlindTrigger(Model):
+    """A trigger kind that could not fire on a snapshot, for these instruments, and why."""
+
+    kind: TriggerKind
+    symbols: tuple[str, ...]
+    cause: BlindCause
+    reason: str = Field(min_length=1)
+    feeds: tuple[str, ...] = ()
+    """The failing sources that blinded it (``feed_failed``); empty for every other cause."""
+
+    @model_validator(mode="after")
+    def _named(self) -> "BlindTrigger":
+        if (self.cause == "feed_failed") != bool(self.feeds):
+            raise ValueError("a feed_failed blindness names its feeds, and only that cause does")
+        return self
+
+
+class FeedHealthReport(Model):
+    """The state of every source and trigger kind as of one snapshot.
+
+    Logged as a ``feed_health`` event when an alarm is raised or cleared, or when the set of trigger
+    kinds blinded by a failure changes; carried on every decision card.
+    """
+
+    at: UtcDatetime
+    snapshot_id: str
+    light: bool
+    alarms: tuple[FeedAlarm, ...]
+    raised: tuple[str, ...] = ()
+    """Feeds failing on this snapshot that were not failing on the previous report."""
+    cleared: tuple[str, ...] = ()
+    """Feeds that were failing and answered on this snapshot."""
+    blind: tuple[BlindTrigger, ...] = ()
+
+    @model_validator(mode="after")
+    def _consistent(self) -> "FeedHealthReport":
+        failing = [a.feed for a in self.alarms]
+        if len(failing) != len(set(failing)):
+            raise ValueError("a feed is alarmed twice")
+        if not set(self.raised) <= set(failing):
+            raise ValueError("a raised feed must be among the alarms")
+        if set(self.cleared) & set(failing):
+            raise ValueError("a cleared feed cannot still be alarmed")
+        return self
+
+    def failure_blind(self) -> tuple[BlindTrigger, ...]:
+        """Blindness caused by a failing source (what an alarm is about)."""
+        return tuple(b for b in self.blind if b.cause == "feed_failed")
 
 
 # ================================================================================================
@@ -1707,6 +1808,53 @@ class MetricDefinition(Model):
     notes: str = ""
 
 
+class PredecessorRun(Model):
+    """The paper run a genesis follows (contract 1.1.0): what the declared changes are against."""
+
+    genesis_hash: Sha256Hex
+    """The event hash of the earlier run's genesis, as published and posted on X."""
+    code_commit: str
+    policy_hash: Sha256Hex
+    policy_version: str
+    window: str
+    """The earlier run's scored window, as its owner states it."""
+
+
+ChangeKind = Literal["code_fix", "observability", "policy_amendment"]
+
+
+class DeclaredChange(Model):
+    """One change against the predecessor run, declared in the genesis before the first order.
+
+    A ``policy_amendment`` names the policy it replaces and the one it installs, exactly as an
+    :class:`Amendment` does inside a run; a code change names the files it touches and states that
+    the policy and prompts are unchanged by it.
+    """
+
+    change_id: str = Field(min_length=1)
+    kind: ChangeKind
+    title: str = Field(min_length=1)
+    detail: str = Field(min_length=1)
+    files: tuple[str, ...]
+    previous_policy_hash: Sha256Hex | None = None
+    new_policy_hash: Sha256Hex | None = None
+    evidence: dict[str, str] = Field(default_factory=dict)
+    """Measured figures that motivated or size the change, each with where it can be recomputed."""
+
+    @model_validator(mode="after")
+    def _amendment_names_both(self) -> "DeclaredChange":
+        amended = self.previous_policy_hash is not None or self.new_policy_hash is not None
+        if (self.kind == "policy_amendment") != amended:
+            raise ValueError("a policy amendment names both policy hashes, and only it does")
+        if amended and (self.previous_policy_hash is None or self.new_policy_hash is None):
+            raise ValueError("a policy amendment names both the old and the new policy hash")
+        if self.previous_policy_hash is not None and (
+            self.previous_policy_hash == self.new_policy_hash
+        ):
+            raise ValueError("an amendment must change the policy")
+        return self
+
+
 class Genesis(Model):
     """The pre-registration. Hashed, OpenTimestamps-anchored and posted before the first order."""
 
@@ -1725,6 +1873,19 @@ class Genesis(Model):
     bgc_package: str
     expected_envelope: dict[str, str]
     statement: str
+    predecessor: PredecessorRun | None = None
+    """Contract 1.1.0: the run this one follows, when there is one."""
+    declared_changes: tuple[DeclaredChange, ...] = ()
+    """Contract 1.1.0: every change against ``predecessor``, declared before the first order."""
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_1_1(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if self.predecessor is None:
+            data.pop("predecessor", None)
+        if not self.declared_changes:
+            data.pop("declared_changes", None)
+        return data
 
     @model_validator(mode="after")
     def _hash_is_the_policy(self) -> "Genesis":
@@ -1732,6 +1893,26 @@ class Genesis(Model):
             raise ValueError("policy_hash is not the hash of the policy it pre-registers")
         if self.universe != self.policy.symbols:
             raise ValueError("the genesis universe must be the policy's universe")
+        if self.declared_changes and self.predecessor is None:
+            raise ValueError("declared changes are against a predecessor run; name it")
+        ids = [c.change_id for c in self.declared_changes]
+        if len(ids) != len(set(ids)):
+            raise ValueError("a declared change id appears twice")
+        if self.predecessor is not None:
+            amendments = [c for c in self.declared_changes if c.kind == "policy_amendment"]
+            changed = self.policy_hash != self.predecessor.policy_hash
+            if changed and not amendments:
+                raise ValueError(
+                    "the policy differs from the predecessor's, so a policy amendment is declared"
+                )
+            if amendments:
+                if amendments[0].previous_policy_hash != self.predecessor.policy_hash:
+                    raise ValueError("the first amendment must replace the predecessor's policy")
+                if amendments[-1].new_policy_hash != self.policy_hash:
+                    raise ValueError("the last amendment must install the policy pre-registered")
+                for before, after in itertools.pairwise(amendments):
+                    if after.previous_policy_hash != before.new_policy_hash:
+                        raise ValueError("declared amendments must chain, each replacing the last")
         return self
 
 
@@ -1942,6 +2123,8 @@ class DecisionCard(Model):
     orders: tuple[CardOrder, ...]
     ledger_seqs: tuple[int, ...]
     blobs: tuple[BlobRef, ...]
+    feed_health: FeedHealthReport | None = None
+    """Contract 1.1.0: failing sources and blind trigger kinds on the snapshot the model read."""
 
 
 class RedTeamVector(Model):
@@ -2025,6 +2208,9 @@ class BreakerRule(Model):
 
 _HH_MM = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 
+FUNDING_Z_CRYPTO_ONLY: Final[tuple[AssetClass, ...]] = (AssetClass.CRYPTO,)
+"""Policy v1's ``funding_zscore`` scope: the crypto leg only."""
+
 
 class TriggerRule(Model):
     us_open_local: str
@@ -2042,9 +2228,24 @@ class TriggerRule(Model):
     cooldown_minutes: int = Field(ge=0)
     max_event_decisions_per_day: int = Field(ge=0)
     basis: str
+    funding_z_asset_classes: tuple[AssetClass, ...] = FUNDING_Z_CRYPTO_ONLY
+    """Which instruments ``funding_zscore`` is evaluated for, by asset class. Policy v1 read the
+    crypto leg only (BTCUSDT); policy v2 reads every class (contract 1.1.0). Written into the
+    policy, and so into its hash, only when it differs from the v1 scope, which keeps v1's hash
+    and every record written under it exactly as they were."""
+
+    @model_serializer(mode="wrap")
+    def _omit_v1_scope(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if self.funding_z_asset_classes == FUNDING_Z_CRYPTO_ONLY:
+            data.pop("funding_z_asset_classes", None)
+        return data
 
     @model_validator(mode="after")
     def _coherent(self) -> "TriggerRule":
+        scope = self.funding_z_asset_classes
+        if not scope or len(set(scope)) != len(scope):
+            raise ValueError("funding_z_asset_classes must name distinct asset classes")
         if not _HH_MM.fullmatch(self.us_open_local):
             raise ValueError("us_open_local must be HH:MM")
         hours = self.funding_heartbeat_hours_utc
@@ -2181,6 +2382,7 @@ EVENT_PAYLOADS: Final[Mapping[EventKind, type[Model]]] = MappingProxyType(
         EventKind.ANCHOR: AnchorRecord,
         EventKind.HEALTH: HealthBeat,
         EventKind.NOTE: Note,
+        EventKind.FEED_HEALTH: FeedHealthReport,
     }
 )
 """Read-only: the payload model each ledger event kind must carry."""
@@ -2325,6 +2527,8 @@ __all__ = [
     "CONTRACT_VERSION",
     "DEMO_CREDENTIALS_FILE",
     "EVENT_PAYLOADS",
+    "FAILING_HEALTH",
+    "FUNDING_Z_CRYPTO_ONLY",
     "PLAN_GUARDS",
     "PROJECT_SLUG",
     "UNRECONCILED_KINDS",
@@ -2340,6 +2544,8 @@ __all__ = [
     "ArmResult",
     "ArmSpec",
     "AssetClass",
+    "BlindCause",
+    "BlindTrigger",
     "BlobRef",
     "BlobStore",
     "BookState",
@@ -2352,6 +2558,7 @@ __all__ = [
     "CandleKind",
     "CardOrder",
     "Category",
+    "ChangeKind",
     "ChatMessage",
     "ChatModel",
     "ClientOid",
@@ -2364,6 +2571,7 @@ __all__ = [
     "DecisionEvent",
     "DecisionRecord",
     "DecisionRule",
+    "DeclaredChange",
     "DerivativesReading",
     "Detection",
     "Discrepancy",
@@ -2371,6 +2579,8 @@ __all__ = [
     "EnvironmentProof",
     "EventKind",
     "FeeLine",
+    "FeedAlarm",
+    "FeedHealthReport",
     "Fill",
     "FillVenue",
     "FundingPoint",
@@ -2416,6 +2626,7 @@ __all__ = [
     "Position",
     "PositionMark",
     "PositioningFeatures",
+    "PredecessorRun",
     "PriceSource",
     "Probability",
     "ProtectiveAction",

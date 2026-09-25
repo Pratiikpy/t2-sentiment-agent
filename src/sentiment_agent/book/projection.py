@@ -69,6 +69,7 @@ from sentiment_agent.types import (
     DryRunPreview,
     EnvironmentProof,
     EventKind,
+    FeedHealthReport,
     Fill,
     FillVenue,
     Genesis,
@@ -503,6 +504,11 @@ class Projection:
     @property
     def triggers(self) -> tuple[Trigger, ...]:
         return self._typed(EventKind.TRIGGER, Trigger)
+
+    @property
+    def feed_health(self) -> tuple[FeedHealthReport, ...]:
+        """Every logged feed-health report (contract 1.1.0; none in a 1.0.0 ledger)."""
+        return self._typed(EventKind.FEED_HEALTH, FeedHealthReport)
 
     @property
     def decisions(self) -> tuple[DecisionRecord, ...]:

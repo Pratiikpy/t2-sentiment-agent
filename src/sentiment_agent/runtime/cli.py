@@ -105,7 +105,7 @@ from sentiment_agent.llm.client import (
 )
 from sentiment_agent.llm.fakes import RecordedChatModel, completion_from_json
 from sentiment_agent.perception.snapshot import SnapshotBuilder
-from sentiment_agent.policy import POLICY_V1
+from sentiment_agent.policy import ACTIVE_POLICY
 from sentiment_agent.redteam.corpus import load_vectors
 from sentiment_agent.redteam.harness import AgentArm, RedTeamHarness, WithoutQuarantine, summarise
 from sentiment_agent.redteam.harness import estimate_qwen_tokens as redteam_estimate
@@ -119,6 +119,7 @@ from sentiment_agent.rivals.registry import (
     SentimentFusionArm,
 )
 from sentiment_agent.rivals.tradingagents_arm import TradingAgentsSocialArm
+from sentiment_agent.run2 import declaration_for
 from sentiment_agent.runtime.health import status_from_ledger, status_lines
 from sentiment_agent.runtime.loop import RunLoop, request_decision
 from sentiment_agent.runtime.wiring import (
@@ -509,7 +510,7 @@ def cmd_preflight(ctx: Context, args: argparse.Namespace) -> int:
     """Everything that can be checked before the Demo key exists, with nothing sent."""
     checks: list[_Check] = []
     root = ctx.root
-    policy = ctx.parts.policy or POLICY_V1
+    policy = ctx.parts.policy or ACTIVE_POLICY
     paths = Paths(root=root, mode=RunMode.DRYRUN)
     paths.ensure()
 
@@ -877,7 +878,7 @@ def cmd_plumbing_test(ctx: Context, args: argparse.Namespace) -> int:
 
 
 def _plumbing(ctx: Context, paths: Paths) -> int:
-    policy = ctx.parts.policy or POLICY_V1
+    policy = ctx.parts.policy or ACTIVE_POLICY
     chain = open_pregenesis(ctx.root, ctx.clock)
     proof = _prove(ctx, chain)
     if not proof.passed:
@@ -1055,7 +1056,7 @@ def _plumbing(ctx: Context, paths: Paths) -> int:
 
 def cmd_genesis(ctx: Context, args: argparse.Namespace) -> int:
     mode = _mode(args)
-    policy = ctx.parts.policy or POLICY_V1
+    policy = ctx.parts.policy or ACTIVE_POLICY
     paths = Paths(root=ctx.root, mode=mode)
     paths.ensure()
     lock = InstanceLock(paths.lock, mode=mode, clock=ctx.clock)
@@ -1075,6 +1076,7 @@ def cmd_genesis(ctx: Context, args: argparse.Namespace) -> int:
             raise UsageError(
                 "this project is not a git checkout: pass --commit <full sha> of the code that runs"
             )
+        predecessor, declared = declaration_for(policy)
         genesis = build_genesis(
             policy=policy,
             prompt_hashes=prompt_hashes(),
@@ -1083,6 +1085,8 @@ def cmd_genesis(ctx: Context, args: argparse.Namespace) -> int:
             lock_hashes=lock_hashes(ctx.root),
             bgc_package=BGC_PACKAGE,
             clock=ctx.clock,
+            predecessor=predecessor,
+            declared_changes=declared,
         )
         blobs = FileBlobStore(paths.blobs)
         record = _oi_record(ctx, policy, blobs)
@@ -1090,6 +1094,12 @@ def cmd_genesis(ctx: Context, args: argparse.Namespace) -> int:
         event = chain.append(EventKind.GENESIS, genesis, blobs=[oi_blob])
         ctx.say(f"genesis written: {mode.value} ledger seq 0, hash {event.hash}")
         ctx.say(f"  policy {policy.version} {genesis.policy_hash}; commit {genesis.code_commit}")
+        if genesis.predecessor is not None:
+            ctx.say(
+                f"  follows the run pre-registered at {genesis.predecessor.genesis_hash} "
+                f"({genesis.predecessor.policy_version}); declared changes: "
+                + ", ".join(f"{c.change_id} ({c.kind})" for c in genesis.declared_changes)
+            )
         thresholds: Mapping[str, float] = record.get("thresholds_pct", {})
         disabled = record.get("disabled") or []
         ctx.say(
@@ -1321,7 +1331,7 @@ def cmd_decide(ctx: Context, args: argparse.Namespace) -> int:
     mode = _mode(args)
     llm = _llm(args, mode)
     symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
-    policy = ctx.parts.policy or POLICY_V1
+    policy = ctx.parts.policy or ACTIVE_POLICY
     unknown = [s for s in symbols if s not in policy.symbols]
     if unknown:
         raise UsageError(f"not in the universe: {', '.join(unknown)}")
@@ -1730,7 +1740,7 @@ def cmd_replay(ctx: Context, args: argparse.Namespace) -> int:
         read_events(path),
         FileBlobStore(blobs_root),
         args.decision,
-        policy=ctx.parts.policy or POLICY_V1,
+        policy=ctx.parts.policy or ACTIVE_POLICY,
     )
     for line in result.lines:
         ctx.say(line)
@@ -1753,7 +1763,7 @@ def read_events(path: Path) -> list[LedgerEvent]:
 
 
 def cmd_status(ctx: Context, args: argparse.Namespace) -> int:
-    policy = ctx.parts.policy or POLICY_V1
+    policy = ctx.parts.policy or ACTIVE_POLICY
     if args.mode:
         modes = [RunMode(args.mode)]
     else:
@@ -1793,7 +1803,7 @@ def cmd_amend(ctx: Context, args: argparse.Namespace) -> int:
             "it with --owner-confirmed"
         )
     mode = _mode(args)
-    policy = ctx.parts.policy or POLICY_V1
+    policy = ctx.parts.policy or ACTIVE_POLICY
     paths = Paths(root=ctx.root, mode=mode)
     paths.ensure()
     lock = InstanceLock(paths.lock, mode=mode, clock=ctx.clock)
@@ -1822,7 +1832,7 @@ def cmd_amend(ctx: Context, args: argparse.Namespace) -> int:
 
 def cmd_probe_toolkit(ctx: Context, args: argparse.Namespace) -> int:
     mode = _mode(args)
-    policy = ctx.parts.policy or POLICY_V1
+    policy = ctx.parts.policy or ACTIVE_POLICY
     paths = Paths(root=ctx.root, mode=mode)
     paths.ensure()
     blobs = FileBlobStore(paths.blobs)
@@ -2093,7 +2103,7 @@ def export_record(
     (``site/render.py``). ``light`` skips the arms that need candles. Serialised by
     ``var/run/export-<mode>.lock`` so the loop's hourly export and a manual one never interleave.
     Returns the manifest and what the analysis could not compute."""
-    policy = parts.policy or POLICY_V1
+    policy = parts.policy or ACTIVE_POLICY
     target = out or default_out(root, mode)
     lock = InstanceLock(root / "var" / "run" / f"export-{mode.value}.lock", mode=mode, clock=clock)
     lock.acquire()
@@ -2306,7 +2316,7 @@ def cmd_rivals(ctx: Context, args: argparse.Namespace) -> int:
     """Rival sentiment agents on the agent's own snapshots, marked by the same simulator
     (DESIGN.md §14.6). Written to var/analysis and published by the next export."""
     mode = _mode(args)
-    policy = ctx.parts.policy or POLICY_V1
+    policy = ctx.parts.policy or ACTIVE_POLICY
     chain = open_chain(ctx.root, mode, ctx.clock)
     snapshots, books = _decision_inputs(chain)
     if not snapshots:
@@ -2377,7 +2387,7 @@ def cmd_redteam(ctx: Context, args: argparse.Namespace) -> int:
     agent without the quarantine, and the lexicon and finBERT traders, paired against the clean
     decision on the same recorded snapshot. Published whatever the grade."""
     mode = _mode(args)
-    policy = ctx.parts.policy or POLICY_V1
+    policy = ctx.parts.policy or ACTIVE_POLICY
     chain = open_chain(ctx.root, mode, ctx.clock)
     snapshots, books = _decision_inputs(chain)
     if not snapshots:

@@ -14,6 +14,8 @@ from helpers import empty_book
 from sentiment_agent.clock import ManualClock
 from sentiment_agent.events.schedule import heartbeat_id
 from sentiment_agent.events.triggers import (
+    FULL_SNAPSHOT_KINDS,
+    LIGHT_SNAPSHOT_KINDS,
     REFUSED_COOLDOWN,
     REFUSED_DAILY_CAP,
     REFUSED_DUPLICATE,
@@ -28,7 +30,7 @@ from sentiment_agent.events.triggers import (
     oi_jump_thresholds,
     quantile_type7,
 )
-from sentiment_agent.policy import POLICY_V1
+from sentiment_agent.policy import POLICY_V1, POLICY_V2
 from sentiment_agent.types import (
     AssetClass,
     BookState,
@@ -1262,3 +1264,144 @@ def test_restore_replaces_state(engine: TriggerEngine, clock: ManualClock) -> No
     engine.admit([event(TriggerKind.COORDINATED_CLUSTER, "NVDAUSDT", clock.now(), "1")])
     engine.restore([])
     assert engine.state() == TriggerEngine(POLICY_V1, clock, oi_thresholds=OI_THRESHOLDS).state()
+
+
+# --- run 2: which snapshot each kind is read on (run2-d1), the funding scope (run2-a1) -----------
+
+
+def test_light_and_full_snapshot_kinds_partition_the_event_kinds() -> None:
+    events = {k for k in TriggerKind if k not in UNCONDITIONAL_KINDS}
+    assert events == LIGHT_SNAPSHOT_KINDS | FULL_SNAPSHOT_KINDS
+    assert not LIGHT_SNAPSHOT_KINDS & FULL_SNAPSHOT_KINDS
+
+
+def test_evaluate_restricted_to_kinds(engine: TriggerEngine, clock: ManualClock) -> None:
+    now = clock.now()
+    snap = snapshot(
+        now,
+        crypto_fg=10,
+        feats=[features("BTCUSDT", funding_z_live=3.0)],
+        clusters=[cluster("c1", ["NVDAUSDT"], at=now)],
+        calendar=[earnings("NVDAUSDT", now + 2 * HOUR)],
+    )
+    everything = engine.evaluate(snap, empty_book())
+    light = engine.evaluate(snap, empty_book(), kinds=LIGHT_SNAPSHOT_KINDS)
+    full = engine.evaluate(snap, empty_book(), kinds=FULL_SNAPSHOT_KINDS)
+    assert {t.kind for t in light} == {TriggerKind.FEAR_GREED_EXTREME, TriggerKind.FUNDING_ZSCORE}
+    assert {t.kind for t in full} == {TriggerKind.COORDINATED_CLUSTER, TriggerKind.EARNINGS_EVENT}
+    assert sorted(t.trigger_id for t in (*light, *full)) == sorted(t.trigger_id for t in everything)
+
+
+def test_preview_is_what_admit_does_and_changes_nothing(
+    engine: TriggerEngine, clock: ManualClock
+) -> None:
+    now = clock.now()
+    engine.admit([event(TriggerKind.COORDINATED_CLUSTER, "NVDAUSDT", now, "earlier")])
+    clock.advance(MINUTE)
+    batch = [
+        event(TriggerKind.COORDINATED_CLUSTER, "NVDAUSDT", clock.now(), "cooling"),
+        event(TriggerKind.COORDINATED_CLUSTER, "TSLAUSDT", clock.now(), "fresh"),
+    ]
+    before = engine.state()
+    previewed = engine.preview(batch)
+    assert engine.state() == before
+    assert engine.preview(batch) == previewed
+    admitted, refused = engine.admit(batch)
+    assert [t.trigger_id for t in previewed] == [t.trigger_id for t in admitted]
+    assert [t.symbols for t in admitted] == [("TSLAUSDT",)]
+    assert codes(refused) == [REFUSED_COOLDOWN]
+    assert engine.preview([]) == []
+
+
+def test_policy_v1_scope_is_the_crypto_leg(engine: TriggerEngine) -> None:
+    assert engine.funding_scope == ("BTCUSDT",)
+
+
+@pytest.fixture
+def engine_v2(clock: ManualClock) -> TriggerEngine:
+    return TriggerEngine(POLICY_V2, clock, oi_thresholds=OI_THRESHOLDS)
+
+
+def v2_snapshot(at: datetime, feats: Sequence[PositioningFeatures]) -> PerceptionSnapshot:
+    return snapshot(at, feats=feats, policy_version=POLICY_V2.version)
+
+
+def test_policy_v2_reads_funding_for_every_instrument(
+    engine_v2: TriggerEngine, clock: ManualClock
+) -> None:
+    assert engine_v2.funding_scope == POLICY_V2.symbols
+    clock.set(utc(2026, 9, 24, 18, 0))  # a Thursday: no weekend rule applies
+    now = clock.now()
+    snap = v2_snapshot(
+        now,
+        [
+            features("NVDAUSDT", funding_z_live=2.4, funding_rate_live=1e-4),
+            features("NDX100USDT", funding_z_live=-3.1),
+            features("HOODUSDT", funding_z_live=2.0),  # at the threshold: silent
+            features("BTCUSDT", funding_z_live=1.0),
+        ],
+    )
+    fired = engine_v2.evaluate(snap, empty_book())
+    assert sorted((t.symbols[0], t.threshold) for t in fired) == [
+        ("NDX100USDT", -2.0),
+        ("NVDAUSDT", 2.0),
+    ]
+    assert all(t.kind is TriggerKind.FUNDING_ZSCORE for t in fired)
+    # One decision for the batch; each instrument keeps its own cooldown.
+    admitted, refused = engine_v2.admit(fired)
+    assert len(admitted) == 2
+    assert refused == []
+    assert engine_v2.event_decisions_on(now.date()) == 1
+
+
+def test_policy_v2_equity_funding_keeps_threshold_cooldown_and_cap(
+    engine_v2: TriggerEngine, clock: ManualClock
+) -> None:
+    clock.set(utc(2026, 9, 24, 0, 30))
+    start = clock.now()
+
+    def nvda(z: float) -> PerceptionSnapshot:
+        return v2_snapshot(clock.now(), [features("NVDAUSDT", funding_z_live=z)])
+
+    assert len(engine_v2.admit(engine_v2.evaluate(nvda(2.5), empty_book()))[0]) == 1
+    clock.set(start + COOLDOWN - MINUTE)
+    assert engine_v2.evaluate(nvda(2.9), empty_book()) == []
+    clock.set(start + COOLDOWN)
+    assert len(engine_v2.admit(engine_v2.evaluate(nvda(2.9), empty_book()))[0]) == 1
+    # The daily cap binds equity funding events like every other event.
+    symbols = [u.symbol for u in POLICY_V2.universe if u.asset_class is AssetClass.US_EQUITY]
+    for i, symbol in enumerate(symbols[1:], start=1):
+        clock.set(start + COOLDOWN + i * MINUTE)
+        snap = v2_snapshot(clock.now(), [features(symbol, funding_z_live=3.0)])
+        engine_v2.admit(engine_v2.evaluate(snap, empty_book()))
+    cap = POLICY_V2.triggers.max_event_decisions_per_day
+    assert engine_v2.event_decisions_on(start.date()) == cap
+    clock.advance(MINUTE)
+    snap = v2_snapshot(clock.now(), [features("NDX100USDT", funding_z_live=3.0)])
+    admitted, refused = engine_v2.admit(engine_v2.evaluate(snap, empty_book()))
+    assert admitted == []
+    assert codes(refused) == [REFUSED_DAILY_CAP]
+
+
+def test_policy_v2_equity_funding_is_refused_while_the_weekend_freeze_holds(
+    engine_v2: TriggerEngine, clock: ManualClock
+) -> None:
+    clock.set(utc(2026, 9, 26, 12, 0))  # Saturday
+    snap = v2_snapshot(
+        clock.now(),
+        [features("NVDAUSDT", funding_z_live=3.0), features("BTCUSDT", funding_z_live=3.0)],
+    )
+    admitted, refused = engine_v2.admit(engine_v2.evaluate(snap, empty_book()))
+    assert [t.symbols for t in admitted] == [("BTCUSDT",)]
+    assert [(t.symbols, code) for (t, _), code in zip(refused, codes(refused), strict=True)] == [
+        (("NVDAUSDT",), REFUSED_WEEKEND)
+    ]
+    # Refused, it is still remembered: the same extreme does not re-emit inside the cooldown.
+    clock.advance(5 * MINUTE)
+    again = v2_snapshot(clock.now(), [features("NVDAUSDT", funding_z_live=3.2)])
+    assert engine_v2.evaluate(again, empty_book()) == []
+    # Monday 00:00: the freeze is over and the next emission is admitted.
+    clock.set(utc(2026, 9, 28, 0, 0))
+    monday = v2_snapshot(clock.now(), [features("NVDAUSDT", funding_z_live=3.2)])
+    admitted, _ = engine_v2.admit(engine_v2.evaluate(monday, empty_book()))
+    assert [t.symbols for t in admitted] == [("NVDAUSDT",)]

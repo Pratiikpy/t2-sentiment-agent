@@ -10,7 +10,9 @@ is made only when a trigger is admitted.
   up once and a heartbeat is never taken twice.
 * **Events**: a Fear & Greed band change (crypto or US equity market; extreme bands from the
   policy; staying inside a band never re-fires; the first reading fires only if already extreme),
-  the BTCUSDT funding z-score beyond the threshold, a 1-hour open-interest change beyond the
+  the funding z-score beyond the threshold for every instrument whose asset class is in
+  ``TRIGGER_FUNDING_Z_ASSET_CLASSES`` (BTCUSDT alone under policy v1), a 1-hour open-interest
+  change beyond the
   trailing 99th percentile, a coordinated story cluster naming an instrument, an earnings report
   inside the lookahead, and a new insider filing for a held equity.
 * **Admission**, in order: duplicates refused; heartbeats admitted; an event whose instruments all
@@ -69,6 +71,9 @@ only move forward)."""
 
 _ASSET_CLASS = {symbol: asset for symbol, asset, _ in policy.UNIVERSE}
 _CRYPTO = tuple(s for s, a, _ in policy.UNIVERSE if a == "crypto")
+_FUNDING_SCOPE = tuple(
+    s for s, a, _ in policy.UNIVERSE if a in policy.TRIGGER_FUNDING_Z_ASSET_CLASSES
+)
 _US_SESSION = tuple(s for s, a, _ in policy.UNIVERSE if a in policy.US_SESSION_ASSET_CLASSES)
 _EQUITIES = tuple(s for s, a, _ in policy.UNIVERSE if a == "us_equity")
 
@@ -245,7 +250,7 @@ class TriggerBook:
 
     def _levels(self, snapshot: Snapshot) -> list[Trigger]:
         out: list[Trigger] = []
-        for symbol in _CRYPTO:
+        for symbol in _FUNDING_SCOPE:
             z = snapshot.feature(symbol, "funding_z")
             if z is None or not math.isfinite(z) or abs(z) <= policy.TRIGGER_FUNDING_Z_THRESHOLD:
                 continue

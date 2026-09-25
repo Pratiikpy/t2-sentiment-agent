@@ -45,6 +45,8 @@ from sentiment_agent.types import (
     DryRunPreview,
     EnvironmentProof,
     EventKind,
+    FeedAlarm,
+    FeedHealthReport,
     Fill,
     FillVenue,
     Genesis,
@@ -77,11 +79,13 @@ from sentiment_agent.types import (
     RunMode,
     Side,
     SnapshotEvent,
+    SourceHealth,
     Stance,
     StopSync,
     TargetProposal,
     Thinking,
     ToolkitProbe,
+    ToolkitSurface,
     Trigger,
     TriggerKind,
     VenueAck,
@@ -454,6 +458,23 @@ def paper_ledger() -> MemoryLedger:
             budget=None,
         ),
     )
+    ledger.append(
+        EventKind.FEED_HEALTH,
+        FeedHealthReport(
+            at=T0 + H,
+            snapshot_id="snap-feeds",
+            light=True,
+            alarms=(
+                FeedAlarm(
+                    feed="sentiment_index.current",
+                    surface=ToolkitSurface.SIGNAL_MCP,
+                    health=SourceHealth.HOLLOW,
+                    since=T0,
+                    snapshots=2,
+                ),
+            ),
+        ),
+    )
     ledger.append(EventKind.FILL, FILL_STOP)  # the venue stop, Bitget reusing the stop's id
     ledger.append(EventKind.RECONCILIATION, reconciliation("9991.5", T0 + 2 * H))
     ledger.append(
@@ -664,6 +685,7 @@ def test_every_event_kind_is_readable_as_its_typed_payload() -> None:
         (projection.budget_states, BudgetState, 1),
         (projection.anchors, AnchorRecord, 1),
         (projection.health_beats, HealthBeat, 1),
+        (projection.feed_health, FeedHealthReport, 1),
         (projection.notes, Note, 1),
     ]
     for items, model, count in views:

@@ -1,0 +1,175 @@
+{
+  "as_run": {
+    "by_kind": {
+      "heartbeat_funding": 2
+    },
+    "decisions": 2,
+    "triggers": 2
+  },
+  "funding_extremes": {
+    "snapshots_beyond_by_symbol": {
+      "AMZNUSDT": 46,
+      "COINUSDT": 23,
+      "GOOGLUSDT": 49,
+      "HOODUSDT": 88,
+      "MSTRUSDT": 58,
+      "NDX100USDT": 14,
+      "NVDAUSDT": 84,
+      "SNDKUSDT": 44,
+      "TSLAUSDT": 30
+    },
+    "threshold": 2.0
+  },
+  "input": {
+    "code_commit": "3059fcf473927093af35d9af4c999c6d135b331a",
+    "decision_bound_tokens": 165395,
+    "genesis_hash": "ebbf607a8fe199bccc0f612ededf2a6902e4884a38d21fbfea498dff7da453a5",
+    "genesis_policy_hash": "55ff779b5d6f2c55082be1b4db6c9fde53865213cade58232f64f372ad73aeaf",
+    "ledger_events": 364,
+    "ledger_head_hash": "86bb2a29b35b31b30e24284065c622c7274ecb2e186ec4ebeedcf30953fe316c",
+    "ledger_head_seq": 363,
+    "oi_thresholds_pct": {
+      "BTCUSDT": 1.3406238292478607
+    }
+  },
+  "policy_v1": {
+    "admitted_by_kind": {
+      "coordinated_cluster": 22,
+      "heartbeat_funding": 2
+    },
+    "event_decision_times": [],
+    "event_decisions": 0,
+    "event_decisions_by_day": {},
+    "event_decisions_within_worst_case_budget": 0,
+    "first_snapshot": "2026-09-24T17:06:36.660206Z",
+    "full_snapshots": 2,
+    "heartbeat_decisions": 2,
+    "hours": 19.86,
+    "last_snapshot": "2026-09-25T12:57:58.772329Z",
+    "policy_hash": "55ff779b5d6f2c55082be1b4db6c9fde53865213cade58232f64f372ad73aeaf",
+    "policy_version": "policy-v1",
+    "refused_by_kind_and_reason": {
+      "coordinated_cluster:cooldown": 1
+    },
+    "snapshots": 226,
+    "ticks": 225
+  },
+  "policy_v2": {
+    "admitted_by_kind": {
+      "coordinated_cluster": 22,
+      "funding_zscore": 15,
+      "heartbeat_funding": 2
+    },
+    "event_decision_times": [
+      {
+        "at": "2026-09-24T17:27:27.256213Z",
+        "triggers": [
+          "funding_zscore:NVDAUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-24T20:38:21.910312Z",
+        "triggers": [
+          "funding_zscore:AMZNUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-24T21:15:23.639702Z",
+        "triggers": [
+          "funding_zscore:HOODUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-24T21:25:58.202170Z",
+        "triggers": [
+          "funding_zscore:GOOGLUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-24T21:31:26.197892Z",
+        "triggers": [
+          "funding_zscore:NVDAUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-24T23:12:04.872854Z",
+        "triggers": [
+          "funding_zscore:MSTRUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-24T23:38:27.667372Z",
+        "triggers": [
+          "funding_zscore:NDX100USDT"
+        ]
+      },
+      {
+        "at": "2026-09-25T00:13:06.439314Z",
+        "triggers": [
+          "funding_zscore:COINUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-25T00:29:07.712906Z",
+        "triggers": [
+          "funding_zscore:SNDKUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-25T00:40:03.988757Z",
+        "triggers": [
+          "funding_zscore:AMZNUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-25T01:17:13.396956Z",
+        "triggers": [
+          "funding_zscore:HOODUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-25T10:25:04.370629Z",
+        "triggers": [
+          "funding_zscore:TSLAUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-25T10:46:00.535421Z",
+        "triggers": [
+          "funding_zscore:HOODUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-25T11:49:25.055038Z",
+        "triggers": [
+          "funding_zscore:MSTRUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-25T12:05:10.880785Z",
+        "triggers": [
+          "funding_zscore:GOOGLUSDT"
+        ]
+      }
+    ],
+    "event_decisions": 15,
+    "event_decisions_by_day": {
+      "2026-09-24": 7,
+      "2026-09-25": 8
+    },
+    "event_decisions_within_worst_case_budget": 15,
+    "first_snapshot": "2026-09-24T17:06:36.660206Z",
+    "full_snapshots": 2,
+    "heartbeat_decisions": 2,
+    "hours": 19.86,
+    "last_snapshot": "2026-09-25T12:57:58.772329Z",
+    "policy_hash": "e83d4ab6d35064415cb0496fc9c4d920f7e485742314e73a81a1676ccadf04d0",
+    "policy_version": "policy-v2",
+    "refused_by_kind_and_reason": {
+      "coordinated_cluster:cooldown": 1,
+      "funding_zscore:daily_cap": 3
+    },
+    "snapshots": 226,
+    "ticks": 225
+  }
+}

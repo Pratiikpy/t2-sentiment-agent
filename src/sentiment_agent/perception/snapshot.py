@@ -108,6 +108,11 @@ REDDIT_LIMIT: Final = 30
 
 _ANSWERED: Final = frozenset({SourceHealth.OK, SourceHealth.EMPTY})
 
+LIGHT_SNAPSHOT_REASON: Final = (
+    "light snapshot: crowd text, news and calendar are read on full snapshots"
+)
+"""The reason a light snapshot records on the sources it does not ask (:func:`is_light`)."""
+
 _UNMEASURED_CROWD: Final = CrowdReport(
     items=0, withheld=0, distinct_stories=0, duplication_ratio=0.0, clusters=(), mentions={}
 )
@@ -341,6 +346,17 @@ def snapshot_hash(snapshot: PerceptionSnapshot) -> str:
 def seal(snapshot: PerceptionSnapshot) -> PerceptionSnapshot:
     """``snapshot`` with ``snapshot_id`` set to its content hash (idempotent)."""
     return snapshot.model_copy(update={"snapshot_id": snapshot_hash(snapshot)})
+
+
+def is_light(snapshot: PerceptionSnapshot) -> bool:
+    """Whether ``snapshot`` was taken in light mode: it records ``crowd.collect`` as not asked,
+    for the light-snapshot reason. Read from the snapshot itself, so a logged one answers too."""
+    return any(
+        c.source == "crowd.collect"
+        and c.health is SourceHealth.DISABLED
+        and c.params.get("reason") == LIGHT_SNAPSHOT_REASON
+        for c in snapshot.source_calls
+    )
 
 
 def is_sealed(snapshot: PerceptionSnapshot) -> bool:
@@ -635,7 +651,7 @@ class SnapshotBuilder:
         calendar: tuple[CalendarItem, ...] = ()
         text_measured = social_measured = False
         if light:
-            reason = "light snapshot: crowd text, news and calendar are read on full snapshots"
+            reason = LIGHT_SNAPSHOT_REASON
             log.disabled(ToolkitSurface.SIGNAL_MCP, "toolkit.news", reason)
             log.disabled(ToolkitSurface.SIGNAL_MCP, "toolkit.reddit_trending", reason)
             log.disabled(ToolkitSurface.CROWD_X, "crowd.collect", reason)
@@ -769,6 +785,7 @@ class SnapshotBuilder:
 __all__ = [
     "CALENDAR_LOOKBACK",
     "CANDLE_INTERVAL",
+    "LIGHT_SNAPSHOT_REASON",
     "LIVE_CANDLE_HOURS",
     "NEWS_LIMIT",
     "REDDIT_LIMIT",
@@ -777,6 +794,7 @@ __all__ = [
     "SnapshotBuilder",
     "assemble_text",
     "crowd_reports",
+    "is_light",
     "is_sealed",
     "rebuild_text",
     "seal",

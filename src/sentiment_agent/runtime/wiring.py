@@ -85,7 +85,7 @@ from sentiment_agent.llm.budget import DailyTokenBudget
 from sentiment_agent.llm.client import QwenChatModel, load_qwen_env
 from sentiment_agent.llm.fakes import RecordedChatModel, ScriptedChatModel
 from sentiment_agent.perception.snapshot import SnapshotBuilder
-from sentiment_agent.policy import POLICY_V1
+from sentiment_agent.policy import ACTIVE_POLICY
 from sentiment_agent.sources.bitget_data import (
     ENTRY_OPEN_INTEREST,
     EXCHANGE,
@@ -844,7 +844,7 @@ def build_app(
     root = Path(root).resolve()
     paths = Paths(root=root, mode=mode)
     paths.ensure()
-    policy = parts.policy or POLICY_V1
+    policy = parts.policy or ACTIVE_POLICY
     lock = InstanceLock(paths.lock, mode=mode, clock=clock)
     lock.acquire()
     try:

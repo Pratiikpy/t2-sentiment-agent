@@ -28,6 +28,7 @@ from pydantic import ValidationError
 from sentiment_agent.book.projection import Projection, ProjectionError
 from sentiment_agent.ledger.chain import HashChainLedger, LedgerError, ledger_path
 from sentiment_agent.llm.budget import utc_day
+from sentiment_agent.perception.feeds import summary_line
 from sentiment_agent.types import (
     Activation,
     BookState,
@@ -245,6 +246,13 @@ def lines_for(view: StatusView) -> list[str]:
     if anchors:
         a = anchors[-1]
         lines.append(f"last anchor: seq {a.target_seq} {a.status} at {_t(a.submitted_at)}")
+    reports = p.feed_health
+    if reports:
+        latest = reports[-1]
+        lines.append(
+            f"feeds as of {_t(latest.at)}: "
+            + (summary_line(latest) or "no source failing, no trigger kind blinded by a failure")
+        )
     lines.append(_health_line(view))
     return lines
 

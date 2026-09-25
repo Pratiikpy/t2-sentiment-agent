@@ -332,4 +332,42 @@ POLICY_V1: Final[Policy] = Policy(
     expected_envelope=EXPECTED_ENVELOPE,
 )
 
-__all__ = ["EXCLUDED", "GUARD_BASES", "MANDATE_TEXT", "METRICS", "POLICY_V1", "UNIVERSE"]
+FUNDING_Z_ALL_CLASSES: Final[tuple[AssetClass, ...]] = tuple(AssetClass)
+"""Policy v2's ``funding_zscore`` scope: every instrument in the universe."""
+
+POLICY_V2: Final[Policy] = POLICY_V1.model_copy(
+    update={
+        "version": "policy-v2",
+        "triggers": POLICY_V1.triggers.model_copy(
+            update={
+                "funding_z_asset_classes": FUNDING_Z_ALL_CLASSES,
+                "basis": POLICY_V1.triggers.basis
+                + " Policy v2 (run 2, declared change run2-a1): funding_zscore is evaluated for "
+                "every universe instrument, not the crypto leg alone, with the same +-2 threshold, "
+                "90-settlement lookback, 240-minute cooldown and daily cap, and the same weekend "
+                "refusal for US-session legs. Basis: in run 1's 226 snapshots the live funding "
+                "z-score of an equity or index perp was beyond +-2 in 436 instrument-snapshots "
+                "(HOOD 88, NVDA 84, MSTR 58, GOOGL 49, AMZN 46, SNDK 44, TSLA 30, COIN 23, NDX100 "
+                "14) and never woke the model (validation/run2/run1_trigger_replay.json).",
+            }
+        ),
+    }
+)
+"""Policy v1 with one change: the funding z-score trigger covers the whole universe. Every guard,
+limit, fee and edge bar, the mandate and the decision rule are v1's, unchanged."""
+
+ACTIVE_POLICY: Final[Policy] = POLICY_V2
+"""The policy the runtime loads by default: run 2's. Run 1's record was pre-registered under
+:data:`POLICY_V1`, which is kept byte for byte so that record still verifies."""
+
+__all__ = [
+    "ACTIVE_POLICY",
+    "EXCLUDED",
+    "FUNDING_Z_ALL_CLASSES",
+    "GUARD_BASES",
+    "MANDATE_TEXT",
+    "METRICS",
+    "POLICY_V1",
+    "POLICY_V2",
+    "UNIVERSE",
+]

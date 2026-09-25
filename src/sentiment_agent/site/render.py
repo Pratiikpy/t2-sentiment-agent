@@ -47,7 +47,10 @@ from sentiment_agent.site.export import ExportRefused, StagedWrite, prune, scan_
 from sentiment_agent.types import (
     ArmKind,
     ArmResult,
+    BlindTrigger,
     DecisionCard,
+    FeedAlarm,
+    FeedHealthReport,
     GuardRuling,
     GuardStatus,
     KernelRuling,
@@ -81,6 +84,7 @@ SECTIONS: Final[tuple[tuple[str, str], ...]] = (
     ("mirror", "Live mirror"),
     ("redteam", "Red team"),
     ("toolkit", "Bitget toolkit"),
+    ("feeds", "Feed health"),
     ("proof", "Proof"),
     ("replay", "Replay"),
     ("verify", "Verify"),
@@ -125,6 +129,7 @@ REQUIRED: Final = (
     "mirror.json",
     "redteam.json",
     "toolkit.json",
+    "feeds.json",
     "replay.json",
     "genesis.json",
     "environment.json",
@@ -402,6 +407,7 @@ class Export:
     redteam: RedTeamReport | None
     toolkit: tuple[ToolkitUse, ...]
     toolkit_counts: dict[str, Any]
+    feeds: dict[str, Any]
     replay: dict[str, Any]
     genesis: dict[str, Any]
     environment: dict[str, Any]
@@ -445,6 +451,7 @@ def load_export(public: Path) -> Export:
         else None,
         toolkit=tuple(ToolkitUse.model_validate(r) for r in toolkit_doc["rows"]),
         toolkit_counts=toolkit_doc.get("counts", {}),
+        feeds=_load(public, "feeds.json"),
         replay=_load(public, "replay.json"),
         genesis=_load(public, "genesis.json"),
         environment=_load(public, "environment.json"),
@@ -1189,6 +1196,144 @@ def _toolkit(ex: Export) -> str:
     )
 
 
+CAUSE_TEXT: Final[Mapping[str, str]] = {
+    "feed_failed": "a source failed",
+    "no_data": "sources answered, nothing usable",
+    "cadence": "not read on light snapshots",
+    "no_threshold": "no frozen threshold",
+}
+
+
+def _alarm_rows(alarms: Sequence[FeedAlarm]) -> list[list[str]]:
+    return [
+        [
+            f'<span class="mono">{h(a.feed)}</span>',
+            _health_badge(a.health),
+            h(when(a.since)),
+            h(str(a.snapshots)),
+            f'<span class="small">{h(short(a.error or "", 240))}</span>',
+        ]
+        for a in alarms
+    ]
+
+
+def _blind_rows(blind: Sequence[BlindTrigger]) -> list[list[str]]:
+    return [
+        [
+            h(b.kind.value.replace("_", " ")),
+            h(", ".join(b.symbols) or "all"),
+            badge(CAUSE_TEXT.get(b.cause, b.cause), "bad" if b.cause == "feed_failed" else ""),
+            f'<span class="small">{h(short(b.reason, 320))}</span>',
+        ]
+        for b in blind
+    ]
+
+
+def feed_health_html(report: FeedHealthReport, *, cadence: bool = True) -> str:
+    """The alarms and blind trigger kinds of one report (the page and each decision card)."""
+    alarms = (
+        table(
+            ["source", "health", "failing since", "snapshots", "last error"],
+            _alarm_rows(report.alarms),
+            numeric=(3,),
+            wide=True,
+        )
+        if report.alarms
+        else '<p class="small">No source is failing.</p>'
+    )
+    shown = [b for b in report.blind if cadence or b.cause != "cadence"]
+    blind = (
+        table(["trigger kind", "instruments", "cause", "why"], _blind_rows(shown), wide=True)
+        if shown
+        else '<p class="small">Every trigger kind could be evaluated.</p>'
+    )
+    return f"<h4>Failing sources</h4>{alarms}<h4>Trigger kinds that could not fire</h4>{blind}"
+
+
+def _feeds(ex: Export) -> str:
+    doc = ex.feeds
+    lede = (
+        "Every source the agent reads that is failing now (an error, a timeout or a hollow "
+        "answer), since when, and every trigger kind a snapshot could not evaluate, with the "
+        "cause. A failing source degrades a snapshot and never stops the agent; here it is "
+        "visible instead of silent."
+    )
+    if doc.get("status") != "logged" or doc.get("latest") is None:
+        body = f'<p class="muted">{h(doc.get("note") or "No feed-health report yet.")}</p>'
+        return section("feeds", "Feed health", lede, body)
+    latest = FeedHealthReport.model_validate(doc["latest"])
+    counts = doc.get("counts", {})
+    head = facts(
+        [
+            ("As of", h(when(latest.at)) + (" (light snapshot)" if latest.light else "")),
+            ("Failing now", h(str(counts.get("open", len(latest.alarms))))),
+            (
+                "Alarms raised / cleared",
+                h(f"{counts.get('raised', 0)} / {counts.get('cleared', 0)}"),
+            ),
+            ("Reports logged", h(str(counts.get("reports", 0)))),
+        ]
+    )
+    history = doc.get("history", [])
+    history_html = (
+        table(
+            ["seq", "at", "raised", "cleared"],
+            [
+                [
+                    h(str(row["seq"])),
+                    h(when(row["at"])),
+                    f'<span class="mono small">{h(", ".join(row["raised"]) or "—")}</span>',
+                    f'<span class="mono small">{h(", ".join(row["cleared"]) or "—")}</span>',
+                ]
+                for row in reversed(history)
+            ],
+            wide=True,
+        )
+        if history
+        else '<p class="small">No alarm has been raised.</p>'
+    )
+    body = (
+        head
+        + feed_health_html(latest)
+        + f"<details><summary>Alarm history ({len(history)})</summary>{history_html}</details>"
+    )
+    return section("feeds", "Feed health", lede, body)
+
+
+def _declared_changes(genesis: Mapping[str, Any]) -> str:
+    """Run 2's declared changes against the run it follows, straight from the genesis payload."""
+    changes = genesis.get("declared_changes") or []
+    predecessor = genesis.get("predecessor")
+    if predecessor is None:
+        return ""
+    rows = [
+        [
+            f'<span class="mono">{h(c["change_id"])}</span>',
+            h(c["kind"].replace("_", " ")),
+            f"<div>{h(c['title'])}</div>"
+            f'<div class="small muted">{h(short(c["detail"], 600))}</div>',
+            '<span class="small">'
+            + h("; ".join(f"{k}: {v}" for k, v in c["evidence"].items()))
+            + "</span>",
+        ]
+        for c in changes
+    ]
+    return (
+        "<h4>Declared changes against the run it follows</h4>"
+        + facts(
+            [
+                (
+                    "Follows",
+                    f'<span class="hash">{h(predecessor["genesis_hash"])}</span> '
+                    + h(f"({predecessor['policy_version']}, {predecessor['window']})"),
+                ),
+                ("Its code commit", f'<span class="hash">{h(predecessor["code_commit"])}</span>'),
+            ]
+        )
+        + table(["change", "kind", "what and why", "evidence"], rows, wide=True)
+    )
+
+
 def _check(ok: bool | None, label: str, detail: str = "") -> tuple[str, str]:
     mark = badge("yes", "good") if ok else badge("no", "bad") if ok is False else badge("n/a")
     return label, mark + (f' <span class="small">{h(detail)}</span>' if detail else "")
@@ -1266,6 +1411,7 @@ def _proof(ex: Export) -> str:
                 ("OpenTimestamps", anchor_html),
             ]
         )
+        genesis_html += _declared_changes(genesis)
         if g.get("x_post_text"):
             genesis_html += (
                 "<h4>Posted on X before the first order</h4>"
@@ -1471,6 +1617,7 @@ def render_index(ex: Export) -> str:
             _mirror(ex),
             _redteam(ex),
             _toolkit(ex),
+            _feeds(ex),
             _proof(ex),
             _replay(ex),
             _verify(ex),
@@ -1616,6 +1763,19 @@ def render_card(card: DecisionCard, orders: Mapping[str, Mapping[str, Any]]) -> 
         parts.append(
             section(
                 "coverage", "Sources the snapshot asked", h(lede), table(["source", "health"], rows)
+            )
+        )
+    if card.feed_health is not None:
+        feeds = card.feed_health
+        parts.append(
+            section(
+                "feeds",
+                "Feed health on this snapshot",
+                h(
+                    f"{len(feeds.alarms)} source(s) failing, "
+                    f"{len(feeds.failure_blind())} trigger kind(s) blinded by a failure."
+                ),
+                feed_health_html(feeds, cadence=False),
             )
         )
     if card.shown_text:
