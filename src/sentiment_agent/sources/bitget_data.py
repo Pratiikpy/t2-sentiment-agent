@@ -597,8 +597,13 @@ def _envelope(payload: Any) -> tuple[list[dict[str, Any]], _Reading | None]:
     if payload.get("success") is not True:
         data = payload.get("data")
         detail = payload.get("error") or (data.get("detail") if isinstance(data, dict) else None)
+        if detail is None and isinstance(data, str) and "<html" in data.lower():
+            # the upstream's own error page, passed through as the data field (seen during the
+            # 2026-09-25 outage); the page said "None" where this is the only detail there is
+            detail = "the upstream answered with an HTML error page"
         return [], _Reading(
-            SourceHealth.ERROR, error=f"service reported failure (status {status}): {detail}"
+            SourceHealth.ERROR,
+            error=f"service reported failure (status {status})" + (f": {detail}" if detail else ""),
         )
     data = payload.get("data")
     if status == 204 or data in (None, "", {}):
