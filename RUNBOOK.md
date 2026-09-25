@@ -188,7 +188,10 @@ from run 1's root: a root holds one paper ledger, and its genesis is written onc
 
 In run 1's windows, in this order: stop the watchdog (`scripts\watchdog.ps1`) first with Ctrl+C,
 otherwise it restarts the agent; then Ctrl+C the `t2sa go-live` window; then stop the site
-publisher (`scripts\publish_site.ps1`) after its next publish.
+publisher after its next publish. Since 2026-09-25 run 1's publisher runs from run 2's checkout
+(`<run 2 root>\scripts\publish_site.ps1 -Root <run 1 root>`), because the fixed script uploads the
+record as one archive: run 1's record passed Vercel's 15,000-file limit and the old script kept
+logging "published" while every upload was rejected.
 
 If BTCUSDT is still open (the only leg G2 allows over a weekend), close it by hand in the Demo UI on
 bitget.site, and record the close in run 1's ledger with a read-only sweep. Run 2 must start flat:

@@ -15,10 +15,21 @@
 # run publishes to its own, so run 2 never overwrites run 1's record:
 #   run 1: t2-sentiment-agent-live (the default)    run 2: -Project t2-sentiment-agent-run2
 
-param([int]$PublishAtMinute = 10, [string]$Project = "t2-sentiment-agent-live")
+# -Root names the agent root whose public/ is published; it defaults to this script's own checkout.
+# Run 1 is published by this script from run 2's checkout with -Root pointing at run 1's root, so
+# run 1's working tree is never edited while its window is open.
+#
+# Why --archive=tgz, and why the deploy result is checked (2026-09-25): run 1's record passed
+# 15,000 files (the evidence blobs) and Vercel began rejecting every upload with "files should NOT
+# have more than 15000 items"; the loop still logged "published", so the hosted page silently
+# froze at 09:00 UTC for ten hours. One archive is one file, and a deploy without an "Aliased" line
+# is now logged as a failure.
+
+param([int]$PublishAtMinute = 10, [string]$Project = "t2-sentiment-agent-live",
+      [string]$Root = "")
 
 $ErrorActionPreference = "Continue"
-$root = Split-Path -Parent $PSScriptRoot
+$root = if ($Root) { $Root } else { Split-Path -Parent $PSScriptRoot }
 $public = Join-Path $root "public"
 $stage = Join-Path $root ("var\site\" + $Project)
 $logDir = Join-Path $root "var\logs"
@@ -52,7 +63,7 @@ while ($true) {
             Write-Log "refused: personal path or credential marker in $($leak[0].Path)"
         } else {
             Push-Location $stage
-            $out = & vercel deploy --prod --yes 2>&1 | Out-String
+            $out = & vercel deploy --prod --yes --archive=tgz 2>&1 | Out-String
             Pop-Location
             $alias = ($out -split "`n" | Where-Object { $_ -match "Aliased" }) -join " "
             $generated = "unknown"
@@ -60,7 +71,13 @@ while ($true) {
                 $generated = (Get-Content (Join-Path $stage "summary.json") -Raw |
                     ConvertFrom-Json).generated_at
             } catch { }
-            Write-Log ("published record generated $generated " + $alias.Trim())
+            if ($alias) {
+                Write-Log ("published record generated $generated " + $alias.Trim())
+            } else {
+                $why = ($out -split "`n" | Where-Object { $_ -match "error|Error|message" } |
+                    Select-Object -First 2) -join " "
+                Write-Log ("publish FAILED for record generated $generated -- " + $why.Trim())
+            }
         }
     } catch {
         Write-Log "publish failed: $($_.Exception.Message)"
