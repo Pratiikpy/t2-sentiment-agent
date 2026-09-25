@@ -53,6 +53,7 @@ from sentiment_agent.sources.bitget_data import (
 )
 from sentiment_agent.sources.mcp_http import Invocation, source_call
 from sentiment_agent.sources.signal_skills import REDDIT_FILTERS, SignalSkills
+from sentiment_agent.sources.upstream import UpstreamDirect
 from sentiment_agent.types import (
     CalendarItem,
     Clock,
@@ -115,12 +116,18 @@ class ToolkitFacade:
     :class:`~sentiment_agent.types.ToolkitReader` protocol."""
 
     def __init__(
-        self, signal: SignalSkills, data: BitgetDataService, *, max_workers: int = 8
+        self,
+        signal: SignalSkills,
+        data: BitgetDataService,
+        *,
+        max_workers: int = 8,
+        upstream: UpstreamDirect | None = None,
     ) -> None:
         if max_workers < 1:
             raise ValueError("max_workers must be at least 1")
         self._signal = signal
         self._data = data
+        self._upstream = upstream
         self._clock = data.clock
         self._workers = max_workers
 
@@ -188,6 +195,13 @@ class ToolkitFacade:
         elif signal_value is not None:
             primary_value, primary_label = signal_value, signal_label
             primary_source = SIGNAL_FEAR_GREED_SOURCE
+        extra: tuple[SourceCall, ...] = ()
+        if primary_value is None and self._upstream is not None:
+            # run2-d3: both services wrap alternative.me; it is read when neither reached it
+            up_value, up_label, up_call = self._upstream.fear_greed()
+            extra = (up_call,)
+            if up_value is not None:
+                primary_value, primary_label, primary_source = up_value, up_label, up_call.source
         reading = MoodReading(
             crypto_fear_greed=primary_value,
             crypto_fear_greed_label=primary_label,
@@ -200,7 +214,7 @@ class ToolkitFacade:
                 source_label(ENTRY_MARKET_FEAR_GREED) if market_value is not None else None
             ),
         )
-        return reading, (data_call, signal_call, market_call)
+        return reading, (data_call, signal_call, market_call, *extra)
 
     def derivatives(self, symbol: str) -> tuple[DerivativesReading, tuple[SourceCall, ...]]:
         """Crowd positioning. Calls: the six bitget-mcp-server entries, then a bitget-signal call
@@ -246,7 +260,7 @@ class ToolkitFacade:
                 ),
             )
         if not ratios and series_fn is None:
-            return primary, calls
+            return self._upstream_derivatives(primary, calls)
 
         with ThreadPoolExecutor(max_workers=self._workers) as pool:
             ratio_futures: dict[str, Future[Ratio]] = {
@@ -279,7 +293,54 @@ class ToolkitFacade:
         extra = [ratio_results[s][1] for s in ratios]
         if series_result is not None:
             extra.append(series_result[1])
-        return reading, (*calls, *extra)
+        return self._upstream_derivatives(reading, (*calls, *extra))
+
+    def _upstream_derivatives(
+        self, reading: DerivativesReading, calls: tuple[SourceCall, ...]
+    ) -> tuple[DerivativesReading, tuple[SourceCall, ...]]:
+        """run2-d3: Binance futures, read directly, for every field both services left empty.
+        Calls are appended in a fixed order: long/short, top account, top position, taker, open
+        interest, funding (only those asked)."""
+        up = self._upstream
+        if up is None:
+            return reading, calls
+        symbol = reading.symbol
+        jobs: dict[str, Callable[[], Any]] = {}
+        if reading.retail_long_short_ratio is None:
+            jobs["long_short"] = partial(up.long_short, symbol)
+        if reading.top_trader_account_ratio is None:
+            jobs["top_account"] = partial(up.top_account, symbol)
+        if reading.top_trader_position_ratio is None:
+            jobs["top_position"] = partial(up.top_position, symbol)
+        if reading.taker_buy_sell_ratio is None:
+            jobs["taker"] = partial(up.taker, symbol)
+        if not reading.open_interest_history:
+            jobs["open_interest"] = partial(up.open_interest, symbol)
+        if reading.funding_rate is None:
+            jobs["funding"] = partial(up.funding, symbol)
+        if not jobs:
+            return reading, calls
+        with ThreadPoolExecutor(max_workers=self._workers) as pool:
+            futures = {name: pool.submit(fn) for name, fn in jobs.items()}
+            got = {name: f.result() for name, f in futures.items()}
+
+        def value(name: str, current: Any) -> Any:
+            found = got[name][0] if name in got else None
+            return current if found is None or found == () else found
+
+        filled = reading.model_copy(
+            update={
+                "retail_long_short_ratio": value("long_short", reading.retail_long_short_ratio),
+                "top_trader_account_ratio": value("top_account", reading.top_trader_account_ratio),
+                "top_trader_position_ratio": value(
+                    "top_position", reading.top_trader_position_ratio
+                ),
+                "taker_buy_sell_ratio": value("taker", reading.taker_buy_sell_ratio),
+                "open_interest_history": value("open_interest", reading.open_interest_history),
+                "funding_rate": value("funding", reading.funding_rate),
+            }
+        )
+        return filled, (*calls, *(got[name][1] for name in jobs))
 
     def news(self, limit: int) -> tuple[tuple[TextItem, ...], tuple[SourceCall, ...]]:
         """Headlines from bitget-signal's ``news_feed``. bitget-mcp-server's one news entry needs a
@@ -287,7 +348,11 @@ class ToolkitFacade:
         items, call = _guarded(
             lambda: self._signal.news(limit), self._texts_fallback("news_feed.latest")
         )()
-        return items, (call,)
+        if items or self._upstream is None:
+            return items, (call,)
+        # run2-d3: the publishers' own feeds when bitget-signal's news feed returned nothing
+        up_items, up_calls = self._upstream.news(limit)
+        return up_items, (call, *up_calls)
 
     def reddit_trending(self, limit: int) -> tuple[tuple[TextItem, ...], tuple[SourceCall, ...]]:
         """Up to ``limit`` trending tickers from each of

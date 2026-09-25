@@ -18,6 +18,7 @@ from sentiment_agent.ledger.genesis import GenesisError, build_genesis
 from sentiment_agent.policy import ACTIVE_POLICY, POLICY_V1, POLICY_V2
 from sentiment_agent.run2 import (
     DECLARED_CHANGES,
+    OUTAGE_EVIDENCE,
     PREDECESSOR,
     REPLAY_EVIDENCE,
     RUN1_CODE_COMMIT,
@@ -110,7 +111,12 @@ def test_run_2s_genesis_declares_its_predecessor_and_every_change() -> None:
     assert predecessor.genesis_hash == RUN1_GENESIS_HASH
     assert predecessor.code_commit == RUN1_CODE_COMMIT
     genesis = genesis_of(POLICY_V2, predecessor=predecessor, declared_changes=changes)
-    assert [c.change_id for c in genesis.declared_changes] == ["run2-d1", "run2-d2", "run2-a1"]
+    assert [c.change_id for c in genesis.declared_changes] == [
+        "run2-d1",
+        "run2-d2",
+        "run2-d3",
+        "run2-a1",
+    ]
     (amendment,) = [c for c in genesis.declared_changes if c.kind == "policy_amendment"]
     assert amendment.previous_policy_hash == RUN1_POLICY_HASH
     assert amendment.new_policy_hash == genesis.policy_hash == POLICY_V2.content_hash()
@@ -198,3 +204,26 @@ def test_the_declared_counts_match_the_evidence() -> None:
     riders = next(c for c in DECLARED_CHANGES if c.change_id == "run2-d1")
     assert doc["policy_v1"]["admitted_by_kind"]["coordinated_cluster"] == 22
     assert riders.evidence["run1_full_snapshot_triggers_never_evaluated"].startswith("22 ")
+
+
+def test_the_upstream_fallback_is_declared_with_run_1s_outage() -> None:
+    """run2-d3's figures are the outage recomputed from run 1's ledger, not typed by hand."""
+    doc: dict[str, Any] = json.loads((ROOT / OUTAGE_EVIDENCE).read_text(encoding="utf-8"))
+    assert doc["input"]["genesis_hash"] == RUN1_GENESIS_HASH
+    assert doc["input"]["ledger_head_seq"] == 546
+    since = doc["since_first_data_mcp_failure"]
+    assert since["from"].startswith("2026-09-25T08:33")
+    assert since["calls"]["bitget_mcp_server"]["asked"] == 1356
+    assert since["calls"]["bitget_mcp_server"]["answered"] == 144
+    assert doc["whole_run"]["calls"]["bitget_signal_mcp"]["asked"] == 939
+    assert doc["whole_run"]["calls"]["bitget_signal_mcp"]["answered"] == 0
+    missing = since["snapshots"] - since["readings_present"]["crypto_fear_greed"]
+    assert (missing, since["snapshots"]) == (146, 164)
+    assert (
+        since["snapshots"] - since["readings_present"]["BTCUSDT"]["retail_long_short_ratio"] == 146
+    )
+    fallback = next(c for c in DECLARED_CHANGES if c.change_id == "run2-d3")
+    assert fallback.kind == "code_fix"
+    assert "144 of 1356" in fallback.evidence["bitget_mcp_server"]
+    assert "0 of 939" in fallback.evidence["bitget_signal"]
+    assert "146 of 164" in fallback.evidence["readings_missing"]

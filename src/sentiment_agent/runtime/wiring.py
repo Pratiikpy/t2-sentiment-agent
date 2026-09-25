@@ -101,6 +101,7 @@ from sentiment_agent.sources.mcp_http import (
 )
 from sentiment_agent.sources.signal_skills import SignalSkills
 from sentiment_agent.sources.toolkit import ToolkitFacade
+from sentiment_agent.sources.upstream import UpstreamDirect
 from sentiment_agent.types import (
     ApprovedOrder,
     AssetClass,
@@ -797,7 +798,9 @@ def default_toolkit(clock: Clock, blobs: FileBlobStore | None) -> ToolkitFacade:
         StreamableHttpMcp(SIGNAL_MCP_URL, server_label="bitget-signal", clock=clock, blobs=blobs),
         clock,
     )
-    return ToolkitFacade(signal, default_data_service(clock, blobs))
+    return ToolkitFacade(
+        signal, default_data_service(clock, blobs), upstream=UpstreamDirect(clock, blobs=blobs)
+    )
 
 
 # ================================================================================================

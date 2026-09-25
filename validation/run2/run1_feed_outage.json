@@ -1,0 +1,130 @@
+{
+  "input": {
+    "first_snapshot": "2026-09-24T17:06:36.660206+00:00",
+    "genesis_hash": "ebbf607a8fe199bccc0f612ededf2a6902e4884a38d21fbfea498dff7da453a5",
+    "last_snapshot": "2026-09-25T22:56:48.809618+00:00",
+    "ledger_head_seq": 546,
+    "published_blobs_missing": 242
+  },
+  "since_first_data_mcp_failure": {
+    "calls": {
+      "bitget_mcp_server": {
+        "answered": 144,
+        "asked": 1356,
+        "by_health": {
+          "disabled": 162,
+          "error": 1212,
+          "ok": 144
+        },
+        "failing": 1212
+      },
+      "bitget_public_market_api": {
+        "answered": 18553,
+        "asked": 18669,
+        "by_health": {
+          "error": 116,
+          "ok": 18553
+        },
+        "failing": 116
+      },
+      "bitget_signal_mcp": {
+        "answered": 0,
+        "asked": 754,
+        "by_health": {
+          "disabled": 324,
+          "error": 5,
+          "hollow": 749
+        },
+        "failing": 754
+      },
+      "crowd_reddit": {
+        "answered": 27,
+        "asked": 28,
+        "by_health": {
+          "hollow": 1,
+          "ok": 27
+        },
+        "failing": 1
+      },
+      "crowd_x": {
+        "answered": 28,
+        "asked": 28,
+        "by_health": {
+          "disabled": 162,
+          "ok": 28
+        },
+        "failing": 0
+      }
+    },
+    "from": "2026-09-25T08:33:11.431005+00:00",
+    "readings_present": {
+      "BTCUSDT": {
+        "open_interest_live": 162,
+        "retail_long_short_ratio": 18,
+        "taker_buy_sell_ratio": 18
+      },
+      "crypto_fear_greed": 18
+    },
+    "snapshots": 164
+  },
+  "whole_run": {
+    "calls": {
+      "bitget_mcp_server": {
+        "answered": 1592,
+        "asked": 2808,
+        "by_health": {
+          "disabled": 336,
+          "error": 1216,
+          "ok": 1592
+        },
+        "failing": 1216
+      },
+      "bitget_public_market_api": {
+        "answered": 38617,
+        "asked": 38733,
+        "by_health": {
+          "error": 116,
+          "ok": 38617
+        },
+        "failing": 116
+      },
+      "bitget_signal_mcp": {
+        "answered": 0,
+        "asked": 939,
+        "by_health": {
+          "disabled": 672,
+          "error": 5,
+          "hollow": 934
+        },
+        "failing": 939
+      },
+      "crowd_reddit": {
+        "answered": 55,
+        "asked": 56,
+        "by_health": {
+          "hollow": 1,
+          "ok": 55
+        },
+        "failing": 1
+      },
+      "crowd_x": {
+        "answered": 56,
+        "asked": 56,
+        "by_health": {
+          "disabled": 336,
+          "ok": 56
+        },
+        "failing": 0
+      }
+    },
+    "readings_present": {
+      "BTCUSDT": {
+        "open_interest_live": 338,
+        "retail_long_short_ratio": 193,
+        "taker_buy_sell_ratio": 193
+      },
+      "crypto_fear_greed": 194
+    },
+    "snapshots": 340
+  }
+}

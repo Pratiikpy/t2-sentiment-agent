@@ -201,6 +201,10 @@ class ToolkitSurface(enum.StrEnum):
     GETAGENT_PLAYBOOK = "getagent_playbook"
     CROWD_X = "crowd_x"
     CROWD_REDDIT = "crowd_reddit"
+    UPSTREAM_DIRECT = "upstream_direct"
+    """Not a Bitget surface: the public source a Bitget data service wraps (Binance futures,
+    alternative.me, publishers' RSS), read directly only when both services left a reading empty
+    (run 2, ``run2-d3``). Counted apart from every Bitget surface."""
 
 
 class SourceHealth(enum.StrEnum):

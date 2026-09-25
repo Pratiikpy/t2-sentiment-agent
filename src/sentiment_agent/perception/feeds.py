@@ -57,6 +57,7 @@ CRYPTO_FEAR_GREED_FEEDS: Final = (
     "toolkit.mood",
     "sentiment_index.current",
     "do_query:crypto_sentiment_crypto_fear_greed",
+    "upstream:alternative_me.fng",
 )
 MARKET_FEAR_GREED_FEEDS: Final = ("toolkit.mood", "do_query:sentiment_market_fear_greed")
 FUNDING_HISTORY_FEEDS: Final = ("public_v3.history_fund_rate[live]:", "history-fund-rate.live:")
@@ -65,6 +66,7 @@ scores comes from the live tickers."""
 OPEN_INTEREST_FEEDS: Final = (
     "derivatives_sentiment.open_interest",
     "do_query:crypto_futures_open_interest_history",
+    "upstream:binance.openInterestHist",
 )
 CROWD_TEXT_FEEDS: Final = (
     "crowd.collect",
@@ -72,6 +74,7 @@ CROWD_TEXT_FEEDS: Final = (
     "rdt-cli:",
     "toolkit.news",
     "news_feed.",
+    "upstream:rss.",
     "toolkit.reddit_trending",
     "derivatives_sentiment.reddit_trending",
 )

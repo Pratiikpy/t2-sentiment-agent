@@ -15,6 +15,10 @@ itself, and not from a README, what differs and why:
     Feed-health alarms: a source that errors, times out or comes back hollow is a ``feed_health``
     ledger event, on the decision card and on the public page, and every trigger kind it blinds is
     named with its cause.
+``run2-d3`` (code fix)
+    When both Bitget data services leave a reading empty, the upstream they wrap is read directly
+    (Binance futures positioning, alternative.me Fear & Greed, publishers' RSS), on its own
+    labelled surface; see ``sources/upstream.py``.
 ``run2-a1`` (policy amendment, v1 to v2)
     ``funding_zscore`` is evaluated for every universe instrument, not BTCUSDT alone, with the same
     threshold, lookback, cooldown, daily cap and weekend refusal.
@@ -45,6 +49,10 @@ RUN1_PROMPT_HASHES: Final[dict[str, str]] = {
 """Run 1's genesis ``prompt_hashes``; run 2 pre-registers the same files unchanged."""
 
 REPLAY_EVIDENCE: Final = "validation/run2/run1_trigger_replay.json"
+OUTAGE_EVIDENCE: Final = "validation/run2/run1_feed_outage.json"
+OUTAGE_COMMAND: Final = (
+    "python scripts/feed_outage.py <run 1 public/> --until-seq 546 --out " + OUTAGE_EVIDENCE
+)
 REPLAY_COMMAND: Final = (
     "python scripts/replay_triggers.py <run 1 public/> --until-seq 363 --out " + REPLAY_EVIDENCE
 )
@@ -112,6 +120,37 @@ DECLARED_CHANGES: Final[tuple[DeclaredChange, ...]] = (
             "do_query": "error (service reported 503) on every call from 2026-09-25T10:14:31Z",
             "calendar": "equity_calendar answered; no upcoming report date for any equity",
             "source": "run 1 public/ledger.jsonl through seq 363",
+        },
+    ),
+    DeclaredChange(
+        change_id="run2-d3",
+        kind="code_fix",
+        title="The upstreams Bitget's data services wrap, read directly when both fail",
+        detail="Crowd positioning (retail and top-trader long/short, taker buy/sell, open "
+        "interest, funding) is read from bitget-mcp-server, then bitget-signal for a field it "
+        "left empty; crypto Fear & Greed from both; news from bitget-signal. When both leave a "
+        "reading empty, run 2 reads the source they themselves wrap: Binance USD-M futures "
+        "(futures/data/*, fapi/v1/fundingRate; open interest in contracts, the unit "
+        "bitget-mcp-server returns), alternative.me for Fear & Greed, and four publishers' RSS "
+        "for news. Every such call is recorded on its own surface (upstream_direct) with the "
+        "upstream named, after the Bitget calls, which are still made and recorded, so their "
+        "failure stays a feed-health alarm and the toolkit count still counts only what Bitget "
+        "answered. A series is taken whole from one source. " + _UNCHANGED,
+        files=(
+            "src/sentiment_agent/sources/upstream.py",
+            "src/sentiment_agent/sources/toolkit.py",
+            "src/sentiment_agent/runtime/wiring.py",
+            "src/sentiment_agent/perception/feeds.py",
+            "src/sentiment_agent/site/coverage.py",
+            "src/sentiment_agent/types.py",
+        ),
+        evidence={
+            "bitget_mcp_server": "answered 144 of 1356 calls from its first failure "
+            "(2026-09-25T08:33Z) to seq 546",
+            "bitget_signal": "answered 0 of 939 calls over the whole run",
+            "readings_missing": "crypto Fear & Greed and BTCUSDT long/short missing from 146 "
+            "of 164 snapshots since that failure",
+            "source": OUTAGE_EVIDENCE + ", by " + OUTAGE_COMMAND,
         },
     ),
     DeclaredChange(

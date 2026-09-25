@@ -171,7 +171,8 @@ genesis, or the loaded policy is not the one in force) · 5 another instance of 
 Run 2 is a second paper run with its own ledger and genesis, from the `run2-prep` code. What it
 changes against run 1, and why, is declared in its genesis (DESIGN.md §24): the crowd and calendar
 trigger kinds are evaluated on the full snapshot (`run2-d1`), a failing or hollow source is an
-alarm (`run2-d2`), and policy v2 extends the funding z-score trigger to every instrument
+alarm (`run2-d2`), a reading both Bitget data services leave empty is read from the upstream they
+wrap (`run2-d3`), and policy v2 extends the funding z-score trigger to every instrument
 (`run2-a1`). Nothing else changes.
 
 **Timing.** Run 1's window ends **2026-09-27 17:06 UTC** (a Sunday; its US-equity and index legs
@@ -246,7 +247,8 @@ t2sa go-live
 
 It proves the environment, writes run 2's genesis and prints, beside the policy hash
 (`policy-v2`), the run it follows (run 1's genesis hash) and the declared changes
-`run2-d1 (code_fix), run2-d2 (observability), run2-a1 (policy_amendment)`; then it prints the X post
+`run2-d1 (code_fix), run2-d2 (observability), run2-d3 (code_fix), run2-a1 (policy_amendment)`;
+then it prints the X post
 with run 2's genesis hash. **Post it before the first decision.**
 
 To keep it alive unattended, start the watchdog instead of `t2sa go-live`: it runs the same command

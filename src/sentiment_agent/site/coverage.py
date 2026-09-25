@@ -546,6 +546,18 @@ OTHER_ROWS: Final[tuple[_Declared, ...]] = (
         notes="not Bitget: listed because it feeds the same decision",
         log_sources=("rdt-cli:search:",),
     ),
+    _Declared(
+        ToolkitSurface.UPSTREAM_DIRECT,
+        "Binance futures/data/* and fapi/v1/fundingRate; alternative.me fng; publishers' RSS",
+        "the sources bitget-mcp-server and bitget-signal wrap, read directly only for a reading "
+        "both services left empty (run2-d3), so a Bitget outage does not blind the positioning "
+        "and Fear & Greed triggers",
+        LINE_PERCEPTION,
+        ("sources.upstream.UpstreamDirect", "sources.toolkit.ToolkitFacade", *_SNAPSHOT),
+        AT_CARD_POSITIONING,
+        notes="not Bitget: the upstream a Bitget service names, counted apart from it",
+        log_sources=("upstream:",),
+    ),
 )
 
 SURFACE_ORDER: Final[tuple[ToolkitSurface, ...]] = (
@@ -556,6 +568,7 @@ SURFACE_ORDER: Final[tuple[ToolkitSurface, ...]] = (
     ToolkitSurface.GETAGENT_PLAYBOOK,
     ToolkitSurface.CROWD_X,
     ToolkitSurface.CROWD_REDDIT,
+    ToolkitSurface.UPSTREAM_DIRECT,
 )
 
 
