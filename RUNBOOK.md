@@ -165,3 +165,113 @@ t2sa verify --mode paper
 0 success · 1 a check failed · 2 a refused precondition or usage error · 3 the environment was
 refused (40099, a live key, no Demo credentials) · 4 the pre-registration does not match (no
 genesis, or the loaded policy is not the one in force) · 5 another instance of the mode is running.
+
+## Run 2
+
+Run 2 is a second paper run with its own ledger and genesis, from the `run2-prep` code. What it
+changes against run 1, and why, is declared in its genesis (DESIGN.md §24): the crowd and calendar
+trigger kinds are evaluated on the full snapshot (`run2-d1`), a failing or hollow source is an
+alarm (`run2-d2`), and policy v2 extends the funding z-score trigger to every instrument
+(`run2-a1`). Nothing else changes.
+
+**Timing.** Run 1's window ends **2026-09-27 17:06 UTC** (a Sunday; its US-equity and index legs
+have been flat since Friday 20:00 UTC under G2). Run 2 starts **Monday 2026-09-28 00:00 UTC**, when
+the weekend freeze ends. Its 72-hour window runs to Thursday 2026-10-01 00:00 UTC. Started at
+00:00, the loop's first scheduled decision is the 08:00 UTC funding heartbeat (the 00:00 one falls
+before the start); an event trigger can wake it earlier.
+
+Two roots are involved, written below as `<run 1 root>` (the checkout run 1 is running from) and
+`<run 2 root>` (a checkout of the `run2-prep` commit, for example a git worktree). Run 2 never runs
+from run 1's root: a root holds one paper ledger, and its genesis is written once.
+
+### 1. Close run 1 (after 2026-09-27 17:06 UTC)
+
+In run 1's windows, in this order: stop the watchdog (`scripts\watchdog.ps1`) first with Ctrl+C,
+otherwise it restarts the agent; then Ctrl+C the `t2sa go-live` window; then stop the site
+publisher (`scripts\publish_site.ps1`) after its next publish.
+
+If BTCUSDT is still open (the only leg G2 allows over a weekend), close it by hand in the Demo UI on
+bitget.site, and record the close in run 1's ledger with a read-only sweep. Run 2 must start flat:
+a venue position its own ledger does not know is a `position_mismatch`, and G10 would refuse every
+increase until it cleared.
+
+```powershell
+cd <run 1 root>
+.venv\Scripts\Activate.ps1
+t2sa reconcile --mode paper          # read-only: the manual close becomes a logged fill
+t2sa export --mode paper
+python scripts/recompute.py public
+t2sa verify --mode paper
+t2sa status --mode paper             # "0 open position(s)"
+```
+
+Run 1's `public/` and its hosted page stay as they are: they are run 1's record.
+
+### 2. Prepare run 2's root (any time before the start)
+
+```powershell
+git worktree add <run 2 root> run2-prep     # or a fresh clone checked out at run2-prep
+cd <run 2 root>
+git status                                  # clean: the genesis records the commit HEAD names
+uv sync --extra dev --extra anchor --frozen
+.venv\Scripts\Activate.ps1
+t2sa setup                                  # npm ci the pinned Agent Hub CLI into tools/agent-hub
+python scripts/check_all.py                 # lint, format, strict types, all tests
+t2sa preflight                              # keyless: data sources, bgc, dry-run previews, hashes
+```
+
+Put the same two key files in place as for run 1 (RUNBOOK §1): `.secrets/demo.env` (the Demo key,
+`BITGET_KEY_ENVIRONMENT=demo`) and `.secrets/qwen.env`, inside `<run 2 root>`. The agent reads
+credentials only from its own root. Push `run2-prep` (or merge it) so that the commit named in the
+genesis is public.
+
+Rehearse one full cycle against live data with nothing sent, and look at what the new pieces show:
+
+```powershell
+t2sa decide --mode dryrun --llm scripted --script examples/scripted/decision.json --reason "run 2 rehearsal" --symbols BTCUSDT
+t2sa export --mode dryrun               # var/public-dryrun/: feeds.json, the Feed health section, the card
+t2sa status --mode dryrun               # the "feeds as of ..." line
+```
+
+### 3. Start run 2 (Monday 2026-09-28 00:00 UTC)
+
+```powershell
+cd <run 2 root>
+.venv\Scripts\Activate.ps1
+t2sa go-live
+```
+
+It proves the environment, writes run 2's genesis and prints, beside the policy hash
+(`policy-v2`), the run it follows (run 1's genesis hash) and the declared changes
+`run2-d1 (code_fix), run2-d2 (observability), run2-a1 (policy_amendment)`; then it prints the X post
+with run 2's genesis hash. **Post it before the first decision.**
+
+To keep it alive unattended, start the watchdog instead of `t2sa go-live`: it runs the same command
+(so it writes the genesis on its first start) and restarts it after any exit but a refusal; the X
+post is then in `var/logs/run-*.log`. Start the site publisher in its own window, under run 2's own
+page name:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\watchdog.ps1
+powershell -ExecutionPolicy Bypass -File scripts\publish_site.ps1 -Project t2-sentiment-agent-run2
+```
+
+`-Project` gives run 2 its own hosted page, so it never overwrites run 1's.
+
+### 4. Check it
+
+Everything in §3-§5 applies unchanged. In addition:
+
+| What | How |
+|---|---|
+| The genesis declares run 1 and the three changes | `public/genesis.json` (`genesis.predecessor`, `genesis.declared_changes`); the Proof section of the page |
+| The policy in force is v2 | `t2sa status --mode paper`: the genesis line says it matches the loaded policy |
+| Failing sources, now and since when | `t2sa status --mode paper` (the "feeds as of" line); `var/health/paper.json` `detail`; `public/feeds.json`; the page's Feed health section |
+| Why a trigger kind could not fire | the same report's blind kinds, and each decision card's "Feed health on this snapshot" |
+| Equity funding events | `trigger` events of kind `funding_zscore` naming equity or index perps; refused ones say why (`cooldown`, `daily_cap`, `weekend_freeze`, `budget`) |
+
+To recompute the run-1 figures the genesis declares, from run 1's published record:
+
+```powershell
+python scripts/replay_triggers.py <run 1 root>\public --until-seq 363 --out validation/run2/run1_trigger_replay.json
+```

@@ -45,6 +45,7 @@ of this repository; every measurement it contributed is reproduced, with its scr
 21. What only the owner can do
 22. Independence and attribution
 23. Coverage against the owner's directives of 2026-09-24
+24. Run 2: what changes against run 1, and what does not
 
 ---
 
@@ -225,7 +226,10 @@ venue-integrity comparison (G1).
 
 Every call produces a `SourceCall` (surface, source, params, health, latency, rows, raw blob). A
 failed or hollow source degrades the snapshot, never crashes it; the snapshot says which sources
-answered, the model is told, and the card shows it. Positioning data is the backbone; X and Reddit
+answered, the model is told, and the card shows it. Since run 2 a failing source is also an
+alarm (`perception/feeds.py`, §24): a `feed_health` ledger event when it starts or stops failing,
+on the decision card, on the public page and in the health file, with every trigger kind it
+leaves unable to fire named per instrument. Positioning data is the backbone; X and Reddit
 are optional, because an unattended window cannot depend on a logged-in session (win plan §3.2).
 
 ### 6.3 Features per instrument
@@ -264,7 +268,9 @@ referenced blob.
 
 Light snapshots (every 5 minutes, for trigger evaluation) carry quotes, funding, F&G and the
 positioning ratios; full snapshots (every decision) add crowd text, news and the calendar. Both are
-logged.
+logged. Each is evaluated for the trigger kinds whose inputs it carries (§8): light snapshots for
+Fear & Greed, funding and open interest, full snapshots for coordinated clusters, earnings and
+filings. Run 1 evaluated light snapshots only, so the last three could not fire (§24).
 
 ---
 
@@ -277,7 +283,7 @@ All thresholds are fixed in `policy.py` (`TriggerRule`) and frozen at genesis.
 | `heartbeat_us_open` | 09:30 America/New_York on weekdays (13:30 UTC in summer time; DST-correct through `zoneinfo` + `tzdata`) | win plan §3.2 |
 | `heartbeat_funding` | 00:00, 08:00, 16:00 UTC (live BTCUSDT settles every 8h; re-read from `fundInterval` at genesis) | win plan §3.2 |
 | `fear_greed_extreme` | crypto or equity-market F&G crosses into ≤25 or ≥76, or back out | Bitget's own bands, `bitget-signal/skills/sentiment-analyst/SKILL.md` |
-| `funding_zscore` | live BTCUSDT funding z-score beyond ±2 against the last 90 settlements | win plan §3.2 |
+| `funding_zscore` | live funding z-score beyond ±2 against the last 90 settlements, for every instrument in `policy.triggers.funding_z_asset_classes`: BTCUSDT under policy v1, the whole universe under policy v2 (run 2, §24) | win plan §3.2; run 1 replay (`validation/run2/`) |
 | `open_interest_jump` | the absolute 1h change in open interest above the 99th percentile of the trailing 30 days (threshold computed at genesis from `crypto_futures_open_interest_history`, frozen) | win plan §3.2 |
 | `coordinated_cluster` | a coordinated cluster (§6.4) names a universe instrument | win plan §3.2; ARGUS `novelty.py` |
 | `earnings_event` | a held or candidate equity has an earnings date in the next 24h | win plan §3.2 |
@@ -286,7 +292,21 @@ All thresholds are fixed in `policy.py` (`TriggerRule`) and frozen at genesis.
 
 Admission: one fire per (kind, instrument) per 240 minutes; at most 8 event decisions per UTC day;
 heartbeats always admitted. Every evaluated trigger is logged, admitted or not, so a reader can see
-what the agent chose not to wake up for. Protective conditions (stops, kill switch, weekend freeze,
+what the agent chose not to wake up for.
+
+**Where each kind is evaluated (run 2).** `fear_greed_extreme`, `funding_zscore` and
+`open_interest_jump` on every light snapshot; `coordinated_cluster`, `earnings_event` and
+`filing_event` on every full snapshot, the only snapshots that read crowd text and the calendar
+(§7). No kind is evaluated on both, so one condition is never emitted twice. When the candidates
+of a tick will start a decision (`TriggerEngine.preview`), the runtime takes the full snapshot
+first, evaluates the full-snapshot kinds on it and admits everything in one batch: those events
+join the decision they were seen on, under the same cooldowns and the same daily-cap rule (a batch
+carried by a heartbeat counts nothing), instead of waking a second decision minutes later. This is
+the reading of §6.2, §7 and this section that keeps the pre-registered cadences; the alternative,
+reading crowd text and the calendar on light snapshots at some bounded cadence, would add a
+collection cadence the design never registered and a dependency of the unattended loop on logged-in
+X and Reddit sessions, which §6.2 keeps optional. Its consequence is stated rather than hidden: a
+coordinated cluster is seen only at a decision, so it can shape a decision but not start one. Protective conditions (stops, kill switch, weekend freeze,
 venue integrity) are not triggers for the model; the kernel handles them on its own clock (§10.5).
 
 ---
@@ -556,7 +576,13 @@ pydantic writes them, sets refused, `NaN` refused.
 * **Typed on write.** `append` refuses a payload that is not the model registered for the kind.
 * **Genesis first.** Seq 0 of the PAPER ledger is the `Genesis` (§16). The runtime refuses to send
   an order when the ledger has no genesis, or when the loaded policy's hash matches neither the
-  genesis nor the latest `Amendment`.
+  genesis nor the latest `Amendment`. A genesis that follows an earlier run names it
+  (`predecessor`: its genesis hash, commit, policy hash and window) and declares every change
+  against it (`declared_changes`, contract 1.1.0); a policy that differs from the predecessor's is
+  refused unless a declared `policy_amendment` installs it (§24).
+* **Old records stay readable.** Fields added in contract 1.1.0 are written only when set, so every
+  1.0.0 record, run 1's ledger included, reads, re-serialises and hashes exactly as it was written,
+  and policy v1 still hashes to run 1's genesis.
 * **Anchored.** The genesis hash, and each day's head hash, are stamped with OpenTimestamps (`ots
   stamp`) and the `.ots` file stored as a blob (`ANCHOR` event). The genesis hash is posted on X by
   the owner before the first order.
@@ -666,7 +692,8 @@ read, its licence, what was taken and the result, win or loss.
   key.
 * `public/index.html` (static, no server): the event → decision → execution timeline, equity against
   every arm, the guard funnel, the twin, the mirror, the red-team grade, the toolkit coverage matrix,
-  the environment proof and the genesis hash. Includes a replay of a recorded venue-integrity
+  feed health (`feeds.json`: failing sources, their history, blind trigger kinds), the environment
+  proof and the genesis hash with any declared changes. Includes a replay of a recorded venue-integrity
   refusal (the Demo BTCPERP 5.4% excursion of 2026-09-23) labelled as a replay.
 * `scripts/record_video.py`: Playwright-scripted walkthrough, 3 minutes or less. Run end to end on
   2026-09-24 against a simulated export with one filled order (`t2sa decide --mode simulated --llm
@@ -751,11 +778,12 @@ t2-sentiment-agent/
 ├── pyproject.toml  LICENSE  NOTICE.md  README.md  DESIGN.md  .gitignore
 ├── src/sentiment_agent/
 │   ├── types.py  policy.py  hashing.py  clock.py            M0 contract (built)
+│   ├── run2.py                                               run 2's declaration (§24)
 │   ├── venue/public_api.py                                   M1
 │   ├── sources/{mcp_http,signal_skills,bitget_data,toolkit}.py   M2
 │   ├── crowd/{quarantine,novelty,adapters}.py                M3
-│   ├── perception/{snapshot,features}.py                     M4
-│   ├── events/{schedule,triggers}.py                         M5
+│   ├── perception/{snapshot,features,feeds}.py               M4 (+ feed health, §24)
+│   ├── events/{schedule,triggers,replay}.py                  M5 (+ trigger replay, §24)
 │   ├── llm/{client,budget,fakes}.py                          M6
 │   ├── decision/{prompt,contract,grounding,agent}.py, prompts/*.md   M7
 │   ├── kernel/{guards,breaker,kernel,planner,approval}.py    M8
@@ -770,7 +798,7 @@ t2-sentiment-agent/
 ├── tools/agent-hub/{package.json,package-lock.json}          M9
 ├── playbook/                                                 M17 (conditional)
 ├── scripts/check_all.py (M0)  recompute.py (M12)  verify_orders.py (M9)  record_video.py (M15)
-│         build_playbook.py (M17)
+│         build_playbook.py (M17)  replay_triggers.py (§24)
 ├── validation/                                               M0 (evidence)
 └── tests/<module>/test_*.py, tests/fixtures/<module>/*        one folder per module
 ```
@@ -1522,3 +1550,44 @@ Track 3 never cites Track 2's trades. `NOTICE.md` lists every source, its licenc
 | 4. Every win visible | Cards, arms, twin, mirror, red team, coverage and replay on the static page; every figure links to its ledger rows (§14.7) |
 | 5. Head to head with the Season-2 field | M13's sweep adds any Market Sentiment entry with runnable code as an arm; losses are published |
 | 6. Nothing left undone | Every module is specified with its tests; owner-only steps are listed once (§21) |
+
+---
+
+## 24. Run 2: what changes against run 1, and what does not
+
+Run 1 is the paper run pre-registered on 2026-09-24 at 17:06 UTC (genesis event
+`ebbf607a8fe199bccc0f612ededf2a6902e4884a38d21fbfea498dff7da453a5`, code commit `3059fcf`, policy
+v1), scored over 72 hours to 2026-09-27 17:06 UTC. It is not touched: it ran to its end under its
+own code, and its record still verifies with this code. Run 2 is a new ledger with its own
+genesis, planned for Monday 2026-09-28 00:00 UTC (RUNBOOK, "Run 2"). Its genesis names run 1 as
+its `predecessor` and carries `declared_changes` (`src/sentiment_agent/run2.py`), so the
+pre-registration itself says what differs and why:
+
+| Change | Kind | What | Evidence |
+|---|---|---|---|
+| `run2-d1` | code fix | Coordinated clusters, earnings and filings are evaluated on the full snapshot and join the decision they are seen on (§8) | In run 1 only light snapshots reached the trigger engine; replaying run 1's 226 snapshots with the fix finds 22 coordinated-cluster triggers on its 2 decision snapshots, none ever evaluated, and 0 extra decisions |
+| `run2-d2` | observability | Feed-health alarms and a named cause for every blind trigger kind (§6.2) | Run 1 recorded, and nothing surfaced: `sentiment_index.current` hollow in 226 of 226 snapshots; bitget-mcp-server `do_query` answering 503 on every call from 2026-09-25 10:14 UTC (and a session-expiry 404 at 08:33); an equity calendar with no upcoming report date |
+| `run2-a1` | policy amendment, v1 → v2 | `funding_zscore` for every universe instrument, same ±2 threshold, 90-settlement lookback, 240-minute cooldown, daily cap of 8 and weekend refusal | Equity and index funding z beyond ±2 in 436 instrument-snapshots of run 1 (HOOD 88, NVDA 84, MSTR 58, GOOGL 49, AMZN 46, SNDK 44, TSLA 30, COIN 23, NDX100 14); replayed, 15 event decisions in 19.9 hours (7 on 2026-09-24, 8 on 2026-09-25 with the cap refusing 3 more), all 15 inside the token budget at worst-case spend; run 1 itself took 0 |
+
+The counts are recomputed by `scripts/replay_triggers.py` from run 1's published ledger cut at seq
+363 and kept in `validation/run2/run1_trigger_replay.json`; `tests/contract/test_run2_declaration.py`
+holds the genesis declaration, the policy basis and that file to the same figures, and checks that
+the replay reproduces the 2 heartbeat decisions run 1 actually took.
+
+**What run 2 does not change.** Every guard and its limit (G1-G11), the fee and edge bar (G6-G8,
+the 7 and 20 bps fee budgets), the mandate, the decision rule and the daily token cap, the system
+prompt and its no-edge stance, and the prompt files, whose hashes run 2's genesis pre-registers
+unchanged from run 1's. Policy v2 is policy v1 with one field and its basis changed, and a test
+asserts exactly that.
+
+**What the amendment costs.** On run 1's data it would have used the daily cap of event decisions
+on both days. Each event decision is a LOW-reasoning Qwen call inside the budget §9.1 already
+sizes for 8 events a day; the budget rule still reserves every heartbeat before admitting one.
+Whether equity funding extremes carry information the model can use is not known, and run 2 is
+where it is measured; the published record shows every such decision and what the kernel did
+with it.
+
+**NOT VERIFIED.** How run 2's reports behave against live outages beyond run 1's recorded ones;
+whether coordinated clusters, which the design only reads at decisions, would have changed any of
+run 1's two decisions (the model saw the same text either way; the clusters were not named to it as
+triggers).
