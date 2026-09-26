@@ -103,6 +103,17 @@ function Invoke-PublishOnce {
     # One publish: copy under the export lock, check the copy is one finished export and a new
     # one, scan it, deploy it. Every outcome is one line in var/logs/site.log.
     try {
+        # The staging copy doubles public/ on disk, and on 25 Sep 2026 the disk reached 0 bytes
+        # free. Under 5 GB every publish says so; under 1 GB it refuses to copy rather than fill
+        # the disk the ledger appends to.
+        $freeBytes = (Get-PSDrive -Name (Split-Path -Qualifier $public).TrimEnd(':')).Free
+        if ($freeBytes -lt 1GB) {
+            Write-Log ("not published: DISK LOW, {0:N1} GB free, under the 1 GB floor" -f ($freeBytes / 1GB))
+            return
+        }
+        if ($freeBytes -lt 5GB) {
+            Write-Log ("DISK LOW: {0:N1} GB free, under 5 GB" -f ($freeBytes / 1GB))
+        }
         New-Item -ItemType Directory -Force -Path $stage | Out-Null
         $lock = Enter-ExportLock
         if ($null -eq $lock) {

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import shutil
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -48,6 +49,25 @@ if TYPE_CHECKING:
 
 STALE_AFTER: Final = timedelta(minutes=3)
 """A health file older than this means the loop is not ticking (it ticks every 30 s)."""
+
+DISK_ALARM_BYTES: Final = 5 * 1024**3
+"""Below this much free space on the record's disk the beat says DISK LOW. On 25 Sep 2026 the
+machine reached 0 bytes free and run 1 logged ``[Errno 28] No space left on device`` on its
+price-mark source; the ledger appends every tick, so a full disk is an outage, not a nuisance."""
+
+
+def disk_note(root: Path) -> str:
+    """Free space on the disk holding ``root``, and the alarm when it is under
+    :data:`DISK_ALARM_BYTES`. Carried in the beat's ``detail`` rather than a new field, so the
+    beats already in run 1's ledger keep the shape they were hashed with."""
+    try:
+        free = shutil.disk_usage(root).free
+    except OSError as exc:
+        return f"disk free unknown ({type(exc).__name__})"
+    note = f"disk free {free / 1024**3:.1f} GB"
+    if free < DISK_ALARM_BYTES:
+        note += f" — DISK LOW, under {DISK_ALARM_BYTES // 1024**3} GB"
+    return note
 
 
 def write_health(path: Path, beat: HealthBeat) -> None:
@@ -86,7 +106,7 @@ def read_health(path: Path) -> HealthBeat | None:
 def beat_for(
     app: App, *, iteration: int, last_decision_at: datetime | None, detail: str
 ) -> HealthBeat:
-    """The heartbeat of a running app, from its ledger state."""
+    """The heartbeat of a running app, from its ledger state, with the disk's free space."""
     budget: BudgetState | None
     try:
         budget = app.budget.state()
@@ -99,7 +119,7 @@ def beat_for(
         open_positions=len(app.held_symbols()),
         last_decision_at=last_decision_at,
         budget=budget,
-        detail=detail,
+        detail="; ".join(part for part in (detail, disk_note(app.paths.health.parent)) if part),
     )
 
 
@@ -336,9 +356,11 @@ def _age(delta: timedelta) -> str:
 
 
 __all__ = [
+    "DISK_ALARM_BYTES",
     "STALE_AFTER",
     "StatusView",
     "beat_for",
+    "disk_note",
     "lines_for",
     "read_health",
     "status_from_ledger",

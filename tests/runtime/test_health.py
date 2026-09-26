@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 from runtime.support import FakeWorld, decision, make_parts, target
 from sentiment_agent.clock import ManualClock
 from sentiment_agent.execution.simulated import SimulatedVenue
@@ -127,3 +129,24 @@ def test_status_of_a_mode_without_a_ledger(workdir: Path, clock: ManualClock) ->
         workdir, RunMode.PAPER, clock=clock, policy=POLICY_V1, starting_equity=None
     )
     assert lines == ["paper: no ledger yet (var/ledger/paper.jsonl)"]
+
+
+def test_the_beat_names_the_disk_and_alarms_when_it_is_low(
+    workdir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import shutil
+    from collections import namedtuple
+
+    from sentiment_agent.runtime import health
+
+    usage = namedtuple("usage", "total used free")
+    monkeypatch.setattr(shutil, "disk_usage", lambda _p: usage(100 * 1024**3, 0, 40 * 1024**3))
+    assert health.disk_note(workdir) == "disk free 40.0 GB"
+    monkeypatch.setattr(shutil, "disk_usage", lambda _p: usage(100 * 1024**3, 0, 2 * 1024**3))
+    assert "DISK LOW" in health.disk_note(workdir)
+
+    def broken(_p: Path) -> None:
+        raise OSError("gone")
+
+    monkeypatch.setattr(shutil, "disk_usage", broken)
+    assert health.disk_note(workdir) == "disk free unknown (OSError)"
