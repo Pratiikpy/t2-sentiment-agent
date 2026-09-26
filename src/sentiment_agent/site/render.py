@@ -43,7 +43,7 @@ from typing import Any, Final
 
 from sentiment_agent.site.cards import CARD_ID
 from sentiment_agent.site.coverage import SURFACE_ORDER
-from sentiment_agent.site.export import ExportRefused, StagedWrite, prune, scan_for_secrets
+from sentiment_agent.site.export import ExportRefused, StagedWrite, prune
 from sentiment_agent.types import (
     ArmKind,
     ArmResult,
@@ -2007,7 +2007,7 @@ def render_site(public_dir: Path) -> list[Path]:
         stage.write("index.html", render_index(ex).encode("utf-8"))
         for card in ex.cards:
             stage.write(f"cards/{card.card_id}.html", render_card(card, orders).encode("utf-8"))
-        findings = scan_for_secrets(stage.root, stage.written, extra_paths=[public, public.parent])
+        findings = stage.scan(extra_paths=[public.parent])
         if findings:
             raise ExportRefused(findings)
         stage.publish()

@@ -42,6 +42,24 @@ _OS_PROCESSOR_QUERIES = frozenset({("uname", "-p")})
 """What ``platform._Processor.from_subprocess`` runs on Linux and macOS, without a shell (CPython
 3.11 ``Lib/platform.py``). Found by CI: ``platform.platform()`` on ubuntu-latest was refused."""
 
+_PUBLISHER_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "publish_site.ps1"
+"""The one foreign program a test may start: Windows PowerShell dot-sourcing this project's own
+page publisher, so ``tests/runtime/test_export_lock.py`` can check that its lock and the export's
+exclude each other across the two runtimes. Dot-sourced, the script only defines functions; it
+reaches no network and no account."""
+
+
+def _is_publisher_check(args: Any, kwargs: dict[str, Any]) -> bool:
+    if kwargs.get("shell") or not isinstance(args, list | tuple) or len(args) < 2:
+        return False
+    if Path(os.fsdecode(args[0])).name.lower() not in {"powershell", "powershell.exe"}:
+        return False
+    flags = [os.fsdecode(a) for a in args[1:-1]]
+    command = os.fsdecode(args[-1])
+    return flags == ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"] and (
+        command.startswith(f". '{_PUBLISHER_SCRIPT}' ")
+    )
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
@@ -130,6 +148,9 @@ def _no_foreign_processes(monkeypatch: pytest.MonkeyPatch) -> None:
             and isinstance(args, list | tuple)
             and tuple(str(x) for x in args) in _OS_PROCESSOR_QUERIES
         ):
+            _real_popen_init(self, args, *a, **kw)
+            return
+        if _is_publisher_check(args, kw):
             _real_popen_init(self, args, *a, **kw)
             return
         if kw.get("shell") or not _is_python(program):

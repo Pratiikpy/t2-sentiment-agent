@@ -192,7 +192,11 @@ otherwise it restarts the agent; then Ctrl+C the `t2sa go-live` window; then sto
 publisher after its next publish. Since 2026-09-25 run 1's publisher runs from run 2's checkout
 (`<run 2 root>\scripts\publish_site.ps1 -Root <run 1 root>`), because the fixed script uploads the
 record as one archive: run 1's record passed Vercel's 15,000-file limit and the old script kept
-logging "published" while every upload was rejected.
+logging "published" while every upload was rejected. Since 2026-09-26 the same script also copies
+`public/` under the export lock and deploys only a finished record (`site.log` says "not
+published: the copy is not one finished export" when it refuses one): run 1's hourly export had
+died twice mid-move while the old copy held its files open, and a mixture of the new ledger and the
+old summary went up.
 
 If BTCUSDT is still open (the only leg G2 allows over a weekend), close it by hand in the Demo UI on
 bitget.site, and record the close in run 1's ledger with a read-only sweep. Run 2 must start flat:
@@ -270,7 +274,10 @@ powershell -ExecutionPolicy Bypass -File scripts\watchdog.ps1
 powershell -ExecutionPolicy Bypass -File scripts\publish_site.ps1 -Project t2-sentiment-agent-run2
 ```
 
-`-Project` gives run 2 its own hosted page, so it never overwrites run 1's.
+`-Project` gives run 2 its own hosted page, so it never overwrites run 1's. The publisher takes
+`var/run/export-paper.lock` while it copies, so an hourly export waits out the copy (up to 30
+minutes) instead of failing; one log line per hour says what it did: `published`, `not
+redeployed` (no new record since the last deploy), or `not published` with the reason.
 
 ### 4. Check it
 

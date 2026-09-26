@@ -246,7 +246,13 @@ class Paths:
 
 _LOCK_OFFSET: Final = 1 << 16
 """The locked byte sits far past the holder record, so another process can still read who holds the
-lock (Windows locks are mandatory for the region they cover)."""
+lock (Windows locks are mandatory for the region they cover).
+
+``scripts/publish_site.ps1`` takes the same byte of ``var/run/export-<mode>.lock`` while it copies
+``public/``, so the page's publisher and the hourly export never touch that folder at once."""
+
+LOCK_POLL_S: Final = 0.5
+"""How often :meth:`InstanceLock.acquire` retries a held lock while it is willing to wait."""
 
 
 class InstanceLock:
@@ -257,10 +263,12 @@ class InstanceLock:
     holder record (pid, host, mode, start time) is written beside the lock for the refusal message.
     """
 
-    def __init__(self, path: Path, *, mode: RunMode, clock: Clock) -> None:
+    def __init__(self, path: Path, *, mode: RunMode, clock: Clock, busy: str | None = None) -> None:
         self._path = path
         self._mode = mode
         self._clock = clock
+        self._busy = busy
+        """What the refusal says holds the lock, when it is not another decision loop."""
         self._handle: IO[bytes] | None = None
 
     @property
@@ -288,16 +296,27 @@ class InstanceLock:
             f"{record.get('started_at')}"
         )
 
-    def acquire(self) -> None:
+    def acquire(self, *, wait_s: float = 0.0) -> None:
+        """Take the lock, or raise :class:`InstanceLocked`. With ``wait_s`` above zero it keeps
+        retrying for that long first: the export waits out the publisher's copy rather than
+        losing its hour."""
         if self._handle is not None:
             return
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(self._path, os.O_RDWR | os.O_CREAT, 0o644)
-        handle = os.fdopen(fd, "r+b", buffering=0)
-        try:
-            _os_lock(handle)
-        except OSError:
-            handle.close()
+        deadline = time.monotonic() + wait_s
+        while True:
+            fd = os.open(self._path, os.O_RDWR | os.O_CREAT, 0o644)
+            handle = os.fdopen(fd, "r+b", buffering=0)
+            try:
+                _os_lock(handle)
+                break
+            except OSError:
+                handle.close()
+                if time.monotonic() < deadline:
+                    time.sleep(LOCK_POLL_S)
+                    continue
+            if self._busy is not None:
+                raise InstanceLocked(f"{self._busy} ({self.holder()}), after waiting {wait_s:g} s")
             raise InstanceLocked(
                 f"another {self._mode.value} instance is running ({self.holder()}); one decision "
                 f"loop per mode at a time. Stop it first, or use `t2sa status`"

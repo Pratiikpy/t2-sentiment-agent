@@ -1920,6 +1920,9 @@ def cmd_probe_toolkit(ctx: Context, args: argparse.Namespace) -> int:
 # ================================================================================================
 
 FULL_EXPORT_EVERY: Final = timedelta(hours=6)
+
+EXPORT_LOCK_WAIT_S: Final = 1800.0
+"""How long an export waits for the export lock: a running export or the page publisher's copy."""
 """The loop publishes every hour; the arms that need Demo and live candles (baselines, the twin,
 the live mirror) are recomputed every six hours and on every ``t2sa export``."""
 
@@ -2158,12 +2161,20 @@ def export_record(
 ) -> tuple[ExportManifest, list[str]]:
     """Publish ``mode``'s record: the export (``site/export.py``), then the static page
     (``site/render.py``). ``light`` skips the arms that need candles. Serialised by
-    ``var/run/export-<mode>.lock`` so the loop's hourly export and a manual one never interleave.
-    Returns the manifest and what the analysis could not compute."""
+    ``var/run/export-<mode>.lock`` so the loop's hourly export and a manual one never interleave,
+    and so neither moves files into ``public/`` while ``scripts/publish_site.ps1`` is copying it
+    (the publisher holds the same lock for the copy, which takes seconds; the export waits up to
+    :data:`EXPORT_LOCK_WAIT_S` for it). Returns the manifest and what the analysis could not
+    compute."""
     policy = parts.policy or ACTIVE_POLICY
     target = out or default_out(root, mode)
-    lock = InstanceLock(root / "var" / "run" / f"export-{mode.value}.lock", mode=mode, clock=clock)
-    lock.acquire()
+    lock = InstanceLock(
+        root / "var" / "run" / f"export-{mode.value}.lock",
+        mode=mode,
+        clock=clock,
+        busy=f"the {mode.value} export lock is held by another export or by the page publisher",
+    )
+    lock.acquire(wait_s=EXPORT_LOCK_WAIT_S)
     try:
         ledger = HashChainLedger(ledger_path(root, mode), mode=mode, clock=clock)
         blobs = FileBlobStore(root / "var" / "blobs")

@@ -45,6 +45,8 @@ alone, and ``orders.json`` is what ``scripts/verify_orders.py`` checks against t
 * anything that looks like a secret or a local path (:class:`ExportRefused`). Every file is
   written to a staging folder beside ``out``, scanned there (:func:`scan_for_secrets`), and only
   moved into ``out`` when the scan is clean, so nothing unscanned ever lands where it is served.
+  A file byte-identical to the one already published is not re-staged; it is scanned where it
+  lies, by the same rules (:class:`StagedWrite`).
   The scan looks for ``BITGET_`` anywhere (no credential variable, not even its name), Bitget API
   key shapes, bearer tokens and other key assignments, private keys, the value of every
   secret-named environment variable, this machine's home, project and working directories, and
@@ -66,6 +68,7 @@ import re
 import secrets
 import shutil
 import tempfile
+import time
 from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -345,30 +348,111 @@ def _iso(at: datetime) -> str:
     return dumped
 
 
+PUBLISH_LAST: Final = (
+    "ledger.jsonl",
+    f"ledger.jsonl{ANCHOR_SUFFIX}",
+    "index.html",
+    "summary.json",
+    "verify.md",
+)
+"""Files moved after every other one, in this order (:meth:`StagedWrite.publish`)."""
+
+REPLACE_BUDGET_S: Final = 60.0
+"""How long one move into ``out`` keeps retrying a file another process holds open."""
+
+
+def _publish_rank(name: str) -> tuple[int, int]:
+    """The order a record is moved into place, so a reader that copies ``out`` mid-publish
+    never holds a file that cites something not yet there: blobs first (the ledger commits to
+    them), then the ledger and its anchor (the documents cite its events), then cards and the other
+    documents, and ``summary.json`` near the end. ``summary.json`` is the commit marker: its
+    ``ledger.head_hash`` equals the anchor's only once a publish has completed, which is what
+    ``scripts/publish_site.ps1`` checks before it deploys a copy."""
+    if name.startswith("blobs/"):
+        return (0, 0)
+    if name in PUBLISH_LAST[:2]:
+        return (1, PUBLISH_LAST.index(name))
+    if name in PUBLISH_LAST:
+        return (4, PUBLISH_LAST.index(name))
+    if name.startswith("cards/"):
+        return (2, 0)
+    return (3, 0)
+
+
+def replace_patiently(
+    source: Path, target: Path, *, budget_s: float = REPLACE_BUDGET_S, sleep: Any = time.sleep
+) -> None:
+    """``os.replace``, retried while another process holds ``target`` open.
+
+    On Windows a rename onto a file someone is reading fails at once with ``PermissionError``
+    (WinError 5) instead of waiting. The blob store's own retry (``ledger/blobs.py``) covers
+    readers that hold a blob for microseconds; a copy of this folder holds each file for as long as
+    the copy takes, so this backs off to a second and gives up only after ``budget_s``. Run 1's
+    hourly export died this way twice (ledger notes at seq 571 and the 17:00 mark on 2026-09-25):
+    the page's publisher was copying ``public/`` while the export moved files into it.
+    """
+    waited = 0.0
+    delay = 0.02
+    while True:
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if waited >= budget_s:
+                raise
+            sleep(delay)
+            waited += delay
+            delay = min(delay * 2, 1.0)
+
+
 class StagedWrite:
-    """Files written under a staging folder, then moved into ``out`` together."""
+    """Files written under a staging folder, then moved into ``out`` together.
+
+    A file whose bytes equal the one already in ``out`` is not staged or moved: the published copy
+    is the file, and it is scanned where it lies (:meth:`scan`). Run 1 re-wrote every one of its
+    27,000 content-addressed blobs every hour, which made each publish minutes long and every one
+    of those minutes a chance to collide with a reader. ``written`` still names every file of the
+    record, so a manifest and :func:`prune` see the whole of it; ``staged`` names what moves.
+    """
 
     def __init__(self, out: Path) -> None:
         self.out = out
         self.root = out.parent / f".{out.name}.staging-{secrets.token_hex(6)}"
         self.root.mkdir(parents=True)
         self.written: list[str] = []
+        self.staged: list[str] = []
 
     def write(self, name: str, data: bytes) -> None:
+        self.written.append(name)
+        published = self.out / name
+        with contextlib.suppress(OSError):
+            unchanged = published.is_file() and published.stat().st_size == len(data)
+            if unchanged and published.read_bytes() == data:
+                return
         target = self.root / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
-        self.written.append(name)
+        self.staged.append(name)
 
     def json(self, name: str, value: Any) -> None:
         self.write(name, _dumps(value))
 
+    def scan(self, *, extra_paths: Iterable[Path] = ()) -> list[Finding]:
+        """Every file of the record, scanned: staged files in the staging folder, unchanged ones
+        where they are published, so nothing is served that this export's rules did not read."""
+        extra = [self.out, *extra_paths]
+        staged = set(self.staged)
+        kept = [n for n in self.written if n not in staged]
+        return scan_for_secrets(self.root, self.staged, extra_paths=extra) + scan_for_secrets(
+            self.out, kept, extra_paths=[self.root, *extra]
+        )
+
     def publish(self) -> None:
-        for name in self.written:
+        for name in sorted(self.staged, key=_publish_rank):
             source = self.root / name
             target = self.out / name
             target.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(source, target)
+            replace_patiently(source, target)
 
     def discard(self) -> None:
         shutil.rmtree(self.root, ignore_errors=True)
@@ -1444,11 +1528,7 @@ def export_public(
         stage.json("summary.json", summary)
         stage.write("verify.md", _verify_md(summary, genesis))
 
-        findings = scan_for_secrets(
-            stage.root,
-            stage.written,
-            extra_paths=[target, target.parent, ledger.path.parent, blobs.root],
-        )
+        findings = stage.scan(extra_paths=[target.parent, ledger.path.parent, blobs.root])
         if findings:
             raise ExportRefused(findings)
         stage.publish()
