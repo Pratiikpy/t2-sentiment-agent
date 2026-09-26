@@ -2129,6 +2129,10 @@ class DecisionCard(Model):
     blobs: tuple[BlobRef, ...]
     feed_health: FeedHealthReport | None = None
     """Contract 1.1.0: failing sources and blind trigger kinds on the snapshot the model read."""
+    decided_by: str | None = None
+    """Who made the decision, from the call record: the model with its metered tokens and time,
+    or "a scripted stand-in" when the call carried no usage and took no time (a rehearsal run's
+    scripted model). None on a protective card, which no model made."""
 
 
 class RedTeamVector(Model):

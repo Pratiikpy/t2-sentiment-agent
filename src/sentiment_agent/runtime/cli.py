@@ -94,7 +94,15 @@ from sentiment_agent.ledger.chain import (
     ledger_path,
     verify_file,
 )
-from sentiment_agent.ledger.genesis import amend, build_genesis, x_post_text
+from sentiment_agent.ledger.genesis import (
+    X_POST_NOTE_PREFIX,
+    amend,
+    build_genesis,
+    recorded_x_post,
+    x_post_text,
+    x_post_url,
+    x_posted_at,
+)
 from sentiment_agent.llm.budget import BudgetExhausted, DailyTokenBudget
 from sentiment_agent.llm.client import (
     QwenChatModel,
@@ -381,6 +389,13 @@ def build_parser() -> argparse.ArgumentParser:
     mode_arg(p)
     p.add_argument("--reason", required=True, help="why the policy changes")
     p.add_argument("--owner-confirmed", action="store_true", help="the owner confirms the change")
+    p = command(
+        "x-posted",
+        cmd_x_posted,
+        "record the URL of the owner's X post of the pre-registration (the loop may be running)",
+    )
+    mode_arg(p)
+    p.add_argument("--url", required=True, help="the post: https://x.com/<handle>/status/<id>")
     p = command("probe-toolkit", cmd_probe_toolkit, "measure every Bitget toolkit surface")
     mode_arg(p)
     p = command("rivals", cmd_rivals, "run rival sentiment agents on the recorded snapshots")
@@ -1826,6 +1841,48 @@ def cmd_amend(ctx: Context, args: argparse.Namespace) -> int:
     ctx.say(
         f"amendment logged at seq {event.seq} ({event.hash[:16]}): policy {policy.version} "
         f"{policy.content_hash()} is now in force; anchor {anchored.status}"
+    )
+    return EXIT_OK
+
+
+X_POST_CLOCK_SKEW: Final = timedelta(minutes=2)
+"""How far X's clock may lag ours before a post counts as older than the genesis it quotes."""
+
+
+def cmd_x_posted(ctx: Context, args: argparse.Namespace) -> int:
+    """Record the owner's X post of the genesis hash as an owner note in the ledger.
+
+    Runs beside a live loop: it takes no instance lock and appends through the ledger's own writer
+    lock, as ``t2sa decide`` does, so the post is recorded without restarting the agent. The post
+    is refused when its id says it was made before the genesis existed: a post that old cannot
+    carry this run's genesis hash, so it is the wrong post.
+    """
+    mode = _mode(args)
+    try:
+        url = x_post_url(args.url)
+    except GenesisError as exc:
+        raise UsageError(str(exc)) from None
+    chain = open_chain(ctx.root, mode, ctx.clock)
+    found = genesis_of(chain)
+    if found is None:
+        raise UsageError(f"the {mode.value} ledger has no genesis, so there is no post to record")
+    genesis_event, _ = found
+    posted_at = x_posted_at(url)
+    if posted_at < genesis_event.ts - X_POST_CLOCK_SKEW:
+        raise UsageError(
+            f"that post was made {posted_at.isoformat()} (its id says so), before the genesis at "
+            f"{genesis_event.ts.isoformat()}; it cannot carry this run's genesis hash"
+        )
+    recorded = recorded_x_post(chain.events(frozenset({EventKind.NOTE})))
+    if recorded is not None and recorded[0] == url:
+        ctx.say(f"already recorded at seq {recorded[1].seq}: {url}")
+        return EXIT_OK
+    event = chain.append(
+        EventKind.NOTE, Note(at=ctx.clock.now(), author="owner", text=X_POST_NOTE_PREFIX + url)
+    )
+    ctx.say(
+        f"recorded at seq {event.seq}: {url}, posted {posted_at.isoformat()} by its id; the next "
+        "export shows it on the page"
     )
     return EXIT_OK
 

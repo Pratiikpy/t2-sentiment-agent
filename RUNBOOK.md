@@ -249,7 +249,16 @@ It proves the environment, writes run 2's genesis and prints, beside the policy 
 (`policy-v2`), the run it follows (run 1's genesis hash) and the declared changes
 `run2-d1 (code_fix), run2-d2 (observability), run2-d3 (code_fix), run2-a1 (policy_amendment)`;
 then it prints the X post
-with run 2's genesis hash. **Post it before the first decision.**
+with run 2's genesis hash. **Post it before the first decision.** Then record it, from any
+window, while the agent runs (no restart):
+
+```powershell
+t2sa x-posted --url https://x.com/<handle>/status/<id>
+```
+
+It appends an owner note to the ledger, refuses a post whose id says it was made before the
+genesis (the wrong post), and the next export shows it on the page with the time the post's own id
+encodes and whether that was before the first order. Until then the page calls the text a draft.
 
 To keep it alive unattended, start the watchdog instead of `t2sa go-live`: it runs the same command
 (so it writes the genesis on its first start) and restarts it after any exit but a refusal; the X

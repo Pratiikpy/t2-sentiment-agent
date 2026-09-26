@@ -73,6 +73,7 @@ COMMANDS = (
     "replay",
     "status",
     "amend",
+    "x-posted",
     "probe-toolkit",
     "rivals",
     "redteam",

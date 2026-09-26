@@ -22,6 +22,7 @@ no code path can write a history this module would reject.
 
 import re
 from collections.abc import Iterable, Mapping, Sequence
+from datetime import UTC, datetime
 from typing import Final
 
 from pydantic import ValidationError
@@ -359,17 +360,70 @@ def x_post_text(genesis_event: LedgerEvent) -> str:
     )
 
 
+X_POST_NOTE_PREFIX: Final = "the pre-registration was posted on X: "
+"""How ``t2sa x-posted`` records the owner's post: an owner note, this prefix, the post's URL. The
+ledger, not an environment variable, holds it, so it is timestamped, hash-chained and published
+with everything else, and recording it never needs the running agent restarted."""
+
+_X_STATUS: Final = re.compile(
+    r"https://(?:www\.|mobile\.)?(?:x|twitter)\.com/([A-Za-z0-9_]{1,15})/status/([0-9]{1,20})"
+)
+_X_SNOWFLAKE_EPOCH_MS: Final = 1_288_834_974_657
+"""X status ids are snowflakes: the bits above the lowest 22 count milliseconds since this epoch
+(2010-11-04 01:42:54.657 UTC), so a post's id says when it was made without asking X. Checked on
+:data:`X_QUOTED_POST`, whose id decodes to 2026-09-17 09:36:46 UTC."""
+
+
+def x_post_url(text: str) -> str:
+    """The canonical URL of a post on X (``https://x.com/<handle>/status/<id>``, with any query,
+    fragment or trailing slash dropped), or :class:`GenesisError` when ``text`` is not one."""
+    bare = text.strip().split("?", 1)[0].split("#", 1)[0].rstrip("/")
+    match = _X_STATUS.fullmatch(bare)
+    if match is None:
+        raise GenesisError(
+            f"not the URL of a post on X: {text.strip()[:120]!r}; expected "
+            "https://x.com/<handle>/status/<id>"
+        )
+    return f"https://x.com/{match.group(1)}/status/{match.group(2)}"
+
+
+def x_posted_at(url: str) -> datetime:
+    """When the post at ``url`` was made, read from its id (:data:`_X_SNOWFLAKE_EPOCH_MS`)."""
+    status = int(x_post_url(url).rsplit("/", 1)[1])
+    return datetime.fromtimestamp(((status >> 22) + _X_SNOWFLAKE_EPOCH_MS) / 1000, tz=UTC)
+
+
+def recorded_x_post(events: Iterable[LedgerEvent]) -> tuple[str, LedgerEvent] | None:
+    """The X post the owner last recorded (``t2sa x-posted``), with the note that records it."""
+    found: tuple[str, LedgerEvent] | None = None
+    for event in events:
+        if event.kind is not EventKind.NOTE or event.payload.get("author") != "owner":
+            continue
+        text = str(event.payload.get("text", ""))
+        if not text.startswith(X_POST_NOTE_PREFIX):
+            continue
+        try:
+            found = (x_post_url(text[len(X_POST_NOTE_PREFIX) :]), event)
+        except GenesisError:
+            continue
+    return found
+
+
 __all__ = [
     "X_HASHTAG",
     "X_MAX_WEIGHTED_LENGTH",
     "X_MENTION",
+    "X_POST_NOTE_PREFIX",
     "X_QUOTED_POST",
     "GenesisError",
     "active_policy_hash",
     "amend",
     "build_genesis",
+    "recorded_x_post",
     "require_genesis",
     "write_genesis",
     "x_post_text",
+    "x_post_url",
+    "x_posted_at",
     "x_weighted_length",
 ]

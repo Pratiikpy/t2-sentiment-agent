@@ -497,12 +497,19 @@ def page(title: str, body: str, *, nav: bool, mode: str | None) -> str:
     )
 
 
-def mode_banner(mode: str | None) -> str:
+def mode_banner(mode: str | None, orders_sent: int = 0) -> str:
     if mode == "paper":
+        if orders_sent == 0:
+            return (
+                '<div class="banner good"><strong>PAPER:</strong> the scored paper-trading log. '
+                "No order has been sent yet: every decision so far stayed flat or was cut. An "
+                "order, when one is placed, goes through Bitget Agent Hub with --paper-trading to "
+                "Bitget's UTA Demo environment.</div>"
+            )
         return (
-            '<div class="banner good"><strong>PAPER:</strong> orders were sent through Bitget '
-            "Agent Hub with --paper-trading to Bitget's UTA Demo environment. This is the scored "
-            "paper-trading log.</div>"
+            f'<div class="banner good"><strong>PAPER:</strong> {orders_sent} order(s) sent '
+            "through Bitget Agent Hub with --paper-trading to Bitget's UTA Demo environment. This "
+            "is the scored paper-trading log.</div>"
         )
     if mode == "simulated":
         return (
@@ -580,7 +587,7 @@ def _overview(ex: Export) -> str:
     ]
     ledger = s["ledger"]
     body = (
-        mode_banner(s.get("mode"))
+        mode_banner(s.get("mode"), int(counts.get("orders_sent", 0)))
         + f'<div class="kpis" style="margin-top:14px">{"".join(tiles)}</div>'
         + "<h3>90% block-bootstrap intervals (descriptive, not inferential)</h3>"
         + table(["metric", "interval"], ci_rows)
@@ -1300,6 +1307,31 @@ def _feeds(ex: Export) -> str:
     return section("feeds", "Feed health", lede, body)
 
 
+def _x_post_block(text: str, posted: dict[str, Any] | None) -> str:
+    """The pre-registration post: a draft until the owner records it (``t2sa x-posted``), then
+    the post with the time its own id carries and where that falls against the first order."""
+    if not posted:
+        return (
+            "<h4>Drafted for X, to be posted before the first order (not yet recorded as posted)"
+            f'</h4><blockquote class="text">{h(text)}</blockquote>'
+        )
+    first = posted.get("first_order_at")
+    if first is None:
+        order = "; no order has been sent yet"
+    elif posted.get("before_first_order"):
+        order = f", before the first order ({h(when(first))})"
+    else:
+        order = f", after the first order ({h(when(first))})"
+    link = f'<a href="{h(posted["url"])}">{h(posted["url"])}</a>'
+    return (
+        f"<h4>Posted on X {h(when(posted['posted_at']))}{order}</h4>"
+        f'<blockquote class="text">{h(text)}</blockquote>'
+        f'<p class="small">{link}. '
+        "The time is the one the post's own id encodes; the owner recorded the post in the "
+        f"ledger at seq {int(posted['recorded_seq'])}.</p>"
+    )
+
+
 def _declared_changes(genesis: Mapping[str, Any]) -> str:
     """Run 2's declared changes against the run it follows, straight from the genesis payload."""
     changes = genesis.get("declared_changes") or []
@@ -1413,10 +1445,7 @@ def _proof(ex: Export) -> str:
         )
         genesis_html += _declared_changes(genesis)
         if g.get("x_post_text"):
-            genesis_html += (
-                "<h4>Posted on X before the first order</h4>"
-                f'<blockquote class="text">{h(g["x_post_text"])}</blockquote>'
-            )
+            genesis_html += _x_post_block(g["x_post_text"], g.get("x_post"))
         genesis_html += (
             "<details><summary>Pre-registered statement and expected envelope</summary>"
             f"<p>{h(genesis['statement'])}</p>"
@@ -1845,12 +1874,15 @@ def render_card(card: DecisionCard, orders: Mapping[str, Mapping[str, Any]]) -> 
             if decision.flat_reasons
             else ""
         )
+        who = card.decided_by or ""
+        scripted = who.startswith("a scripted stand-in")
         parts.append(
             section(
                 "decision",
-                "What Qwen decided",
+                "What the scripted stand-in decided" if scripted else "What Qwen decided",
                 "",
-                f"<p>{badge(decision.stance.value.replace('_', ' '), 'accent')} "
+                (f'<p class="small">Decided by {h(who)}.</p>' if who else "")
+                + f"<p>{badge(decision.stance.value.replace('_', ' '), 'accent')} "
                 f"{h(decision.summary)}</p>"
                 + f"<p><strong>Mandate.</strong> {h(decision.mandate_response)}</p>"
                 + flat

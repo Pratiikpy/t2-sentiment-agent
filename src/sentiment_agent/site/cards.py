@@ -62,6 +62,7 @@ from sentiment_agent.types import (
     Fill,
     KernelRuling,
     LedgerEvent,
+    LlmCallRecord,
     Model,
     OrderIntent,
     OrderPlan,
@@ -519,8 +520,20 @@ def _decision_card(
         ledger_seqs=ledger_seqs,
         blobs=_proof(ledger_seqs, index, blobs, card_id),
         feed_health=feeds,
+        decided_by=decided_by(record.call),
     )
     return card, trails
+
+
+def decided_by(call: LlmCallRecord) -> str:
+    """The model that made a decision, as its call record shows it. A call with no usage and no
+    time is not a model call: rehearsal runs decide with a scripted stand-in that is named after
+    the policy's model, and the card must not present its output as Qwen's."""
+    usage = call.usage
+    if usage.total_tokens == 0 and call.latency_ms == 0:
+        return "a scripted stand-in (no model was called: 0 tokens, 0 ms)"
+    metered = f"{usage.total_tokens:,} tokens" if usage.reported else "tokens not reported"
+    return f"{call.model} ({metered}, {call.latency_ms / 1000:.1f} s)"
 
 
 def _protective_card(

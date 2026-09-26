@@ -89,7 +89,7 @@ from sentiment_agent.ledger.chain import (
     LedgerError,
     referenced_blobs,
 )
-from sentiment_agent.ledger.genesis import x_post_text
+from sentiment_agent.ledger.genesis import recorded_x_post, x_post_text, x_posted_at
 from sentiment_agent.perception.features import index_move_bps_3h
 from sentiment_agent.policy import ACTIVE_POLICY, POLICY_V1
 from sentiment_agent.site.cards import CardBundle, CardError, OrderTrail, build_card_bundle
@@ -547,6 +547,28 @@ def _genesis_doc(record: _Record) -> dict[str, Any]:
         "genesis_anchors": genesis_anchors,
         "amendments": amendments,
         "x_post_text": post,
+        "x_post": _x_post_doc(record.events) if post is not None else None,
+    }
+
+
+def _x_post_doc(events: Sequence[LedgerEvent]) -> dict[str, Any] | None:
+    """The owner's X post of the pre-registration, when ``t2sa x-posted`` recorded one: its URL,
+    when it was made (read from the post's own id, so nobody's word is needed for the time), and
+    whether that was before the first order reached the venue. None until it is recorded, and the
+    page then calls the text a draft."""
+    recorded = recorded_x_post(events)
+    if recorded is None:
+        return None
+    url, note = recorded
+    posted_at = x_posted_at(url)
+    first_order = next((e for e in events if e.kind is EventKind.ORDER_SUBMITTED), None)
+    return {
+        "url": url,
+        "posted_at": _iso(posted_at),
+        "recorded_seq": note.seq,
+        "recorded_at": _iso(note.ts),
+        "first_order_at": _iso(first_order.ts) if first_order is not None else None,
+        "before_first_order": posted_at < first_order.ts if first_order is not None else None,
     }
 
 
