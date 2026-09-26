@@ -471,7 +471,9 @@ def _asset(name: str) -> str:
 def page(title: str, body: str, *, nav: bool, mode: str | None) -> str:
     css = _asset("site.css")
     script = _asset("site.js")
-    mode_badge = badge((mode or "empty").upper(), "accent" if mode == "paper" else "warn")
+    # No mode, no badge: a card page used to be rendered without one and read "EMPTY" beside a
+    # live paper record (judge audit, 2026-09-26).
+    mode_badge = badge(mode.upper(), "accent" if mode == "paper" else "warn") if mode else ""
     nav_html = ""
     if nav:
         links = "".join(f'<a href="#{h(a)}">{h(t)}</a>' for a, t in SECTIONS)
@@ -1754,7 +1756,9 @@ def _outcome(card: DecisionCard) -> str:
     return (card.outcome.value if card.outcome else "unknown").replace("_", " ")
 
 
-def render_card(card: DecisionCard, orders: Mapping[str, Mapping[str, Any]]) -> str:
+def render_card(
+    card: DecisionCard, orders: Mapping[str, Mapping[str, Any]], *, mode: str | None = None
+) -> str:
     title_kind = "Decision" if card.decision_id else "Protective ruling"
     parts: list[str] = [
         '<p><a href="../index.html#timeline">← Back to the timeline</a></p>',
@@ -2003,7 +2007,7 @@ def render_card(card: DecisionCard, orders: Mapping[str, Mapping[str, Any]]) -> 
             table(["blob", "media type", "bytes"], blob_rows, numeric=(2,)),
         )
     )
-    return page(f"{title_kind} card {card.card_id}", "".join(parts), nav=False, mode=None)
+    return page(f"{title_kind} card {card.card_id}", "".join(parts), nav=False, mode=mode)
 
 
 # ================================================================================================
@@ -2025,7 +2029,8 @@ def render_site(public_dir: Path) -> list[Path]:
     try:
         stage.write("index.html", render_index(ex).encode("utf-8"))
         for card in ex.cards:
-            stage.write(f"cards/{card.card_id}.html", render_card(card, orders).encode("utf-8"))
+            html = render_card(card, orders, mode=ex.summary.get("mode"))
+            stage.write(f"cards/{card.card_id}.html", html.encode("utf-8"))
         findings = stage.scan(extra_paths=[public.parent])
         if findings:
             raise ExportRefused(findings)

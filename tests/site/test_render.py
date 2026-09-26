@@ -350,3 +350,16 @@ def test_the_video_card_step_falls_back_and_never_leaves_the_record(
     assert clicks == ([] if clicked is None else [f"click {clicked}"])
     module._back(page)
     assert ("back" in page.actions) is went_back
+
+
+def test_a_card_page_carries_the_records_mode_not_empty(site: Site) -> None:
+    """Every card page used to read "EMPTY" beside a live record: the card was rendered without a
+    mode (judge audit, 2026-09-26)."""
+    mode = str(load_export(site.public).summary.get("mode") or "")
+    cards = sorted((site.public / "cards").glob("*.html"))
+    assert cards
+    for path in cards:
+        text = path.read_text("utf-8")
+        assert ">EMPTY<" not in text, path.name
+        if mode:
+            assert f">{mode.upper()}<" in text, path.name
