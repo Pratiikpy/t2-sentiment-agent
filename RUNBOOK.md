@@ -121,7 +121,11 @@ t2sa reconcile --mode paper           # a read-only sweep against the venue, any
 t2sa decide --reason "..."            # an owner-requested decision; logged and published as an intervention
 ```
 
-The loop exports to `public/` every hour and stamps the ledger head daily.
+The loop exports to `public/` every hour and stamps the ledger head daily. Every hourly export
+carries the full analysis: the governed/ungoverned twin, the baselines, the coin-flip distribution,
+the live mirror and the rivals that call no model (about three minutes at run 1's final size). The
+red team and the model rivals appear once `t2sa redteam` and `t2sa rivals` have been run with an
+approved Qwen budget; until then `redteam.json` says so.
 
 ## 5. Stop it
 

@@ -1145,9 +1145,12 @@ def _mirror_doc(record: _Record, arms: Sequence[ArmResult]) -> dict[str, Any]:
     }
 
 
-def _report_doc(report: Model | None, what: str) -> dict[str, Any]:
+def _report_doc(report: Model | None, what: str, reason: str | None = None) -> dict[str, Any]:
     if report is None:
-        return {"status": "not_computed", "reason": f"no {what} was passed to this export"}
+        return {
+            "status": "not_computed",
+            "reason": reason or f"no {what} was passed to this export",
+        }
     return {"status": "computed", "report": _dump(report)}
 
 
@@ -1460,11 +1463,15 @@ def export_public(
     toolkit: Sequence[ToolkitUse],
     clock: Clock,
     sim_check: SimulatorCheck | None = None,
+    twin_reason: str | None = None,
+    redteam_reason: str | None = None,
 ) -> ExportManifest:
     """Write the public record for ``ledger`` into ``out`` (module docstring).
 
     ``arms`` are the analysis arms (baselines, rivals, twin, mirror); the governed book's own arm is
     always computed here from the ledger, and an arm passed under its id must agree with it.
+    ``twin_reason`` and ``redteam_reason`` are what ``twin.json`` and ``redteam.json`` say when the
+    report is absent: why this export has none, rather than only that none was passed.
     ``toolkit`` is the coverage matrix (``coverage_matrix(probe)``); when it is empty the declared
     rows are used. Raises :class:`ExportError` (nothing published) when the record cannot be
     published honestly, and :class:`ExportRefused` when the scan finds a secret or a local path.
@@ -1511,9 +1518,9 @@ def export_public(
         stage.json("metrics.json", _dump(book.metrics))
         stage.json("arms.json", [_dump(a) for a in all_arms])
         stage.json("arms_summary.json", _arms_summary(book, all_arms, sim_check))
-        stage.json("twin.json", _report_doc(twin, "twin report"))
+        stage.json("twin.json", _report_doc(twin, "twin report", twin_reason))
         stage.json("mirror.json", _mirror_doc(record, all_arms))
-        stage.json("redteam.json", _report_doc(redteam, "red-team report"))
+        stage.json("redteam.json", _report_doc(redteam, "red-team report", redteam_reason))
         rows = ledger_health(tuple(toolkit) or declared_uses(), record.projection)
         stage.json(
             "toolkit.json",

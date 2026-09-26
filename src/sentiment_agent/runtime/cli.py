@@ -1919,12 +1919,8 @@ def cmd_probe_toolkit(ctx: Context, args: argparse.Namespace) -> int:
 # export: the public record, and the analysis arms it carries
 # ================================================================================================
 
-FULL_EXPORT_EVERY: Final = timedelta(hours=6)
-
 EXPORT_LOCK_WAIT_S: Final = 1800.0
 """How long an export waits for the export lock: a running export or the page publisher's copy."""
-"""The loop publishes every hour; the arms that need Demo and live candles (baselines, the twin,
-the live mirror) are recomputed every six hours and on every ``t2sa export``."""
 
 COIN_FLIP_SEEDS: Final = 1000
 ANALYSIS_DIR: Final = "var/analysis"
@@ -2120,7 +2116,26 @@ def full_analysis(
         arms.append(weekend_counterfactual(decisions, rulings, live, policy=policy))
     except ValueError as exc:
         notes.append(f"weekend counterfactual not computed: {exc}")
+    # The rivals that call no model run every hour with the rest, on the same snapshots and the
+    # same simulator; the model rivals stay in `t2sa rivals`, which needs an approved budget.
+    rival_snapshots, rival_books = _decision_inputs(chain)
+    if rival_snapshots:
+        try:
+            arms.extend(run_rivals(offline_rival_arms(policy), rival_snapshots, rival_books, sim))
+        except Exception as exc:  # a rival that cannot run is said; the other arms still publish
+            notes.append(f"offline rivals not computed: {type(exc).__name__}: {exc}")
     return Analysis(arms=arms, twin=twin, notes=notes, sim_check=sim_check)
+
+
+def offline_rival_arms(policy: Policy) -> list[RivalArm]:
+    """The rival sentiment agents that call no model (DESIGN.md §14.6): lexicon follow and fade,
+    the fear-and-greed confluence trader and the fusion trader."""
+    return [
+        KeywordSentimentArm(policy=policy, direction="follow"),
+        KeywordSentimentArm(policy=policy, direction="fade"),
+        FearGreedConfluenceArm(policy=policy),
+        SentimentFusionArm(policy=policy),
+    ]
 
 
 def _stored_rivals(root: Path, mode: RunMode) -> list[ArmResult]:
@@ -2147,6 +2162,15 @@ def _latest_probe(chain: HashChainLedger, root: Path) -> ToolkitProbe | None:
         if stored.exists():
             latest = ToolkitProbe.model_validate_json(stored.read_bytes())
     return latest
+
+
+LIGHT_EXPORT_REASON: Final = (
+    "this was a light export (t2sa export --light), which skips the arms that need candles"
+)
+REDTEAM_NOT_RUN_REASON: Final = (
+    "no red-team run is stored for this record: t2sa redteam calls Qwen and runs only with an "
+    "owner-approved token budget (--approve-tokens)"
+)
 
 
 def export_record(
@@ -2182,20 +2206,35 @@ def export_record(
         arms: list[ArmResult] = []
         twin: TwinReport | None = None
         sim_check: SimulatorCheck | None = None
+        twin_reason = LIGHT_EXPORT_REASON
         if not light:
             market = parts.market or BitgetPublicApi(clock=clock, blobs=None)
-            analysis = full_analysis(
-                ledger,
-                blobs,
-                market,
-                policy=policy,
-                clock=clock,
-                starting_equity=parts.starting_equity,
-                coin_flip_seeds=coin_flips,
-            )
-            arms, twin, notes = analysis.arms, analysis.twin, analysis.notes
-            sim_check = analysis.sim_check
-        arms.extend(_stored_rivals(root, mode))
+            try:
+                analysis = full_analysis(
+                    ledger,
+                    blobs,
+                    market,
+                    policy=policy,
+                    clock=clock,
+                    starting_equity=parts.starting_equity,
+                    coin_flip_seeds=coin_flips,
+                )
+            except (EnvironmentRefused, LedgerError):
+                raise
+            except Exception as exc:  # the record still publishes; the gap is said, not hidden
+                twin_reason = (
+                    f"the analysis failed on this export ({type(exc).__name__}: {exc}); "
+                    "the next hourly export retries it"
+                )[:600]
+                notes.append(twin_reason)
+            else:
+                arms, twin, notes = analysis.arms, analysis.twin, analysis.notes
+                sim_check = analysis.sim_check
+                twin_reason = "; ".join(notes) or "the analysis returned no twin"
+        # A stored run of `t2sa rivals` adds the model rivals; an arm this export computed afresh
+        # is not replaced by an older copy of itself.
+        fresh = {a.spec.arm_id for a in arms}
+        arms.extend(a for a in _stored_rivals(root, mode) if a.spec.arm_id not in fresh)
         manifest = export_public(
             ledger=ledger,
             blobs=blobs,
@@ -2206,6 +2245,8 @@ def export_record(
             redteam=_stored_redteam(root, mode),
             toolkit=coverage_matrix(_latest_probe(ledger, root)),
             clock=clock,
+            twin_reason=twin_reason,
+            redteam_reason=REDTEAM_NOT_RUN_REASON,
         )
         render_site(target)
     finally:
@@ -2220,9 +2261,16 @@ class BackgroundExporter:
     the loop it would delay the 60-second protective check by minutes. So each call starts one
     export on a worker and returns at once, with any notes the previous export left (its analysis
     gaps, or its failure), which the loop logs. One export runs at a time: an hour whose previous
-    export is still running is skipped and says so. Light every hour, full every
-    :data:`FULL_EXPORT_EVERY`. The worker reads the ledger through its own reader and fetches
-    candles through its own keyless client, so it never touches the loop's objects.
+    export is still running is skipped and says so. The worker reads the ledger through its own
+    reader and fetches candles through its own keyless client, so it never touches the loop's
+    objects.
+
+    **Every hourly export is a full one** (2026-09-26). Until then five hours in six were light,
+    and a light export publishes the book alone, so run 1's page showed no twin, no baseline and no
+    coin-flip distribution for five hours in every six. A full export of run 1's record at 29,600
+    blobs took 157 s beside a test run, well inside the hour. When the analysis itself fails (a
+    candle read, say), :func:`export_record` still publishes the record and says on the page why
+    the arms are missing.
     """
 
     def __init__(self, ctx: Context, *, coin_flips: int = COIN_FLIP_SEEDS) -> None:
@@ -2231,7 +2279,6 @@ class BackgroundExporter:
         self._thread: threading.Thread | None = None
         self._notes: list[str] = []
         self._lock = threading.Lock()
-        self._last_full: datetime | None = None
         self.manifests: list[ExportManifest] = []
 
     def _add(self, text: str) -> None:
@@ -2248,13 +2295,9 @@ class BackgroundExporter:
         if self._thread is not None and self._thread.is_alive():
             notes.append("the previous export is still running; this hour's export is skipped")
             return notes
-        now = app.clock.now()
-        light = self._last_full is not None and now - self._last_full < FULL_EXPORT_EVERY
-        if not light:
-            self._last_full = now
         worker = threading.Thread(
             target=self._run,
-            args=(app.paths.root, app.mode, app.clock, light),
+            args=(app.paths.root, app.mode, app.clock),
             name="t2sa-export",
             daemon=True,
         )
@@ -2262,14 +2305,14 @@ class BackgroundExporter:
         worker.start()
         return notes
 
-    def _run(self, root: Path, mode: RunMode, clock: Clock, light: bool) -> None:
+    def _run(self, root: Path, mode: RunMode, clock: Clock) -> None:
         try:
             manifest, notes = export_record(
                 root,
                 mode,
                 clock=clock,
                 parts=self._ctx.parts,
-                light=light,
+                light=False,
                 coin_flips=self._coin_flips,
             )
         except Exception as exc:  # reported through the loop's next note; trading carries on
@@ -2389,12 +2432,7 @@ def cmd_rivals(ctx: Context, args: argparse.Namespace) -> int:
     snapshots, books = _decision_inputs(chain)
     if not snapshots:
         raise UsageError("no decision snapshot in the ledger yet: nothing to compare rivals on")
-    offline: list[RivalArm] = [
-        KeywordSentimentArm(policy=policy, direction="follow"),
-        KeywordSentimentArm(policy=policy, direction="fade"),
-        FearGreedConfluenceArm(policy=policy),
-        SentimentFusionArm(policy=policy),
-    ]
+    offline: list[RivalArm] = offline_rival_arms(policy)
     if finbert_installed():
         offline += [
             FinbertArm(policy=policy, direction="follow"),
