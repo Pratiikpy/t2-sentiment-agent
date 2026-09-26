@@ -1,22 +1,24 @@
 r"""Run 2's act rate, measured on run 1's market, SIMULATED.
 
 The event decisions run 2's trigger rules would have woken on run 1's recorded market, each put to
-the live decision agent under policy v2.
+the live decision agent under policy v2, or under v1 amended up to a named step (``--policy``).
 
     python scripts/act_rate.py <public dir> --secrets-root DIR [--until-seq N] [--out FILE]
+                               [--policy run2-a1..run2-a6|policy-v2]
 
     python scripts/act_rate.py ../t2-sentiment-agent/public --until-seq 363 \
         --secrets-root <a folder holding .secrets/qwen.env> \
-        --out validation/run2/act_rate.json
+        --policy run2-a1 --out validation/run2/act_rate.json
 
-``replay_triggers.py`` counted the triggers run 2 would admit (15 event decisions under policy v2
-on run 1's first 364 events); it did not ask the agent anything, so "how often would run 2 act"
-had no measured answer (readiness backlog L20). This script replays the same admissions and, for
-each event decision, calls the real :class:`~sentiment_agent.decision.agent.DecisionAgent` with
-the live Qwen model on the snapshot run 1 recorded at that moment, relabelled to policy v2 exactly
-as the trigger replay does, the book run 1 held then, and the triggers that woke it. The real
-:class:`~sentiment_agent.kernel.kernel.RiskKernel` then rules on each proposal with the
-instrument specs run 1 logged.
+``replay_triggers.py`` counted the triggers run 2 would admit (15 event decisions under run2-a1 on
+run 1's first 364 events, 3 under policy v2); it did not ask the agent anything, so "how often
+would run 2 act" had no measured answer (readiness backlog L20). This script replays the same
+admissions and, for each event decision, calls the real
+:class:`~sentiment_agent.decision.agent.DecisionAgent` with the live Qwen model on the snapshot
+run 1 recorded at that moment, relabelled to that policy exactly as the trigger replay does, the
+book run 1 held then, and the triggers that woke it. The real
+:class:`~sentiment_agent.kernel.kernel.RiskKernel` then rules on each proposal with the instrument
+specs run 1 logged.
 
 What it measures and what it does not: the agent's stance and proposed weights, and whether the
 kernel would have approved an order, on real recorded inputs. It sends no order, touches no
@@ -51,7 +53,7 @@ from sentiment_agent.llm.budget import (  # noqa: E402
     decision_bound,
 )
 from sentiment_agent.llm.client import QwenChatModel, load_qwen_env  # noqa: E402
-from sentiment_agent.policy import POLICY_V1, POLICY_V2  # noqa: E402
+from sentiment_agent.policy import POLICY_V1, POLICY_V2, RUN2_STEPS  # noqa: E402
 from sentiment_agent.runtime.cli import decisions_with_inputs  # noqa: E402
 from sentiment_agent.types import (  # noqa: E402
     BreakerState,
@@ -65,6 +67,11 @@ from sentiment_agent.types import (  # noqa: E402
     SnapshotEvent,
 )
 
+STEPS = dict(RUN2_STEPS)
+"""``--policy`` choices: each run-2 amendment's id and the policy in force after it.
+``validation/run2/act_rate.json`` was measured under ``run2-a1``, before the level floor and the
+book caps existed."""
+
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -75,7 +82,14 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--until-seq", type=int, default=363)
     parser.add_argument("--blobs", type=Path, default=ROOT / "var" / "act_rate" / "blobs")
     parser.add_argument("--out", type=Path, default=ROOT / "validation" / "run2" / "act_rate.json")
+    parser.add_argument(
+        "--policy",
+        choices=[*STEPS, "policy-v2"],
+        default="policy-v2",
+        help="the run-2 policy to decide under: v2, or v1 amended up to a named step",
+    )
     args = parser.parse_args(argv)
+    policy = STEPS.get(args.policy, POLICY_V2)
     public: Path = args.public
 
     events = [e for e in _read(public) if e.seq <= args.until_seq]
@@ -115,14 +129,14 @@ def main(argv: list[str]) -> int:
 
     replay = replay_admissions(
         snapshots,
-        policy=POLICY_V2,
+        policy=policy,
         oi_thresholds=thresholds,
         start=genesis.created_at,
         book_at=book_at,
-        decision_bound_tokens=decision_bound(prompt_bytes, POLICY_V2),
+        decision_bound_tokens=decision_bound(prompt_bytes, policy),
     )
     batches = [b for b in replay.batches if b.event_decision and not b.budget_refused]
-    bound = decision_bound(prompt_bytes, POLICY_V2)
+    bound = decision_bound(prompt_bytes, policy)
     cap = bound * max(len(batches), 1)
     print(
         f"{len(batches)} event decision(s); Qwen spend capped at {cap} tokens "
@@ -137,14 +151,14 @@ def main(argv: list[str]) -> int:
         budget=DailyTokenBudget(cap, clock),
         clock=clock,
         blobs=blobs,
-        timeout_s=float(POLICY_V2.decision.call_timeout_seconds),
+        timeout_s=float(policy.decision.call_timeout_seconds),
     )
-    agent = DecisionAgent(model=model, policy=POLICY_V2, blobs=blobs, clock=clock)
-    kernel = RiskKernel(POLICY_V2, clock)
+    agent = DecisionAgent(model=model, policy=policy, blobs=blobs, clock=clock)
+    kernel = RiskKernel(policy, clock)
 
     rows: list[dict[str, Any]] = []
     for batch in batches:
-        seen = by_id[batch.snapshot_id].model_copy(update={"policy_version": POLICY_V2.version})
+        seen = by_id[batch.snapshot_id].model_copy(update={"policy_version": policy.version})
         clock.set(seen.taken_at)
         book = book_at(seen)
         record = agent.decide(seen, book, list(batch.admitted))
@@ -203,8 +217,9 @@ def main(argv: list[str]) -> int:
             "public": public.name,
             "until_seq": args.until_seq,
             "ledger_head_hash": events[-1].hash,
-            "policy": POLICY_V2.version,
-            "policy_hash": POLICY_V2.content_hash(),
+            "policy": policy.version,
+            "policy_step": args.policy,
+            "policy_hash": policy.content_hash(),
             "model": model.model_name,
         },
         "event_decisions": len(rows),
@@ -220,7 +235,9 @@ def main(argv: list[str]) -> int:
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(
-        json.dumps(out, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8"
+        json.dumps(out, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
     print(json.dumps({k: v for k, v in out.items() if k != "decisions"}, indent=1))
     return 0

@@ -664,6 +664,7 @@ class BookBuilder:
             rebalances_today=self._rebalances(day_start, day_end),
             consecutive_losses=self._consecutive_losses(),
             activation=activation,
+            last_loss_at=self._last_loss_at(at),
         )
 
     # --- book-level folds -------------------------------------------------------------------
@@ -729,6 +730,10 @@ class BookBuilder:
             if day_start <= record.fill.executed_at < day_end:
                 counts[record.fill.symbol] = counts.get(record.fill.symbol, 0) + 1
         return dict(sorted(counts.items()))
+
+    def _last_loss_at(self, at: datetime) -> datetime | None:
+        losses = [t.closed_at for t in self.closed_trades() if t.net_pnl < 0 and t.closed_at <= at]
+        return max(losses) if losses else None
 
     def _consecutive_losses(self) -> int:
         streak = 0

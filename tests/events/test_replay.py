@@ -43,7 +43,8 @@ def book_at(snapshot: PerceptionSnapshot) -> BookState:
 
 def nvda_extreme_every_five_minutes(hours: int) -> list[PerceptionSnapshot]:
     return [
-        light(START + i * FIVE, features("NVDAUSDT", funding_z_live=3.0)) for i in range(hours * 12)
+        light(START + i * FIVE, features("NVDAUSDT", funding_z_live=3.0, funding_rate_live=1e-3))
+        for i in range(hours * 12)
     ]
 
 

@@ -52,7 +52,7 @@ from typing import Any, Final, Literal, TextIO
 
 from sentiment_agent.analysis.armsim import ArmSimulator
 from sentiment_agent.analysis.baselines import run_baselines
-from sentiment_agent.analysis.metrics import book_arm
+from sentiment_agent.analysis.metrics import book_arm, within_window
 from sentiment_agent.analysis.mirror import live_mirror, weekend_counterfactual
 from sentiment_agent.analysis.simcheck import SimulatorCheck, simulator_check
 from sentiment_agent.analysis.twin import governed_replica, twin_report, ungoverned_arm
@@ -2004,11 +2004,12 @@ def _simulator(
     clock: Clock,
     logged_inputs: Sequence[KernelInputs],
 ) -> tuple[ArmSimulator, datetime, datetime] | str:
-    """The simulator every comparison arm runs on, over the book's own hourly window, or why none
-    can be built yet."""
-    marks = projection.marks
+    """The simulator every comparison arm runs on, over the book's own hourly window (within the
+    policy's scoring window when it sets one), or why none can be built yet."""
+    marks, _, _ = within_window(projection.marks, (), (), policy.scoring_window)
     if len(marks) < 2:
-        return "fewer than two hourly marks: there is no window to compare arms over yet"
+        inside = " inside the scoring window" if policy.scoring_window is not None else ""
+        return f"fewer than two hourly marks{inside}: there is no window to compare arms over yet"
     start, until = marks[0].at, marks[-1].at
     symbols = policy.symbols
     demo_marks: dict[str, list[Candle]] = {}
@@ -2073,7 +2074,19 @@ def full_analysis(
         return Analysis(arms=[], twin=None, notes=[built])
     sim, start, until = built
     notes: list[str] = []
-    live_book = book_arm(projection.marks, projection.closed_trades, projection.fills)
+    if policy.scoring_window is not None:
+        # Every arm is scored over the book's span inside the window (run2-a4): a decision taken
+        # before it, in a rehearsal or a restart, is not part of the scored record.
+        kept = [(d, i) for d, i in zip(decisions, inputs, strict=True) if start <= i.at <= until]
+        decisions, inputs = [d for d, _ in kept], [i for _, i in kept]
+        ids = {d.decision_id for d in decisions}
+        rulings = [r for r in rulings if r.decision_id in ids]
+    live_book = book_arm(
+        projection.marks,
+        projection.closed_trades,
+        projection.fills,
+        window=policy.scoring_window,
+    )
     arms: list[ArmResult] = []
     twin: TwinReport | None = None
     governed: ArmResult | None = None
@@ -2116,10 +2129,18 @@ def full_analysis(
         if rows:
             live[symbol] = rows
     equity = projection.starting_equity or starting_equity
-    try:
-        arms.append(live_mirror(projection.fills, live, equity, start=start, until=until))
-    except ValueError as exc:
-        notes.append(f"live mirror not computed: {exc}")
+    early = [f for f in projection.fills if f.executed_at < start]
+    if policy.scoring_window is not None and early:
+        notes.append(
+            f"live mirror not computed: the book traded before the scoring window opened "
+            f"({start:%Y-%m-%d %H:%M} UTC, first fill {early[0].executed_at:%Y-%m-%d %H:%M}), and "
+            "the mirror replays every fill from an empty book"
+        )
+    else:
+        try:
+            arms.append(live_mirror(projection.fills, live, equity, start=start, until=until))
+        except ValueError as exc:
+            notes.append(f"live mirror not computed: {exc}")
     try:
         arms.append(weekend_counterfactual(decisions, rulings, live, policy=policy))
     except ValueError as exc:
@@ -2127,6 +2148,13 @@ def full_analysis(
     # The rivals that call no model run every hour with the rest, on the same snapshots and the
     # same simulator; the model rivals stay in `t2sa rivals`, which needs an approved budget.
     rival_snapshots, rival_books = _decision_inputs(chain)
+    if policy.scoring_window is not None:
+        scored = [
+            (snap, held)
+            for snap, held in zip(rival_snapshots, rival_books, strict=True)
+            if start <= snap.taken_at <= until
+        ]
+        rival_snapshots, rival_books = [p[0] for p in scored], [p[1] for p in scored]
     if rival_snapshots:
         try:
             arms.extend(run_rivals(offline_rival_arms(policy), rival_snapshots, rival_books, sim))

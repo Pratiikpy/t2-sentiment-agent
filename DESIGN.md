@@ -1568,25 +1568,36 @@ pre-registration itself says what differs and why:
 | `run2-d1` | code fix | Coordinated clusters, earnings and filings are evaluated on the full snapshot and join the decision they are seen on (§8) | In run 1 only light snapshots reached the trigger engine; replaying run 1's 226 snapshots with the fix finds 22 coordinated-cluster triggers on its 2 decision snapshots, none ever evaluated, and 0 extra decisions |
 | `run2-d2` | observability | Feed-health alarms and a named cause for every blind trigger kind (§6.2) | Run 1 recorded, and nothing surfaced: `sentiment_index.current` hollow in 226 of 226 snapshots; bitget-mcp-server `do_query` answering 503 on every call from 2026-09-25 10:14 UTC (and a session-expiry 404 at 08:33); an equity calendar with no upcoming report date |
 | `run2-d3` | code fix | When both Bitget data services leave a reading empty, the upstream they wrap is read directly on its own labelled surface (`upstream_direct`): Binance USD-M futures for positioning, open interest and funding, alternative.me for Fear & Greed, four publishers' RSS for news (`sources/upstream.py`) | From bitget-mcp-server's first failure (2026-09-25 08:33 UTC) to seq 546 it answered 144 of 1,356 calls, and bitget-signal answered 0 of 939 over the whole run; crypto Fear & Greed and BTCUSDT positioning were missing from 146 of 164 snapshots (`validation/run2/run1_feed_outage.json`, `scripts/feed_outage.py`) |
-| `run2-a1` | policy amendment, v1 → v2 | `funding_zscore` for every universe instrument, same ±2 threshold, 90-settlement lookback, 240-minute cooldown, daily cap of 8 and weekend refusal | Equity and index funding z beyond ±2 in 436 instrument-snapshots of run 1 (HOOD 88, NVDA 84, MSTR 58, GOOGL 49, AMZN 46, SNDK 44, TSLA 30, COIN 23, NDX100 14); replayed, 15 event decisions in 19.9 hours (7 on 2026-09-24, 8 on 2026-09-25 with the cap refusing 3 more), all 15 inside the token budget at worst-case spend; run 1 itself took 0 |
+| `run2-a1` | policy amendment | `funding_zscore` for every universe instrument, same ±2 threshold, 90-settlement lookback, 240-minute cooldown, daily cap of 8 and weekend refusal | Equity and index funding z beyond ±2 in 436 instrument-snapshots of run 1 (HOOD 88, NVDA 84, MSTR 58, GOOGL 49, AMZN 46, SNDK 44, TSLA 30, COIN 23, NDX100 14); replayed under this step alone, 15 event decisions in 19.9 hours (7 on 2026-09-24, 8 on 2026-09-25 with the cap refusing 3 more); run 1 itself took 0 |
+| `run2-a2` | policy amendment | `funding_zscore` also needs the live rate at 7.5 bp or more in absolute value | The live rate was exactly zero in 51.1% of run 1's 3,150 instrument-snapshots (median 0, 95th percentile 4.5 bp), so a single tick off zero scored as an extreme: z beyond ±2 in 13.8%, against 4.6% for a normal series. With the level, 43 extremes (MSTR 29, SNDK 14) and 3 event decisions in 19.9 hours instead of 15; run 2's agent had acted, short, in 14 of those 15 |
+| `run2-a3` | policy amendment | G3 caps the net weight (long minus short) at 10% of equity, and MSTR, COIN, HOOD and CRCL at 7.5% gross together; held weight is kept and new exposure scaled pro rata | Run 2's agent on run 1's market (SIMULATED, `validation/run2/act_rate.json`, under `run2-a1`): every book it proposed was short, up to 20% net (2026-09-25 12:05 UTC), with COIN, HOOD and MSTR at 5% each at once; no v1 guard changed any of them. MSTR moved 1.85× BTC over 30 days of hourly candles |
+| `run2-a4` | policy amendment | The record is scored from 2026-09-28 00:00 to 2026-10-01 00:00 UTC; at the end G2 closes every leg of every class and refuses new exposure, the loop stops deciding, and the published metrics, every comparison arm and `scripts/recompute.py` count only what falls inside; the page says so beside the figures | Run 1 had no scored span in its genesis; a trade still open when a record is read has no result, so win rate depended on when it was read |
+| `run2-a5` | policy amendment | The losing-streak trip lapses 24 hours after the last losing close | Under v1 reduce-only refuses every opening, so a flat book could never close the winner that clears the streak: the trip was absorbing |
+| `run2-a6` | policy amendment | A model outage flattens the book on the third failed decision in a row; the first two hold every leg under its G4 venue stop and open nothing | A flatten is a taker trade on every open leg (6 bp each), paid on a gateway timeout that says nothing about the thesis |
 
 The counts are recomputed by `scripts/replay_triggers.py` from run 1's published ledger cut at seq
 363 and kept in `validation/run2/run1_trigger_replay.json`; `tests/contract/test_run2_declaration.py`
 holds the genesis declaration, the policy basis and that file to the same figures, and checks that
 the replay reproduces the 2 heartbeat decisions run 1 actually took.
 
-**What run 2 does not change.** Every guard and its limit (G1-G11), the fee and edge bar (G6-G8,
-the 7 and 20 bps fee budgets), the mandate, the decision rule and the daily token cap, the system
-prompt and its no-edge stance, and the prompt files, whose hashes run 2's genesis pre-registers
-unchanged from run 1's. Policy v2 is policy v1 with one field and its basis changed, and a test
-asserts exactly that.
+**Six amendments, six hashes.** The amendments are applied in order (`policy.RUN2_AMENDMENTS`),
+each producing a policy with its own hash, and the genesis declares them as a chain from run 1's
+policy (`55ff779b…`) to policy v2; `Genesis` refuses a chain that skips a link. The policies
+between are never run. A test holds each amendment to the fields it declares and nothing else, and
+each guard's published rule text is amended with it, so the rule a reader sees is the rule the
+kernel applies.
 
-**What the amendment costs.** On run 1's data it would have used the daily cap of event decisions
-on both days. Each event decision is a LOW-reasoning Qwen call inside the budget §9.1 already
-sizes for 8 events a day; the budget rule still reserves every heartbeat before admitting one.
-Whether equity funding extremes carry information the model can use is not known, and run 2 is
-where it is measured; the published record shows every such decision and what the kernel did
-with it.
+**What run 2 does not change.** Every other guard limit (G1, G4-G9, G11, and G2's weekend freeze),
+the fee and edge bar (G6-G8, the 7 and 20 bps fee budgets), the mandate, the daily token cap, the
+system prompt and its no-edge stance, and the prompt files, whose hashes run 2's genesis
+pre-registers unchanged from run 1's.
+
+**What the amendments cost.** `run2-a1` alone would have used the daily cap of event decisions on
+both days of run 1's data; with `run2-a2` it is 3 in 19.9 hours. Each is a LOW-reasoning Qwen call
+inside the budget §9.1 sizes for 8 events a day. The caps of `run2-a3` bind on the one-sided books
+the agent proposed, so run 2 holds less of each bet than it asks for; the window of `run2-a4` ends
+every trade by Thursday 00:00 UTC, one that might have run longer included. Whether equity funding
+extremes carry information the model can use is not known, and run 2 is where it is measured.
 
 **NOT VERIFIED.** How run 2's reports behave against live outages beyond run 1's recorded ones;
 whether coordinated clusters, which the design only reads at decisions, would have changed any of

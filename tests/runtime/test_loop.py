@@ -340,7 +340,9 @@ def test_the_kernel_rules_on_quotes_read_after_the_model_answered(workdir: Path)
         rig.app.close()
 
 
-def test_a_model_outage_on_a_flat_book_flattens_nothing_and_says_so(workdir: Path) -> None:
+def test_a_first_model_outage_is_held_not_traded(workdir: Path) -> None:
+    """Policy v2 (run2-a6): one failed decision holds the book under its stops and opens nothing;
+    the flatten waits for ``outage_flatten_after`` failures in a row."""
     rig = _rig(workdir, _at(13, 29), script=[QwenTimeout("no answer in time")])
     try:
         rig.loop.tick()
@@ -351,9 +353,10 @@ def test_a_model_outage_on_a_flat_book_flattens_nothing_and_says_so(workdir: Pat
         assert card.outcome is LlmOutcome.TIMEOUT
         assert card.kernel is None
         notes = [n["text"] for n in rig.events(EventKind.NOTE)]
-        assert any("nothing to flatten" in n for n in notes)
-        halted = rig.events(EventKind.BREAKER_TRANSITION)
-        assert halted[-1]["to_state"] == "halted"
+        limit = rig.app.policy.decision.outage_flatten_after
+        assert any(f"1 of {limit} in a row" in n and "nothing opened" in n for n in notes)
+        transitions = rig.events(EventKind.BREAKER_TRANSITION)
+        assert not transitions or transitions[-1]["to_state"] != "halted"
         assert rig.venue.positions() == []
     finally:
         rig.app.close()

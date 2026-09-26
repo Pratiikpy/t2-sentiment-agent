@@ -1335,10 +1335,12 @@ def test_policy_v2_reads_funding_for_every_instrument(
     snap = v2_snapshot(
         now,
         [
-            features("NVDAUSDT", funding_z_live=2.4, funding_rate_live=1e-4),
-            features("NDX100USDT", funding_z_live=-3.1),
-            features("HOODUSDT", funding_z_live=2.0),  # at the threshold: silent
-            features("BTCUSDT", funding_z_live=1.0),
+            features("NVDAUSDT", funding_z_live=2.4, funding_rate_live=1e-3),
+            features("NDX100USDT", funding_z_live=-3.1, funding_rate_live=1e-3),
+            features(
+                "HOODUSDT", funding_z_live=2.0, funding_rate_live=1e-3
+            ),  # at the threshold: silent
+            features("BTCUSDT", funding_z_live=1.0, funding_rate_live=1e-3),
         ],
     )
     fired = engine_v2.evaluate(snap, empty_book())
@@ -1361,7 +1363,9 @@ def test_policy_v2_equity_funding_keeps_threshold_cooldown_and_cap(
     start = clock.now()
 
     def nvda(z: float) -> PerceptionSnapshot:
-        return v2_snapshot(clock.now(), [features("NVDAUSDT", funding_z_live=z)])
+        return v2_snapshot(
+            clock.now(), [features("NVDAUSDT", funding_z_live=z, funding_rate_live=1e-3)]
+        )
 
     assert len(engine_v2.admit(engine_v2.evaluate(nvda(2.5), empty_book()))[0]) == 1
     clock.set(start + COOLDOWN - MINUTE)
@@ -1372,12 +1376,16 @@ def test_policy_v2_equity_funding_keeps_threshold_cooldown_and_cap(
     symbols = [u.symbol for u in POLICY_V2.universe if u.asset_class is AssetClass.US_EQUITY]
     for i, symbol in enumerate(symbols[1:], start=1):
         clock.set(start + COOLDOWN + i * MINUTE)
-        snap = v2_snapshot(clock.now(), [features(symbol, funding_z_live=3.0)])
+        snap = v2_snapshot(
+            clock.now(), [features(symbol, funding_z_live=3.0, funding_rate_live=1e-3)]
+        )
         engine_v2.admit(engine_v2.evaluate(snap, empty_book()))
     cap = POLICY_V2.triggers.max_event_decisions_per_day
     assert engine_v2.event_decisions_on(start.date()) == cap
     clock.advance(MINUTE)
-    snap = v2_snapshot(clock.now(), [features("NDX100USDT", funding_z_live=3.0)])
+    snap = v2_snapshot(
+        clock.now(), [features("NDX100USDT", funding_z_live=3.0, funding_rate_live=1e-3)]
+    )
     admitted, refused = engine_v2.admit(engine_v2.evaluate(snap, empty_book()))
     assert admitted == []
     assert codes(refused) == [REFUSED_DAILY_CAP]
@@ -1389,7 +1397,10 @@ def test_policy_v2_equity_funding_is_refused_while_the_weekend_freeze_holds(
     clock.set(utc(2026, 9, 26, 12, 0))  # Saturday
     snap = v2_snapshot(
         clock.now(),
-        [features("NVDAUSDT", funding_z_live=3.0), features("BTCUSDT", funding_z_live=3.0)],
+        [
+            features("NVDAUSDT", funding_z_live=3.0, funding_rate_live=1e-3),
+            features("BTCUSDT", funding_z_live=3.0, funding_rate_live=1e-3),
+        ],
     )
     admitted, refused = engine_v2.admit(engine_v2.evaluate(snap, empty_book()))
     assert [t.symbols for t in admitted] == [("BTCUSDT",)]
@@ -1398,10 +1409,39 @@ def test_policy_v2_equity_funding_is_refused_while_the_weekend_freeze_holds(
     ]
     # Refused, it is still remembered: the same extreme does not re-emit inside the cooldown.
     clock.advance(5 * MINUTE)
-    again = v2_snapshot(clock.now(), [features("NVDAUSDT", funding_z_live=3.2)])
+    again = v2_snapshot(
+        clock.now(), [features("NVDAUSDT", funding_z_live=3.2, funding_rate_live=1e-3)]
+    )
     assert engine_v2.evaluate(again, empty_book()) == []
     # Monday 00:00: the freeze is over and the next emission is admitted.
     clock.set(utc(2026, 9, 28, 0, 0))
-    monday = v2_snapshot(clock.now(), [features("NVDAUSDT", funding_z_live=3.2)])
+    monday = v2_snapshot(
+        clock.now(), [features("NVDAUSDT", funding_z_live=3.2, funding_rate_live=1e-3)]
+    )
     admitted, _ = engine_v2.admit(engine_v2.evaluate(monday, empty_book()))
     assert [t.symbols for t in admitted] == [("NVDAUSDT",)]
+
+
+@pytest.mark.parametrize(
+    ("rate", "fires"),
+    [(None, False), (0.0, False), (2e-4, False), (7.4e-4, False), (7.5e-4, True), (-9e-4, True)],
+)
+def test_policy_v2_funding_needs_a_level_beside_the_z_score(
+    engine_v2: TriggerEngine, clock: ManualClock, rate: float | None, fires: bool
+) -> None:
+    """Run 1's equity perps settled at 0 for long stretches, so a one-tick print scored z = 2 and
+    |z| > 2 held in 22% of instrument-snapshots (run2-a2). Policy v2 also needs the live rate at
+    the 0.075% per-interval floor."""
+    clock.set(utc(2026, 9, 24, 18, 0))
+    snap = v2_snapshot(
+        clock.now(), [features("NVDAUSDT", funding_z_live=3.0, funding_rate_live=rate)]
+    )
+    fired = engine_v2.evaluate(snap, empty_book())
+    assert bool(fired) is fires
+    if fires:
+        assert "0.075% level floor" in only(fired).detail
+
+
+def test_policy_v1_has_no_funding_level_floor() -> None:
+    assert POLICY_V1.triggers.funding_abs_min == 0.0
+    assert "funding_abs_min" not in POLICY_V1.triggers.model_dump()

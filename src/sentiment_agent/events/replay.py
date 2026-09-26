@@ -233,17 +233,66 @@ def _ticks(ordered: Sequence[PerceptionSnapshot]) -> list[list[PerceptionSnapsho
 
 
 def funding_extremes(
-    snapshots: Sequence[PerceptionSnapshot], *, threshold: float
+    snapshots: Sequence[PerceptionSnapshot], *, threshold: float, min_abs_rate: float = 0.0
 ) -> dict[str, int]:
     """Per instrument, the snapshots whose live funding z-score lies strictly beyond the
-    threshold: the raw condition before any cooldown, cap or weekend rule."""
+    threshold (and, with ``min_abs_rate``, whose live rate is at least that level): the raw
+    condition before any cooldown, cap or weekend rule."""
     counts: Counter[str] = Counter()
     for snapshot in snapshots:
         for symbol, features in snapshot.features.items():
             z = features.funding_z_live
-            if z is not None and abs(z) > threshold:
-                counts[symbol] += 1
+            if z is None or abs(z) <= threshold:
+                continue
+            rate = features.funding_rate_live
+            if min_abs_rate and (rate is None or abs(rate) < min_abs_rate):
+                continue
+            counts[symbol] += 1
     return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def funding_level_profile(
+    snapshots: Sequence[PerceptionSnapshot], *, threshold: float, floors: Sequence[float]
+) -> dict[str, Any]:
+    """How often the live funding z-score leaves ``threshold`` across every instrument-snapshot
+    that carries one, the distribution of the absolute live rate there, and how often the z-score
+    and a level of at least each floor hold together. The basis of policy v2's level floor
+    (``run2-a2``): a z-score computed on a series that sits at exactly zero scores a single tick as
+    an extreme."""
+    rates: list[float] = []
+    beyond = 0
+    both: Counter[float] = Counter()
+    for snapshot in snapshots:
+        for features in snapshot.features.values():
+            z, rate = features.funding_z_live, features.funding_rate_live
+            if z is None or rate is None:
+                continue
+            rates.append(abs(rate))
+            if abs(z) <= threshold:
+                continue
+            beyond += 1
+            for floor in floors:
+                if abs(rate) >= floor:
+                    both[floor] += 1
+    if not rates:
+        raise ValueError("no instrument-snapshot carries a live funding z-score and rate")
+    ordered = sorted(rates)
+
+    def quantile(q: float) -> float:
+        return ordered[min(len(ordered) - 1, int(q * len(ordered)))]
+
+    n = len(ordered)
+    return {
+        "instrument_snapshots": n,
+        "beyond_threshold": beyond,
+        "beyond_threshold_share": round(beyond / n, 4),
+        "abs_rate_median": quantile(0.5),
+        "abs_rate_p95": quantile(0.95),
+        "abs_rate_zero_share": round(sum(1 for r in ordered if r == 0) / n, 4),
+        "beyond_with_level_share_by_floor": {
+            f"{floor:g}": round(both[floor] / n, 4) for floor in floors
+        },
+    }
 
 
 def kinds_of(batches: Sequence[ReplayBatch]) -> frozenset[TriggerKind]:
@@ -256,6 +305,7 @@ __all__ = [
     "ReplayBatch",
     "ReplayResult",
     "funding_extremes",
+    "funding_level_profile",
     "kinds_of",
     "replay_admissions",
 ]

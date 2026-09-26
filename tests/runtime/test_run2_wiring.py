@@ -33,11 +33,12 @@ from sentiment_agent.types import (
     TriggerKind,
 )
 
-THURSDAY = datetime(2026, 10, 1, tzinfo=UTC)
+# A weekday inside run 2's scoring window (2026-09-28 to 2026-10-01 00:00 UTC).
+WEDNESDAY = datetime(2026, 9, 30, tzinfo=UTC)
 
 
 def _at(hh: int, mm: int, ss: int = 0) -> datetime:
-    return THURSDAY.replace(hour=hh, minute=mm, second=ss)
+    return WEDNESDAY.replace(hour=hh, minute=mm, second=ss)
 
 
 class Rig:
@@ -100,7 +101,7 @@ def test_a_coordinated_cluster_on_the_full_snapshot_joins_the_heartbeat_decision
     # The cluster was read off the very snapshot the model decided on.
     assert cluster.snapshot_id == record.snapshot_id
     # A heartbeat batch takes no event slot.
-    assert rig.app.triggers.event_decisions_on(THURSDAY.date()) == 0
+    assert rig.app.triggers.event_decisions_on(WEDNESDAY.date()) == 0
     # Light snapshots never evaluated the cluster; only the decision's full snapshot did.
     assert [s.snapshot_id for s in rig.app.projection.snapshots if s.crowd.clusters] == [
         record.snapshot_id
@@ -228,3 +229,19 @@ def test_the_feed_report_is_published(rig: Rig, tmp_path: Path) -> None:
     assert "Feed health on this snapshot" in card_pages[0].read_text(encoding="utf-8")
     genesis = json.loads((out / "genesis.json").read_text(encoding="utf-8"))
     assert genesis["present"] is False
+
+
+def test_no_decision_is_spent_after_the_scoring_window(workdir: Path) -> None:
+    """run2-a4: from the window's end G2 refuses every opening, so a trigger due then is recorded
+    as seen and no model call is made on it."""
+    thursday = datetime(2026, 10, 1, 13, 29, tzinfo=UTC)
+    rig = Rig(workdir, thursday, script=[flat("never asked")])
+    try:
+        rig.loop.tick()
+        rig.clock.set(thursday.replace(minute=30))
+        report = rig.loop.tick()
+        assert "window_closed" in report.did
+        assert "decision_cycle" not in report.did
+        assert rig.payloads(EventKind.DECISION) == []
+    finally:
+        rig.app.close()

@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from runtime.test_cli import _small_simulated_record, cli
+from runtime.test_cli import FRIDAY_1320, _small_simulated_record, cli
 from sentiment_agent.runtime import cli as cli_module
 from sentiment_agent.runtime.cli import (
     EXIT_OK,
@@ -43,6 +43,21 @@ def test_a_failed_analysis_still_publishes_and_says_why(
         "the analysis failed on this export (RuntimeError: the candle service answered 503)"
     )
     assert _published(root, "summary.json")["ledger"]["head_hash"]
+
+
+def test_a_record_before_the_scoring_window_has_no_arms_and_says_why(tmp_path: Path) -> None:
+    """Policy v2 scores the record over its pre-registered window (run2-a4): a rehearsal on the
+    Friday before it has no hour inside, and the export says so instead of scoring outside it."""
+    clock, root, parts = _small_simulated_record(tmp_path, start=FRIDAY_1320)
+    code, text = cli(root, clock, parts, "export", "--mode", "simulated", "--coin-flips", "5")
+    assert code == EXIT_OK, text
+    assert "fewer than two hourly marks inside the scoring window" in text
+    metrics = _published(root, "metrics.json")
+    assert metrics["n_hours"] == 0
+    assert _published(root, "summary.json")["scoring_window"] == {
+        "start": "2026-09-28T00:00:00Z",
+        "end": "2026-10-01T00:00:00Z",
+    }
 
 
 def test_a_light_export_says_it_skipped_the_analysis(tmp_path: Path) -> None:

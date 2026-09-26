@@ -138,7 +138,12 @@ class TestOnePublishPass:
         )
         assert done.returncode == 0, done.stderr
         log = root / "var" / "logs" / "site.log"
-        return [line.split(" ", 1)[1] for line in log.read_text("utf-8").splitlines()]
+        # The disk advisory depends on this machine's free space, not on the publish under test.
+        return [
+            line.split(" ", 1)[1]
+            for line in log.read_text("utf-8").splitlines()
+            if not line.split(" ", 1)[1].startswith("DISK LOW")
+        ]
 
     def test_a_half_published_copy_is_not_deployed(self, tmp_path: Path) -> None:
         self._record(tmp_path, summary_head="a" * 64, ledger_head="b" * 64)

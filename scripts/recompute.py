@@ -60,7 +60,9 @@ What it reads from the directory, and what each file must be:
     One object: the governed book's metric set (``arm_id`` ``ours_governed``), recomputed from
     ``equity_hourly.csv`` (``E = equity_book``), ``trades.csv`` (``net_pnl``) and the ledger's fills
     (turnover numerator ``sum |exec_value|``, ``fees_paid = sum fee_paid``). Every field must
-    agree, including each 90% interval in ``ci90``.
+    agree, including each 90% interval in ``ci90``. When the genesis policy pre-registers a
+    ``scoring_window``, the set is recomputed over it alone, bounds included: the marks taken in
+    it, the trades that closed in it and the fills executed in it (policy v2, ``run2-a4``).
 
 ``arms.json`` (optional)
     A JSON array of arm results (``spec``, ``marks``, ``trades``, ``metrics``). Each arm's metrics
@@ -284,6 +286,19 @@ def read_ledger(path: Path) -> list[dict[str, Any]]:
         previous_ts = ts
         events.append(event)
     return events
+
+
+def scoring_window(events: Sequence[dict[str, Any]]) -> tuple[datetime, datetime] | None:
+    """The span the genesis policy pre-registers for scoring, or ``None`` when it sets none."""
+    if not events or events[0]["kind"] != "genesis":
+        return None
+    window = events[0]["payload"].get("policy", {}).get("scoring_window")
+    if window is None:
+        return None
+    start, end = parse_time(window["start"]), parse_time(window["end"])
+    if end <= start:
+        raise MismatchError("the genesis scoring window ends before it starts")
+    return start, end
 
 
 def check_genesis(events: Sequence[dict[str, Any]]) -> str:
@@ -935,6 +950,7 @@ def verify(root: Path) -> Report:
     marks: list[tuple[datetime, Decimal]] = []
     fills: list[FillRow] = []
     net: list[Decimal] = []
+    closed_at: list[datetime] = []
 
     def ledger() -> str:
         events.extend(read_ledger(root / "ledger.jsonl"))
@@ -956,7 +972,9 @@ def verify(root: Path) -> Report:
             found, repeats = fills_of(events)
             fills.extend(found)
             rows = read_csv(root / "trades.csv", TRADE_COLUMNS)
-            net.extend(check_trades(rows, rebuild_trades(found)))
+            rebuilt = rebuild_trades(found)
+            net.extend(check_trades(rows, rebuilt))
+            closed_at.extend(trade["closed_at"] for trade in rebuilt)
             note = f"; {repeats} repeated fill events ignored" if repeats else ""
             return f"{len(net)} closed trades rebuilt from {len(found)} fills{note}"
 
@@ -977,11 +995,22 @@ def verify(root: Path) -> Report:
                 raise MismatchError("metrics.json is not an object")
             if published.get("arm_id") != BOOK_ARM_ID:
                 raise MismatchError(f"metrics.json is for {published.get('arm_id')!r}")
-            notional = sum((abs(f.value) for f in fills), Decimal(0))
-            paid = sum((f.fee for f in fills), Decimal(0))
+            window = scoring_window(events)
+            scored_marks, scored_net, scored_fills = marks, net, list(fills)
+            span = ""
+            if window is not None:
+                start, end = window
+                scored_marks = [(at, e) for at, e in marks if start <= at <= end]
+                scored_net = [n for n, at in zip(net, closed_at, strict=True) if start <= at <= end]
+                scored_fills = [f for f in fills if start <= f.at <= end]
+                span = f", scored over the pre-registered window {start:%Y-%m-%d %H:%M} to " + (
+                    f"{end:%Y-%m-%d %H:%M} UTC"
+                )
+            notional = sum((abs(f.value) for f in scored_fills), Decimal(0))
+            paid = sum((f.fee for f in scored_fills), Decimal(0))
             recomputed = recompute_metrics(
-                [float(e) for _, e in marks],
-                net,
+                [float(e) for _, e in scored_marks],
+                scored_net,
                 notional=float(notional),
                 fees=float(paid),
                 with_intervals=None,
@@ -991,7 +1020,7 @@ def verify(root: Path) -> Report:
             shown = "undefined" if sharpe is None else f"{sharpe:.2f}"
             return (
                 f"every field agrees: Sharpe {shown}, max drawdown "
-                f"{recomputed['max_drawdown']:.4%}, {recomputed['n_hours']} hours"
+                f"{recomputed['max_drawdown']:.4%}, {recomputed['n_hours']} hours{span}"
             )
 
         step("metrics.json", metrics)

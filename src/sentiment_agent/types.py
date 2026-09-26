@@ -241,6 +241,9 @@ class ProtectiveReason(enum.StrEnum):
     VENUE_INTEGRITY = "venue_integrity"
     LLM_OUTAGE = "llm_outage"
     BREAKER = "breaker"
+    WINDOW_END = "window_end"
+    """Contract 1.1.0: the pre-registered scoring window ended; every leg is closed so every trade
+    counts (run2-a4)."""
 
 
 class Stance(enum.StrEnum):
@@ -919,6 +922,16 @@ class BookState(Model):
     """Model-initiated orders per symbol since 00:00 UTC (protective orders excluded)."""
     consecutive_losses: int = Field(ge=0)
     activation: Activation
+    last_loss_at: UtcDatetime | None = None
+    """Contract 1.1.0: when the most recent losing trade closed. Omitted when there is none, so a
+    book state written before it existed serialises as it did."""
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_loss(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if self.last_loss_at is None:
+            data.pop("last_loss_at", None)
+        return data
 
     @model_validator(mode="after")
     def _keyed(self) -> "BookState":
@@ -2211,6 +2224,17 @@ class BreakerRule(Model):
     snapshot_max_age_minutes: int = Field(ge=1)
     quote_max_age_seconds: int = Field(ge=1)
     basis: str
+    losing_streak_cooloff_hours: int | None = Field(default=None, ge=1)
+    """When set, the losing-streak trip lapses this long after the last losing close (run2-a5).
+    Unset in policy v1, where a flat book in reduce-only could never close a winner and so never
+    clear the trip. Omitted from the hash when unset."""
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_cooloff(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if self.losing_streak_cooloff_hours is None:
+            data.pop("losing_streak_cooloff_hours", None)
+        return data
 
     @model_validator(mode="after")
     def _ladder(self) -> "BreakerRule":
@@ -2247,11 +2271,18 @@ class TriggerRule(Model):
     policy, and so into its hash, only when it differs from the v1 scope, which keeps v1's hash
     and every record written under it exactly as they were."""
 
+    funding_abs_min: float = Field(default=0.0, ge=0)
+    """The live funding rate (a fraction per settlement interval) that ``funding_zscore`` also
+    needs, beside the z-score. Zero in policies v1 and v2 as first written; omitted from the hash
+    when zero, as the scope above is, so their records verify unchanged."""
+
     @model_serializer(mode="wrap")
     def _omit_v1_scope(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         data: dict[str, Any] = handler(self)
         if self.funding_z_asset_classes == FUNDING_Z_CRYPTO_ONLY:
             data.pop("funding_z_asset_classes", None)
+        if not self.funding_abs_min:
+            data.pop("funding_abs_min", None)
         return data
 
     @model_validator(mode="after")
@@ -2280,11 +2311,44 @@ class DecisionRule(Model):
     min_horizon_hours: int = Field(ge=1)
     temperature: float = Field(ge=0, le=2)
     basis: str
+    outage_flatten_after: int | None = Field(default=None, ge=1)
+    """Consecutive failed decisions before a model outage flattens the book (run2-a6). Unset in
+    policy v1, which flattened on the first; omitted from the hash when unset."""
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_outage(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if self.outage_flatten_after is None:
+            data.pop("outage_flatten_after", None)
+        return data
 
 
 class GuardBasis(Model):
     guard: GuardId
     rule: str
+    basis: str
+
+
+class ScoringWindow(Model):
+    """The span the run's paper record is scored over, pre-registered in the policy (run2-a4)."""
+
+    start: UtcDatetime
+    end: UtcDatetime
+    basis: str
+
+    @model_validator(mode="after")
+    def _ordered(self) -> "ScoringWindow":
+        if self.end <= self.start:
+            raise ValueError("the scoring window must end after it starts")
+        return self
+
+
+class ClusterCap(Model):
+    """At most ``cap`` of equity, gross, across ``symbols``: names that move as one bet."""
+
+    name: str
+    symbols: tuple[str, ...]
+    cap: float = Field(gt=0, le=1)
     basis: str
 
 
@@ -2316,6 +2380,25 @@ class Policy(Model):
     guard_bases: tuple[GuardBasis, ...]
     metrics: tuple[MetricDefinition, ...]
     expected_envelope: dict[str, str]
+    net_max: float = Field(default=1.0, gt=0, le=1)
+    """G3's cap on the book's net weight, long minus short. 1.0 (no cap) in policy v1; omitted from
+    the hash at 1.0 so v1's hash and every record written under it are unchanged."""
+    cluster_caps: tuple[ClusterCap, ...] = ()
+    """G3's caps on groups of names that carry one exposure. Empty in v1, and omitted when empty."""
+    scoring_window: ScoringWindow | None = None
+    """When set, the record is scored over this window, and at its end G2 closes every leg and
+    refuses new exposure (run2-a4). Unset in v1, and omitted from the hash when unset."""
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_caps(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if self.net_max == 1.0:
+            data.pop("net_max", None)
+        if not self.cluster_caps:
+            data.pop("cluster_caps", None)
+        if self.scoring_window is None:
+            data.pop("scoring_window", None)
+        return data
 
     @model_validator(mode="after")
     def _coherent(self) -> "Policy":
@@ -2326,6 +2409,15 @@ class Policy(Model):
             raise ValueError("a symbol is both in the universe and excluded")
         if self.per_name_max > self.gross_max:
             raise ValueError("per-name cap above the gross cap")
+        if self.net_max < self.per_name_max:
+            raise ValueError("net cap below the per-name cap: no single name could be held")
+        for cluster in self.cluster_caps:
+            unknown = set(cluster.symbols) - set(symbols)
+            if unknown or len(set(cluster.symbols)) != len(cluster.symbols):
+                raise ValueError(
+                    f"cluster {cluster.name} names symbols outside the universe "
+                    f"or twice: {sorted(unknown)}"
+                )
         if self.mandate.per_name_max != self.per_name_max:
             raise ValueError("mandate per-name cap disagrees with the policy")
         if self.mandate.risk_budget_gross > self.gross_max:

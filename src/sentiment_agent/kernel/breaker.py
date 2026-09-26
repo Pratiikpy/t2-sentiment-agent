@@ -118,13 +118,23 @@ def book_conditions(
         halts.append(DAILY_KILL)
     if llm_outage:
         halts.append(LLM_OUTAGE)
-    if book.consecutive_losses >= rule.losing_streak_reduce_only:
+    if book.consecutive_losses >= rule.losing_streak_reduce_only and not _streak_lapsed(
+        book, rule.losing_streak_cooloff_hours
+    ):
         reduces.append(LOSING_STREAK)
     if halts:
         return Activation.HALTED, (*halts, *reduces)
     if reduces:
         return Activation.REDUCE_ONLY, tuple(reduces)
     return Activation.ACTIVE, ()
+
+
+def _streak_lapsed(book: BookState, cooloff_hours: int | None) -> bool:
+    """Whether a losing streak's trip has lapsed (run2-a5): the policy sets a cool-off and the last
+    losing close is older than it. Measured on the book's own clock, ``book.as_of``."""
+    if cooloff_hours is None or book.last_loss_at is None:
+        return False
+    return book.as_of - book.last_loss_at >= timedelta(hours=cooloff_hours)
 
 
 def snapshot_stale(inputs: KernelInputs, *, now: datetime, policy: Policy) -> bool:

@@ -15,9 +15,15 @@ with the open-interest thresholds the run's genesis froze. It prints and writes:
 * ``policy_v1``: run 2's trigger wiring (``run2-d1``: full-snapshot kinds evaluated on full
   snapshots) under the policy the run ran; it isolates the wiring fix, and its heartbeat decisions
   must equal the run's own;
-* ``policy_v2``: the same wiring under run 2's policy (``funding_zscore`` over the whole universe);
+* ``run2_a1``: the same wiring under policy v1 with ``run2-a1`` alone (``funding_zscore`` over
+  the whole universe, on the z-score only), the policy ``validation/run2/act_rate.json`` ran;
+* ``policy_v2``: the same wiring under run 2's policy, which also requires a funding level
+  (``run2-a2``);
 * ``funding_extremes``: per instrument, the snapshots with a live funding z-score beyond the
-  threshold, before any cooldown, cap or weekend rule.
+  threshold, before any cooldown, cap or weekend rule, alone and with policy v2's level floor;
+* ``funding_level``: how often that z-score is beyond the threshold across all instrument-snapshots,
+  the absolute live rate's median and 95th percentile, and the share that also clears a level of
+  5, 7.5 and 8 bp (the basis of ``run2-a2``).
 
 Run 2's genesis declares these figures (``sentiment_agent.run2``), and a test holds the declaration
 to this file. Nothing here calls the network, a credential or the model.
@@ -37,10 +43,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from sentiment_agent.book.projection import Projection  # noqa: E402
-from sentiment_agent.events.replay import funding_extremes, replay_admissions  # noqa: E402
+from sentiment_agent.events.replay import (  # noqa: E402
+    funding_extremes,
+    funding_level_profile,
+    replay_admissions,
+)
 from sentiment_agent.ledger.chain import verify_file  # noqa: E402
 from sentiment_agent.llm.budget import MEASURED_PROMPT_BYTES, decision_bound  # noqa: E402
-from sentiment_agent.policy import POLICY_V1, POLICY_V2  # noqa: E402
+from sentiment_agent.policy import POLICY_V1, POLICY_V2, RUN2_STEPS  # noqa: E402
 from sentiment_agent.types import (  # noqa: E402
     DecisionEvent,
     EventKind,
@@ -73,6 +83,10 @@ def _read(public: Path) -> list[LedgerEvent]:
         raise SystemExit(f"{ledger} does not verify: {verification.anchor}")
     with ledger.open(encoding="utf-8") as handle:
         return [LedgerEvent.model_validate_json(line) for line in handle if line.strip()]
+
+
+LEVEL_FLOORS = (0.0005, 0.00075, 0.0008)
+"""The funding levels profiled for ``run2-a2``: 5 and 8 bp bracket the chosen 7.5 bp."""
 
 
 def main(argv: list[str]) -> int:
@@ -133,7 +147,12 @@ def main(argv: list[str]) -> int:
     }
     if genesis.policy_hash != POLICY_V1.content_hash():
         raise SystemExit("this ledger was not pre-registered under policy v1")
-    for name, policy in (("policy_v1", POLICY_V1), ("policy_v2", POLICY_V2)):
+    run2_a1 = dict(RUN2_STEPS)["run2-a1"]
+    for name, policy in (
+        ("policy_v1", POLICY_V1),
+        ("run2_a1", run2_a1),
+        ("policy_v2", POLICY_V2),
+    ):
         result = replay_admissions(
             snapshots,
             policy=policy,
@@ -148,11 +167,22 @@ def main(argv: list[str]) -> int:
         "snapshots_beyond_by_symbol": funding_extremes(
             snapshots, threshold=POLICY_V2.triggers.funding_z_threshold
         ),
+        "level_floor": POLICY_V2.triggers.funding_abs_min,
+        "snapshots_beyond_with_level_by_symbol": funding_extremes(
+            snapshots,
+            threshold=POLICY_V2.triggers.funding_z_threshold,
+            min_abs_rate=POLICY_V2.triggers.funding_abs_min,
+        ),
     }
+    out["funding_level"] = funding_level_profile(
+        snapshots,
+        threshold=POLICY_V2.triggers.funding_z_threshold,
+        floors=LEVEL_FLOORS,
+    )
     text = json.dumps(out, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
     if args.out is not None:
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(text, encoding="utf-8")
+        args.out.write_text(text, encoding="utf-8", newline="\n")
     sys.stdout.write(text)
     return 0
 

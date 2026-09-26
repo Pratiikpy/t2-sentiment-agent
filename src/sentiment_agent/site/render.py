@@ -586,9 +586,22 @@ def _overview(ex: Export) -> str:
         for name, bounds in sorted(ci.items())
     ]
     ledger = s["ledger"]
+    window = s.get("scoring_window")
+    scored = (
+        ""
+        if not window
+        else '<p class="small">Return, drawdown, Sharpe, win rate and fees are scored over the '
+        + h(
+            f"pre-registered window {window['start'][:16].replace('T', ' ')} to "
+            f"{window['end'][:16].replace('T', ' ')} UTC"
+        )
+        + " (in the hashed policy). Decisions, orders and the equity and trade files cover the "
+        "whole record.</p>"
+    )
     body = (
         mode_banner(s.get("mode"), int(counts.get("orders_sent", 0)))
         + f'<div class="kpis" style="margin-top:14px">{"".join(tiles)}</div>'
+        + scored
         + "<h3>90% block-bootstrap intervals (descriptive, not inferential)</h3>"
         + table(["metric", "interval"], ci_rows)
         + '<p class="small">Three days of hourly marks cannot separate skill from luck: pure '

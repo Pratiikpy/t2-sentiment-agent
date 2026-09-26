@@ -7,6 +7,7 @@
     "triggers": 2
   },
   "funding_extremes": {
+    "level_floor": 0.00075,
     "snapshots_beyond_by_symbol": {
       "AMZNUSDT": 46,
       "COINUSDT": 23,
@@ -18,7 +19,24 @@
       "SNDKUSDT": 44,
       "TSLAUSDT": 30
     },
+    "snapshots_beyond_with_level_by_symbol": {
+      "MSTRUSDT": 29,
+      "SNDKUSDT": 14
+    },
     "threshold": 2.0
+  },
+  "funding_level": {
+    "abs_rate_median": 0.0,
+    "abs_rate_p95": 0.000451,
+    "abs_rate_zero_share": 0.5114,
+    "beyond_threshold": 436,
+    "beyond_threshold_share": 0.1384,
+    "beyond_with_level_share_by_floor": {
+      "0.0005": 0.0346,
+      "0.00075": 0.0137,
+      "0.0008": 0.0105
+    },
+    "instrument_snapshots": 3150
   },
   "input": {
     "code_commit": "3059fcf473927093af35d9af4c999c6d135b331a",
@@ -55,6 +73,50 @@
     "ticks": 225
   },
   "policy_v2": {
+    "admitted_by_kind": {
+      "coordinated_cluster": 22,
+      "funding_zscore": 3,
+      "heartbeat_funding": 2
+    },
+    "event_decision_times": [
+      {
+        "at": "2026-09-25T00:18:33.437508Z",
+        "triggers": [
+          "funding_zscore:MSTRUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-25T01:28:09.724188Z",
+        "triggers": [
+          "funding_zscore:SNDKUSDT"
+        ]
+      },
+      {
+        "at": "2026-09-25T12:31:28.795224Z",
+        "triggers": [
+          "funding_zscore:MSTRUSDT"
+        ]
+      }
+    ],
+    "event_decisions": 3,
+    "event_decisions_by_day": {
+      "2026-09-25": 3
+    },
+    "event_decisions_within_worst_case_budget": 3,
+    "first_snapshot": "2026-09-24T17:06:36.660206Z",
+    "full_snapshots": 2,
+    "heartbeat_decisions": 2,
+    "hours": 19.86,
+    "last_snapshot": "2026-09-25T12:57:58.772329Z",
+    "policy_hash": "bdafcdfc077ecc72a42d7f8d8f55ec61c37c320e9fd91862283184817a28b713",
+    "policy_version": "policy-v2",
+    "refused_by_kind_and_reason": {
+      "coordinated_cluster:cooldown": 1
+    },
+    "snapshots": 226,
+    "ticks": 225
+  },
+  "run2_a1": {
     "admitted_by_kind": {
       "coordinated_cluster": 22,
       "funding_zscore": 15,

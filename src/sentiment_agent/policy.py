@@ -13,17 +13,21 @@ Sources cited below:
   the 14 instruments on Demo and live, 2026-09-24 10:31 UTC.
 """
 
+from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Final
 
 from sentiment_agent.types import (
     AssetClass,
     BreakerRule,
+    ClusterCap,
     DecisionRule,
     GuardBasis,
     GuardId,
     Mandate,
     MetricDefinition,
     Policy,
+    ScoringWindow,
     Thinking,
     TriggerRule,
     UniverseEntry,
@@ -335,26 +339,219 @@ POLICY_V1: Final[Policy] = Policy(
 FUNDING_Z_ALL_CLASSES: Final[tuple[AssetClass, ...]] = tuple(AssetClass)
 """Policy v2's ``funding_zscore`` scope: every instrument in the universe."""
 
-POLICY_V2: Final[Policy] = POLICY_V1.model_copy(
-    update={
-        "version": "policy-v2",
-        "triggers": POLICY_V1.triggers.model_copy(
-            update={
-                "funding_z_asset_classes": FUNDING_Z_ALL_CLASSES,
-                "basis": POLICY_V1.triggers.basis
-                + " Policy v2 (run 2, declared change run2-a1): funding_zscore is evaluated for "
-                "every universe instrument, not the crypto leg alone, with the same +-2 threshold, "
-                "90-settlement lookback, 240-minute cooldown and daily cap, and the same weekend "
-                "refusal for US-session legs. Basis: in run 1's 226 snapshots the live funding "
-                "z-score of an equity or index perp was beyond +-2 in 436 instrument-snapshots "
-                "(HOOD 88, NVDA 84, MSTR 58, GOOGL 49, AMZN 46, SNDK 44, TSLA 30, COIN 23, NDX100 "
-                "14) and never woke the model (validation/run2/run1_trigger_replay.json).",
-            }
-        ),
-    }
+FUNDING_ABS_MIN_V2: Final = 0.00075
+"""Run 2's funding level floor: 0.075% per settlement interval (run2-a2).
+
+On run 1's first 226 snapshots (3,150 instrument-snapshots with a live funding z-score, figures in
+``validation/run2/run1_trigger_replay.json`` under ``funding_level``) the z-score was beyond +-2 in
+13.8% of them, three times the 4.6% a +-2 bound implies for a normal series: the absolute live rate
+was exactly zero in 51.1% (median 0, 95th percentile 4.5 bp), so a single tick off zero scores as an
+extreme. Requiring the level as well leaves 3.5%, 1.4% and 1.0% for floors of 5, 7.5 and 8 bp."""
+
+CRYPTO_BETA: Final = ClusterCap(
+    name="crypto-beta",
+    symbols=("MSTRUSDT", "COINUSDT", "HOODUSDT", "CRCLUSDT"),
+    cap=0.075,
+    basis="Strategy holds bitcoin; Coinbase, Robinhood and Circle earn on crypto volume and "
+    "stablecoins. Measured 2026-09-26 on 30 days of Bitget hourly candles: MSTR 1.85x BTC's "
+    "move (correlation +0.83, R-squared 69%) and COIN 1.37x (+0.74), against 12% and 11% "
+    "explained by the Nasdaq-100. Several of them at the 5% per-name cap is one bitcoin bet at "
+    "15-20%; the cluster may hold 7.5%, one and a half names (run2-a3).",
 )
-"""Policy v1 with one change: the funding z-score trigger covers the whole universe. Every guard,
-limit, fee and edge bar, the mandate and the decision rule are v1's, unchanged."""
+
+RUN2_WINDOW: Final = ScoringWindow(
+    start=datetime(2026, 9, 28, 0, 0, tzinfo=UTC),
+    end=datetime(2026, 10, 1, 0, 0, tzinfo=UTC),
+    basis="Run 2's 72 hours, from the end of the weekend freeze on Monday 2026-09-28 00:00 UTC to "
+    "Thursday 2026-10-01 00:00 UTC, after the US close (RUNBOOK section 3). Pre-registered here so "
+    "the scored span is in the hashed policy and not only in prose, and so every trade closes and "
+    "counts: at the end G2 closes every leg (run2-a4). Run 1 had no window in its record and its "
+    "win rate stayed undefined with positions open.",
+)
+
+
+def _replaced(text: str, old: str, new: str) -> str:
+    if text.count(old) != 1:
+        raise AssertionError(f"expected exactly one {old!r} in {text!r}")
+    return text.replace(old, new)
+
+
+def _guard(policy: Policy, guard: GuardId, rule: str, basis: str) -> tuple[GuardBasis, ...]:
+    """``policy``'s guard bases with ``guard``'s rule replaced and ``basis`` appended to its basis:
+    the rule a reader sees must be the rule the kernel applies."""
+    return tuple(
+        g.model_copy(update={"rule": rule, "basis": g.basis + basis}) if g.guard is guard else g
+        for g in policy.guard_bases
+    )
+
+
+def _g10(policy: Policy) -> GuardBasis:
+    return next(g for g in policy.guard_bases if g.guard is GuardId.G10_BREAKER)
+
+
+def _run2_a1(policy: Policy) -> Policy:
+    return policy.model_copy(
+        update={
+            "version": "policy-v2",
+            "triggers": policy.triggers.model_copy(
+                update={
+                    "funding_z_asset_classes": FUNDING_Z_ALL_CLASSES,
+                    "basis": policy.triggers.basis
+                    + " Policy v2 (run 2, declared change run2-a1): funding_zscore is evaluated "
+                    "for every universe instrument, not the crypto leg alone, with the same +-2 "
+                    "threshold, 90-settlement lookback, 240-minute cooldown and daily cap, and the "
+                    "same weekend refusal for US-session legs. Basis: in run 1's 226 snapshots the "
+                    "live funding z-score of an equity or index perp was beyond +-2 in 436 "
+                    "instrument-snapshots (HOOD 88, NVDA 84, MSTR 58, GOOGL 49, AMZN 46, SNDK 44, "
+                    "TSLA 30, COIN 23, NDX100 14) and never woke the model "
+                    "(validation/run2/run1_trigger_replay.json).",
+                }
+            ),
+        }
+    )
+
+
+def _run2_a2(policy: Policy) -> Policy:
+    return policy.model_copy(
+        update={
+            "triggers": policy.triggers.model_copy(
+                update={
+                    "funding_abs_min": FUNDING_ABS_MIN_V2,
+                    "basis": policy.triggers.basis
+                    + " Policy v2 (run2-a2): the live rate must also be at least 7.5 bp in "
+                    "absolute value. Half of run 1's live rates were exactly zero, so the z-score "
+                    "alone was beyond +-2 in 13.8% of instrument-snapshots and would have woken "
+                    "15 event decisions in 19.9 hours; with the level, 43 extremes (MSTR 29, "
+                    "SNDK 14) and 3 decisions.",
+                }
+            ),
+        }
+    )
+
+
+def _run2_a3(policy: Policy) -> Policy:
+    return policy.model_copy(
+        update={
+            "net_max": 0.10,
+            "cluster_caps": (CRYPTO_BETA,),
+            "guard_bases": _guard(
+                policy,
+                GuardId.G3_SIZE,
+                "At most 5% of equity per name, 25% gross, 10% net (long minus short), and 7.5% "
+                "gross across the crypto-beta names (MSTR, COIN, HOOD, CRCL).",
+                "; policy v2 (run2-a3): run 2's agent, replayed on run 1's market, took one side "
+                "in all 14 of the decisions where it acted, up to 20% net short, with MSTR, COIN "
+                "and HOOD 5% short each at once (validation/run2/act_rate.json)",
+            ),
+        }
+    )
+
+
+def _run2_a4(policy: Policy) -> Policy:
+    g2 = next(g for g in policy.guard_bases if g.guard is GuardId.G2_WEEKEND_FREEZE)
+    return policy.model_copy(
+        update={
+            "scoring_window": RUN2_WINDOW,
+            "guard_bases": _guard(
+                policy,
+                GuardId.G2_WEEKEND_FREEZE,
+                g2.rule + " From the scoring window's end, 2026-10-01 00:00 UTC, every leg of "
+                "every class is closed and nothing opens.",
+                "; policy v2 (run2-a4): a trade still open when the record is scored has no "
+                "result, so the window closes them all",
+            ),
+        }
+    )
+
+
+def _run2_a5(policy: Policy) -> Policy:
+    g10 = _g10(policy)
+    return policy.model_copy(
+        update={
+            "breaker": policy.breaker.model_copy(
+                update={
+                    "losing_streak_cooloff_hours": 24,
+                    "basis": policy.breaker.basis
+                    + " Policy v2 (run2-a5): the losing-streak trip lapses 24 hours after the last "
+                    "losing close. Under v1 it was absorbing: reduce-only cannot open, so a flat "
+                    "book could never close the winner that ends the streak, and four stop-outs "
+                    "would have kept the book flat for the rest of the run.",
+                }
+            ),
+            "guard_bases": _guard(
+                policy,
+                GuardId.G10_BREAKER,
+                _replaced(
+                    g10.rule,
+                    "4 losing trades in a row -> reduce-only;",
+                    "4 losing trades in a row -> reduce-only until 24h after the last loss;",
+                ),
+                "; policy v2 (run2-a5): the losing-streak trip lapses, since a flat book in "
+                "reduce-only could never close the winner that clears it",
+            ),
+        }
+    )
+
+
+def _run2_a6(policy: Policy) -> Policy:
+    g10 = _g10(policy)
+    return policy.model_copy(
+        update={
+            "decision": policy.decision.model_copy(
+                update={
+                    "outage_flatten_after": 3,
+                    "basis": policy.decision.basis
+                    + " Policy v2 (run2-a6): the book is flattened after three failed decisions in "
+                    "a row, not the first. Every open leg carries a venue stop (G4), and a flatten "
+                    "is itself a rule-driven trade paying the taker fee on every leg; one gateway "
+                    "timeout is not evidence the thesis failed.",
+                }
+            ),
+            "guard_bases": _guard(
+                policy,
+                GuardId.G10_BREAKER,
+                _replaced(
+                    g10.rule,
+                    "a model outage flattens the book.",
+                    "three failed decisions in a row flatten the book; before that the legs are "
+                    "held under their venue stops and nothing opens.",
+                ),
+                "; policy v2 (run2-a6): a flatten is itself a taker trade on every leg",
+            ),
+        }
+    )
+
+
+RUN2_AMENDMENTS: Final[tuple[tuple[str, Callable[[Policy], Policy]], ...]] = (
+    ("run2-a1", _run2_a1),
+    ("run2-a2", _run2_a2),
+    ("run2-a3", _run2_a3),
+    ("run2-a4", _run2_a4),
+    ("run2-a5", _run2_a5),
+    ("run2-a6", _run2_a6),
+)
+"""Policy v1 to v2 as six amendments applied in order, each one a hashed policy of its own, so run
+2's genesis can declare them as a chain (``Genesis`` requires each amendment to replace the last).
+The policies between v1 and v2 are never run; they exist so each change carries its own hash."""
+
+
+def _steps() -> tuple[tuple[str, Policy], ...]:
+    policy, steps = POLICY_V1, []
+    for change_id, amend in RUN2_AMENDMENTS:
+        policy = Policy.model_validate(amend(policy).model_dump())
+        steps.append((change_id, policy))
+    return tuple(steps)
+
+
+RUN2_STEPS: Final[tuple[tuple[str, Policy], ...]] = _steps()
+"""Each run-2 amendment's id and the policy in force after it; the last is :data:`POLICY_V2`."""
+
+POLICY_V2: Final[Policy] = RUN2_STEPS[-1][1]
+"""Policy v1 amended for run 2 (run2-a1..a6): the funding z-score trigger covers the whole universe
+and needs a funding level; G3 caps the book's net weight at 10% and the crypto-beta names at 7.5%;
+the record is scored over a pre-registered window that G2 closes; the losing-streak trip lapses
+after 24 hours; and a model outage flattens the book on its third failed decision, not its first.
+Every other guard, limit, fee and edge bar, the mandate and the decision rule are v1's."""
 
 ACTIVE_POLICY: Final[Policy] = POLICY_V2
 """The policy the runtime loads by default: run 2's. Run 1's record was pre-registered under
@@ -369,5 +566,7 @@ __all__ = [
     "METRICS",
     "POLICY_V1",
     "POLICY_V2",
+    "RUN2_AMENDMENTS",
+    "RUN2_STEPS",
     "UNIVERSE",
 ]

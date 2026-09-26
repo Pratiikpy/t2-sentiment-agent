@@ -219,6 +219,15 @@ def policy_constants(policy: Policy = POLICY_V1) -> dict[str, object]:
         "MARK_INDEX_MAX_GAP": policy.mark_index_max_gap,
         "STALE_INDEX_MIN_MOVE_BPS_3H": policy.stale_index_min_move_bps_3h,
         "GROUNDING_TOLERANCE": policy.grounding_tolerance,
+        # Policy v2's run-2 amendments (run2-a2..a6). Unset in v1, so the replica carries the
+        # unset values: 1.0 net (no cap), no clusters, no window, no cool-off, flatten at once.
+        "NET_MAX": policy.net_max,
+        "CLUSTER_CAPS": tuple((c.name, tuple(c.symbols), c.cap) for c in policy.cluster_caps),
+        "SCORING_WINDOW": (
+            None
+            if policy.scoring_window is None
+            else (policy.scoring_window.start.isoformat(), policy.scoring_window.end.isoformat())
+        ),
         "WEEKEND_FREEZE_WEEKDAY": w.freeze_weekday,
         "WEEKEND_FREEZE_HOUR": w.freeze_hour,
         "WEEKEND_REOPEN_WEEKDAY": w.reopen_weekday,
@@ -230,6 +239,7 @@ def policy_constants(policy: Policy = POLICY_V1) -> dict[str, object]:
         "BREAKER_LOSING_STREAK_REDUCE_ONLY": b.losing_streak_reduce_only,
         "BREAKER_SNAPSHOT_MAX_AGE_MINUTES": b.snapshot_max_age_minutes,
         "BREAKER_QUOTE_MAX_AGE_SECONDS": b.quote_max_age_seconds,
+        "BREAKER_LOSING_STREAK_COOLOFF_HOURS": b.losing_streak_cooloff_hours,
         "TRIGGER_US_OPEN_LOCAL": t.us_open_local,
         "TRIGGER_FUNDING_HEARTBEAT_HOURS_UTC": tuple(t.funding_heartbeat_hours_utc),
         "TRIGGER_FEAR_GREED_LOW": t.fear_greed_low,
@@ -244,6 +254,7 @@ def policy_constants(policy: Policy = POLICY_V1) -> dict[str, object]:
         "TRIGGER_EARNINGS_LOOKAHEAD_HOURS": t.earnings_lookahead_hours,
         "TRIGGER_COOLDOWN_MINUTES": t.cooldown_minutes,
         "TRIGGER_MAX_EVENT_DECISIONS_PER_DAY": t.max_event_decisions_per_day,
+        "TRIGGER_FUNDING_ABS_MIN": t.funding_abs_min,
         "DECISION_PRIMARY_MODEL": d.model,
         "DECISION_MAX_ATTEMPTS": d.max_attempts,
         "DECISION_MAX_COMPLETION_TOKENS": d.max_completion_tokens,
@@ -251,6 +262,7 @@ def policy_constants(policy: Policy = POLICY_V1) -> dict[str, object]:
         "DECISION_MIN_HORIZON_HOURS": d.min_horizon_hours,
         "DECISION_TEMPERATURE": d.temperature,
         "DECISION_DAILY_TOKEN_CAP": d.daily_token_cap,
+        "DECISION_OUTAGE_FLATTEN_AFTER": d.outage_flatten_after,
         "MANDATE_RISK_BUDGET_GROSS": m.risk_budget_gross,
         "MANDATE_PER_NAME_MAX": m.per_name_max,
         "MANDATE_MIN_HORIZON_HOURS": m.min_horizon_hours,
@@ -311,6 +323,9 @@ _SECTIONS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
             "MARK_INDEX_MAX_GAP",
             "STALE_INDEX_MIN_MOVE_BPS_3H",
             "GROUNDING_TOLERANCE",
+            "NET_MAX",
+            "CLUSTER_CAPS",
+            "SCORING_WINDOW",
             "GUARD_IDS",
         ),
     ),
@@ -333,6 +348,7 @@ _SECTIONS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
             "BREAKER_LOSING_STREAK_REDUCE_ONLY",
             "BREAKER_SNAPSHOT_MAX_AGE_MINUTES",
             "BREAKER_QUOTE_MAX_AGE_SECONDS",
+            "BREAKER_LOSING_STREAK_COOLOFF_HOURS",
         ),
     ),
     (
@@ -352,6 +368,7 @@ _SECTIONS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
             "TRIGGER_EARNINGS_LOOKAHEAD_HOURS",
             "TRIGGER_COOLDOWN_MINUTES",
             "TRIGGER_MAX_EVENT_DECISIONS_PER_DAY",
+            "TRIGGER_FUNDING_ABS_MIN",
         ),
     ),
     (
@@ -364,6 +381,7 @@ _SECTIONS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
             "DECISION_MIN_HORIZON_HOURS",
             "DECISION_TEMPERATURE",
             "DECISION_DAILY_TOKEN_CAP",
+            "DECISION_OUTAGE_FLATTEN_AFTER",
             "MANDATE_RISK_BUDGET_GROSS",
             "MANDATE_PER_NAME_MAX",
             "MANDATE_MIN_HORIZON_HOURS",

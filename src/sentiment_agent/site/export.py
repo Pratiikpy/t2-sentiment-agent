@@ -79,7 +79,13 @@ from typing import Any, Final
 
 from sentiment_agent import __version__
 from sentiment_agent.analysis.baselines import coin_flip_arms, coin_flip_summary, comparator_arm
-from sentiment_agent.analysis.metrics import BOOK_ARM_ID, BOOK_SPEC, book_marks, book_metrics
+from sentiment_agent.analysis.metrics import (
+    BOOK_ARM_ID,
+    BOOK_SPEC,
+    book_marks,
+    book_metrics,
+    within_window,
+)
 from sentiment_agent.analysis.simcheck import SimulatorCheck
 from sentiment_agent.book.projection import Projection, ProjectionError
 from sentiment_agent.hashing import ZERO_HASH, canonical_json
@@ -1049,13 +1055,16 @@ def _arms(record: _Record, arms: Sequence[ArmResult]) -> tuple[ArmResult, list[A
             "metrics cannot be computed yet: the ledger holds fills but no hourly mark; export "
             "after the next MARK event"
         )
+    marks, trades, fills = within_window(
+        record.marks, record.trades, record.fills, record.policy.scoring_window
+    )
     try:
-        metrics = book_metrics(record.marks, record.trades, record.fills)
+        metrics = book_metrics(marks, trades, fills)
     except ValueError as exc:
         raise ExportError(f"the book's metrics cannot be computed: {exc}") from None
-    book = ArmResult(
-        spec=BOOK_SPEC, marks=book_marks(record.marks), trades=record.trades, metrics=metrics
-    )
+    # The scored book: marks, trades and metrics over the same span (run2-a4). The full record
+    # stays in equity_hourly.csv and trades.csv.
+    book = ArmResult(spec=BOOK_SPEC, marks=book_marks(marks), trades=trades, metrics=metrics)
     ids = [a.spec.arm_id for a in arms]
     repeated = sorted({i for i in ids if ids.count(i) > 1})
     if repeated:
@@ -1329,6 +1338,15 @@ def _summary_doc(
         },
         "policy_version": record.policy.version,
         "metrics": _dump(book.metrics),
+        # The span the metrics are scored over when the policy pre-registers one (run2-a4).
+        "scoring_window": (
+            None
+            if record.policy.scoring_window is None
+            else {
+                "start": _iso(record.policy.scoring_window.start),
+                "end": _iso(record.policy.scoring_window.end),
+            }
+        ),
         "expected_envelope": envelope,
         "counts": {
             "cards": len(bundle.cards),

@@ -19,20 +19,27 @@ itself, and not from a README, what differs and why:
     When both Bitget data services leave a reading empty, the upstream they wrap is read directly
     (Binance futures positioning, alternative.me Fear & Greed, publishers' RSS), on its own
     labelled surface; see ``sources/upstream.py``.
-``run2-a1`` (policy amendment, v1 to v2)
-    ``funding_zscore`` is evaluated for every universe instrument, not BTCUSDT alone, with the same
-    threshold, lookback, cooldown, daily cap and weekend refusal.
+``run2-a1`` to ``run2-a6`` (policy amendments, v1 to v2, ``policy.RUN2_AMENDMENTS``)
+    a1: ``funding_zscore`` is evaluated for every universe instrument, not BTCUSDT alone.
+    a2: it also needs the live rate at 7.5 bp or more, since half of run 1's live rates were zero.
+    a3: G3 caps the book's net weight at 10% and the crypto-beta names at 7.5% together.
+    a4: the record is scored over a pre-registered window, and at its end G2 closes every leg.
+    a5: the losing-streak trip lapses 24 hours after the last losing close.
+    a6: a model outage flattens the book on the third failed decision in a row, not the first.
+    Each is its own hashed policy, and the genesis declares them as a chain from v1 to v2.
 
-Nothing else changes: every guard limit, the fee and edge bar, the mandate, the decision rule, the
-system prompt and its no-edge stance, and the prompt files (whose hashes the genesis carries and a
-test holds equal to run 1's). The replayed counts in the evidence are recomputed by
+Nothing else changes: every other guard limit, the fee and edge bar, the mandate, the system prompt
+and its no-edge stance, and the prompt files (whose hashes the genesis carries and a test holds
+equal to run 1's). The replayed counts in the evidence are recomputed by
 ``scripts/replay_triggers.py`` from run 1's published ledger, cut at seq 363 (226 snapshots,
-2026-09-24 17:06 to 2026-09-25 12:58 UTC), and kept in ``validation/run2/run1_trigger_replay.json``.
+2026-09-24 17:06 to 2026-09-25 12:58 UTC), and kept in ``validation/run2/run1_trigger_replay.json``;
+the agent's own behaviour on that market is ``validation/run2/act_rate.json``, by
+``scripts/act_rate.py``.
 """
 
 from typing import Final
 
-from sentiment_agent.policy import POLICY_V1, POLICY_V2
+from sentiment_agent.policy import POLICY_V1, POLICY_V2, RUN2_STEPS
 from sentiment_agent.types import DeclaredChange, Policy, PredecessorRun
 
 RUN1_GENESIS_HASH: Final = "ebbf607a8fe199bccc0f612ededf2a6902e4884a38d21fbfea498dff7da453a5"
@@ -53,6 +60,11 @@ OUTAGE_EVIDENCE: Final = "validation/run2/run1_feed_outage.json"
 OUTAGE_COMMAND: Final = (
     "python scripts/feed_outage.py <run 1 public/> --until-seq 546 --out " + OUTAGE_EVIDENCE
 )
+ACT_RATE_EVIDENCE: Final = "validation/run2/act_rate.json"
+ACT_RATE_COMMAND: Final = (
+    "python scripts/act_rate.py <run 1 public/> --until-seq 363 --policy run2-a1 --out "
+    + ACT_RATE_EVIDENCE
+)
 REPLAY_COMMAND: Final = (
     "python scripts/replay_triggers.py <run 1 public/> --until-seq 363 --out " + REPLAY_EVIDENCE
 )
@@ -63,6 +75,140 @@ PREDECESSOR: Final = PredecessorRun(
     policy_hash=POLICY_V1.content_hash(),
     policy_version=POLICY_V1.version,
     window="2026-09-24T17:06Z to 2026-09-27T17:06Z (72 hours)",
+)
+
+_HASHES: Final = (POLICY_V1.content_hash(), *(p.content_hash() for _, p in RUN2_STEPS))
+"""Policy v1's hash, then the hash after each amendment in turn; the last is policy v2's."""
+
+_REPLAY: Final = REPLAY_EVIDENCE + ", by " + REPLAY_COMMAND
+_TRIGGERS: Final = ("src/sentiment_agent/policy.py", "src/sentiment_agent/events/triggers.py")
+
+_AMENDMENTS: Final[tuple[tuple[str, str, str, tuple[str, ...], dict[str, str]], ...]] = (
+    (
+        "run2-a1",
+        "funding_zscore covers every universe instrument",
+        "Policy v1 evaluated the live funding z-score trigger for BTCUSDT only. From run2-a1 it "
+        "is evaluated for all 14 instruments with the same +-2 threshold, 90-settlement lookback, "
+        "240-minute cooldown per instrument, 8 event decisions per UTC day, and the same weekend "
+        "refusal of events on US-session legs while G2 holds them flat.",
+        _TRIGGERS,
+        {
+            "funding_extremes": "live funding z beyond +-2 in 436 equity/index "
+            "instrument-snapshots of 226 (HOOD 88, NVDA 84, MSTR 58, GOOGL 49, AMZN 46, SNDK 44, "
+            "TSLA 30, COIN 23, NDX100 14); BTCUSDT 0",
+            "replayed_event_decisions": "15 in 19.9 hours on run 1's 226 snapshots under this "
+            "step alone (7 on 2026-09-24, 8 on 2026-09-25, the daily cap refusing 3 more); 15 "
+            "also within the token budget at every decision's worst-case bound; run 1 itself: 0",
+            "source": _REPLAY + " (policy_v1, run2_a1)",
+        },
+    ),
+    (
+        "run2-a2",
+        "funding_zscore also needs a funding level of 7.5 bp",
+        "The z-score alone fires on a series that sits at zero: an equity perp's live rate was "
+        "exactly zero in half of run 1's instrument-snapshots, so a single tick off zero scored "
+        "as an extreme and the trigger fired in 13.8% of them, where a +-2 bound on a normal "
+        "series fires in 4.6%. From run2-a2 the live rate must also be at least 0.075% per "
+        "settlement interval in absolute value. The threshold, lookback, cooldown and cap are "
+        "unchanged.",
+        _TRIGGERS,
+        {
+            "level_profile": "3,150 instrument-snapshots with a live z-score and rate: beyond "
+            "+-2 in 13.8%; the absolute rate zero in 51.1%, median 0, 95th percentile 4.5 bp; "
+            "beyond +-2 with a level of 5, 7.5 and 8 bp: 3.5%, 1.4%, 1.0%",
+            "funding_extremes_with_level": "43 of the 436 (MSTR 29, SNDK 14)",
+            "replayed_event_decisions": "3 in 19.9 hours (2026-09-25 00:18 MSTR, 01:28 SNDK, "
+            "12:31 MSTR), against 15 under run2-a1 alone",
+            "agent_on_the_unfloored_triggers": "run 2's agent acted in 14 of the 15 decisions "
+            "run2-a1 alone would have woken, every one of them short",
+            "source": _REPLAY
+            + " (funding_level, funding_extremes, policy_v2); "
+            + ACT_RATE_EVIDENCE,
+        },
+    ),
+    (
+        "run2-a3",
+        "G3 caps the book's net weight at 10% and the crypto-beta names at 7.5%",
+        "Policy v1 capped each name at 5% and the book at 25% gross, and nothing capped one "
+        "direction or one exposure spread across names. From run2-a3 G3 also caps the net weight "
+        "(long minus short) at 10% of equity and MSTR, COIN, HOOD and CRCL at 7.5% gross "
+        "together. What is already held keeps its weight; new exposure is scaled pro rata "
+        "into what the caps leave.",
+        (
+            "src/sentiment_agent/policy.py",
+            "src/sentiment_agent/kernel/guards.py",
+            "src/sentiment_agent/kernel/kernel.py",
+            "src/sentiment_agent/types.py",
+        ),
+        {
+            "one_sided_books": "run 2's agent, replayed on run 1's market under run2-a1, acted "
+            "in 14 of 15 decisions and every book it proposed was short; the largest was 20% "
+            "net short (GOOGL, HOOD, MSTR, TSLA at 5% each, 2026-09-25 12:05 UTC); no guard of "
+            "policy v1 changed any of them",
+            "crypto_beta": "COIN, HOOD and MSTR 5% short each at once (15%), 2026-09-25 00:13 "
+            "UTC; MSTR moved 1.85x BTC over 30 days of hourly candles (correlation +0.83)",
+            "source": ACT_RATE_EVIDENCE + ", by " + ACT_RATE_COMMAND,
+        },
+    ),
+    (
+        "run2-a4",
+        "A pre-registered scoring window, closed by G2 at its end",
+        "Run 2 is scored from 2026-09-28 00:00 UTC to 2026-10-01 00:00 UTC, and the window is in "
+        "the hashed policy. At its end G2 closes every leg of every asset class and refuses new "
+        "exposure, the loop stops deciding, and the published metrics count only marks, fills and "
+        "trades inside it.",
+        (
+            "src/sentiment_agent/policy.py",
+            "src/sentiment_agent/kernel/guards.py",
+            "src/sentiment_agent/kernel/kernel.py",
+            "src/sentiment_agent/runtime/loop.py",
+            "src/sentiment_agent/analysis/metrics.py",
+            "src/sentiment_agent/site/export.py",
+            "src/sentiment_agent/types.py",
+        ),
+        {
+            "run1": "no scored span in run 1's genesis; a trade still open at the end of a record "
+            "has no result, so win rate and trade count depend on when the record is read",
+        },
+    ),
+    (
+        "run2-a5",
+        "The losing-streak trip lapses 24 hours after the last losing close",
+        "Under policy v1, four losing trades in a row put the book in reduce-only until a "
+        "winning trade closed. Reduce-only refuses every exposure-adding order, so a book that "
+        "was flat could never open, never close a winner, and never leave reduce-only: the trip "
+        "was absorbing. From run2-a5 it lapses 24 hours after the last losing close. The "
+        "drawdown trips, which clear on equity, are unchanged.",
+        (
+            "src/sentiment_agent/policy.py",
+            "src/sentiment_agent/kernel/breaker.py",
+            "src/sentiment_agent/book/book.py",
+            "src/sentiment_agent/types.py",
+        ),
+        {
+            "mechanism": "kernel/breaker.py: consecutive_losses counts closed trades back from "
+            "the last winner, and in reduce-only G10 refuses every opening, so on a flat book "
+            "the count cannot fall",
+        },
+    ),
+    (
+        "run2-a6",
+        "A model outage flattens the book on the third failed decision in a row",
+        "Under policy v1 one failed decision (a timeout, a malformed answer, a refused call) "
+        "flattened every open leg at market. From run2-a6 the first and second failed decisions "
+        "in a row hold the book under the venue stops G4 placed with each leg and open nothing; "
+        "the third flattens it as before. A decision that succeeds resets the count.",
+        (
+            "src/sentiment_agent/policy.py",
+            "src/sentiment_agent/runtime/loop.py",
+            "src/sentiment_agent/types.py",
+        ),
+        {
+            "cost": "a flatten is a taker trade on every open leg at 6 bp each (Demo "
+            "takerFeeRate 0.0006, universe_probe.json), paid on a gateway timeout that says "
+            "nothing about the thesis",
+        },
+    ),
 )
 
 _UNCHANGED: Final = (
@@ -153,28 +299,18 @@ DECLARED_CHANGES: Final[tuple[DeclaredChange, ...]] = (
             "source": OUTAGE_EVIDENCE + ", by " + OUTAGE_COMMAND,
         },
     ),
-    DeclaredChange(
-        change_id="run2-a1",
-        kind="policy_amendment",
-        title="funding_zscore covers every universe instrument (policy v1 to v2)",
-        detail="Policy v1 evaluated the live funding z-score trigger for BTCUSDT only. Policy v2 "
-        "evaluates it for all 14 instruments with the same +-2 threshold, 90-settlement "
-        "lookback, 240-minute cooldown per instrument, 8 event decisions per UTC day, and the "
-        "same weekend refusal of events on US-session legs while G2 holds them flat. No other "
-        "policy value changes: every guard limit, the fee and edge bar, the mandate and the "
-        "decision rule are v1's.",
-        files=("src/sentiment_agent/policy.py", "src/sentiment_agent/events/triggers.py"),
-        previous_policy_hash=POLICY_V1.content_hash(),
-        new_policy_hash=POLICY_V2.content_hash(),
-        evidence={
-            "funding_extremes": "live funding z beyond +-2 in 436 equity/index "
-            "instrument-snapshots of 226 (HOOD 88, NVDA 84, MSTR 58, GOOGL 49, AMZN 46, SNDK 44, "
-            "TSLA 30, COIN 23, NDX100 14); BTCUSDT 0",
-            "replayed_event_decisions": "15 in 19.9 hours on run 1's 226 snapshots (7 on "
-            "2026-09-24, 8 on 2026-09-25, the daily cap refusing 3 more); 15 also within the "
-            "token budget at every decision's worst-case bound; run 1 itself: 0",
-            "source": REPLAY_EVIDENCE + " (policy_v2), by " + REPLAY_COMMAND,
-        },
+    *(
+        DeclaredChange(
+            change_id=change_id,
+            kind="policy_amendment",
+            title=title,
+            detail=detail,
+            files=files,
+            previous_policy_hash=_HASHES[i],
+            new_policy_hash=_HASHES[i + 1],
+            evidence=evidence,
+        )
+        for i, (change_id, title, detail, files, evidence) in enumerate(_AMENDMENTS)
     ),
 )
 
@@ -188,6 +324,8 @@ def declaration_for(policy: Policy) -> tuple[PredecessorRun | None, tuple[Declar
 
 
 __all__ = [
+    "ACT_RATE_COMMAND",
+    "ACT_RATE_EVIDENCE",
     "DECLARED_CHANGES",
     "PREDECESSOR",
     "REPLAY_COMMAND",

@@ -229,6 +229,12 @@ class RunLoop:
         self._last_probe: datetime | None = probes[-1].at if probes else None
         decisions = projection.decisions
         self._last_decision_at: datetime | None = decisions[-1].decided_at if decisions else None
+        # Failed decisions in a row, read back from the ledger so a restart does not reset it.
+        self._outages = 0
+        for past in reversed(decisions):
+            if not past.outcome.is_outage:
+                break
+            self._outages += 1
         self._failures = 0
         self._last_error = ""
         self._pending_owner: list[Trigger] = []
@@ -299,6 +305,12 @@ class RunLoop:
             candidates.extend(self._pending_owner)
             self._pending_owner = []
         self._since = now
+        window = app.policy.scoring_window
+        if candidates and window is not None and now >= window.end:
+            # The record is closed (run2-a4): G2 has flattened the book and refuses new exposure,
+            # so a decision could only be refused. No model call is spent on it.
+            did.append("window_closed")
+            candidates = []
         if candidates:
             prepared = self._prepare(candidates, did)
             if prepared is not None:
@@ -408,6 +420,13 @@ class RunLoop:
             ruling, book, inputs, breaker=state, context=None, proposed=None, llm_outage=False
         )
         did.append(f"protective_{ruling.protective_reason}")
+
+    def _outage_is_held(self) -> bool:
+        """Count this failed decision and say whether the book is held rather than flattened: the
+        policy sets ``outage_flatten_after`` (run2-a6) and the streak has not reached it."""
+        self._outages += 1
+        limit = self._app.policy.decision.outage_flatten_after
+        return limit is not None and self._outages < limit
 
     def _assess(
         self,
@@ -617,6 +636,7 @@ class RunLoop:
         inputs = app.kernel_inputs(at=now, demo=demo, live=live, snapshot=snapshot)
         acted: _Acted | None
         if record.outcome is LlmOutcome.DECIDED and record.decision is not None:
+            self._outages = 0
             state = self._assess(
                 fresh_book, inputs, llm_outage=False, decision_id=record.decision_id
             )
@@ -644,6 +664,17 @@ class RunLoop:
                 proposed=record.proposed_weights,
                 llm_outage=False,
             )
+        elif self._outage_is_held():
+            # run2-a6: a single failed call is not a reason to trade. The legs stay under the
+            # venue stops G4 placed with them, and nothing new is opened without a decision.
+            state = self._assess(fresh_book, inputs, llm_outage=False, decision_id=None)
+            limit = app.policy.decision.outage_flatten_after
+            app.note(
+                f"model outage ({record.outcome.value}) on decision {record.decision_id}, "
+                f"{self._outages} of {limit} in a row: positions held under their venue stops, "
+                f"nothing opened; the book is flattened at {limit}"
+            )
+            acted = None
         else:
             state = self._assess(fresh_book, inputs, llm_outage=True, decision_id=None)
             outage = app.kernel.protective(

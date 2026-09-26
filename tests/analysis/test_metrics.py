@@ -30,6 +30,7 @@ from sentiment_agent.analysis.metrics import (
     sortino_ann,
     total_return_of,
     win_rate,
+    within_window,
 )
 from sentiment_agent.types import (
     ArmMark,
@@ -37,6 +38,7 @@ from sentiment_agent.types import (
     Fill,
     FillVenue,
     MarkPoint,
+    ScoringWindow,
     Side,
 )
 
@@ -446,3 +448,21 @@ def test_book_metrics_use_equity_book_and_every_fill() -> None:
     assert arm.metrics == result
     assert [m.equity for m in arm.marks] == [10000.0, 10050.0, 10020.0]
     assert arm.spec.arm_id == BOOK_ARM_ID
+
+
+def test_the_record_is_cut_to_the_scoring_window() -> None:
+    """Policy v2 (run2-a4): marks, fills and trades that closed inside the window, bounds included;
+    everything before the start or after the end is outside the scored record."""
+    window = ScoringWindow(start=T, end=T + timedelta(hours=3), basis="test")
+    points = [_mark_point(T + timedelta(hours=h), "10000", 0.0) for h in (-1, 0, 3, 4)]
+    fills = [
+        _fill(str(h), Side.BUY, "0.01", "50000", "0.3", T + timedelta(hours=h)) for h in (-1, 1, 4)
+    ]
+    trades = [trade("1", i=i) for i in (-2, 0, 2, 3)]  # closing at T-1h, T+1h, T+3h, T+4h
+    kept_marks, kept_trades, kept_fills = within_window(points, trades, fills, window)
+    assert [m.at for m in kept_marks] == [T, T + timedelta(hours=3)]
+    assert [f.exec_id for f in kept_fills] == ["1"]
+    assert [t.closed_at for t in kept_trades] == [T + timedelta(hours=1), T + timedelta(hours=3)]
+    # Policy v1 has no window: the record is scored whole.
+    whole = within_window(points, trades, fills, None)
+    assert whole == (tuple(points), tuple(trades), tuple(fills))

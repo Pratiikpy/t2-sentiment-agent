@@ -144,7 +144,7 @@ def main(argv: list[str]) -> int:
     print(text)
     if args.out is not None:
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(text + "\n", encoding="utf-8")
+        args.out.write_text(text + "\n", encoding="utf-8", newline="\n")
     return 0
 
 

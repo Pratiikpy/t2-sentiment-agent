@@ -116,6 +116,13 @@ def test_every_policy_field_is_rendered_and_equal(generated: ModuleType) -> None
         "MARK_INDEX_MAX_GAP": p.mark_index_max_gap,
         "STALE_INDEX_MIN_MOVE_BPS_3H": p.stale_index_min_move_bps_3h,
         "GROUNDING_TOLERANCE": p.grounding_tolerance,
+        "NET_MAX": p.net_max,
+        "CLUSTER_CAPS": tuple((c.name, tuple(c.symbols), c.cap) for c in p.cluster_caps),
+        "SCORING_WINDOW": (
+            None
+            if p.scoring_window is None
+            else (p.scoring_window.start.isoformat(), p.scoring_window.end.isoformat())
+        ),
         "GUARD_RULES": {b.guard.value: b.rule for b in p.guard_bases},
         "GUARD_BASES": {b.guard.value: b.basis for b in p.guard_bases},
     }
@@ -141,6 +148,7 @@ def test_every_policy_field_is_rendered_and_equal(generated: ModuleType) -> None
                 "losing_streak_reduce_only": "BREAKER_LOSING_STREAK_REDUCE_ONLY",
                 "snapshot_max_age_minutes": "BREAKER_SNAPSHOT_MAX_AGE_MINUTES",
                 "quote_max_age_seconds": "BREAKER_QUOTE_MAX_AGE_SECONDS",
+                "losing_streak_cooloff_hours": "BREAKER_LOSING_STREAK_COOLOFF_HOURS",
             },
         ),
         "triggers": (
@@ -161,6 +169,7 @@ def test_every_policy_field_is_rendered_and_equal(generated: ModuleType) -> None
                 "earnings_lookahead_hours": "TRIGGER_EARNINGS_LOOKAHEAD_HOURS",
                 "cooldown_minutes": "TRIGGER_COOLDOWN_MINUTES",
                 "max_event_decisions_per_day": "TRIGGER_MAX_EVENT_DECISIONS_PER_DAY",
+                "funding_abs_min": "TRIGGER_FUNDING_ABS_MIN",
             },
         ),
         "decision": (
@@ -174,6 +183,7 @@ def test_every_policy_field_is_rendered_and_equal(generated: ModuleType) -> None
                 "call_timeout_seconds": "DECISION_CALL_TIMEOUT_SECONDS",
                 "min_horizon_hours": "DECISION_MIN_HORIZON_HOURS",
                 "temperature": "DECISION_TEMPERATURE",
+                "outage_flatten_after": "DECISION_OUTAGE_FLATTEN_AFTER",
             },
         ),
         "mandate": (

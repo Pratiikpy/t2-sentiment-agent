@@ -3,3 +3,7 @@
 # core.autocrlf=true rewrote these files to CRLF and failed that check on CI, so they are pinned to
 # LF on every platform.
 playbook/** text eol=lf
+
+# Evidence files are written by scripts/*.py with LF, and tests read them back; pinned so a
+# Windows checkout does not turn a regenerated file into a whole-file diff.
+validation/run2/*.json text eol=lf

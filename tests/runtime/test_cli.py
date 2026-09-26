@@ -57,6 +57,8 @@ from sentiment_agent.types import (
 )
 
 FRIDAY_1320 = datetime(2026, 9, 25, 13, 20, tzinfo=UTC)
+TUESDAY_1320 = datetime(2026, 9, 29, 13, 20, tzinfo=UTC)
+"""Inside policy v2's scoring window (run2-a4), so a record made then has its arms scored."""
 COMMANDS = (
     "preflight",
     "setup",
@@ -371,9 +373,11 @@ def test_the_owner_paper_path_plumbing_genesis_decision_status_verify_replay(
 # ================================================================================================
 
 
-def _small_simulated_record(tmp_path: Path) -> tuple[ManualClock, Path, Parts]:
+def _small_simulated_record(
+    tmp_path: Path, start: datetime = TUESDAY_1320
+) -> tuple[ManualClock, Path, Parts]:
     """A simulated rehearsal with a genesis and one decision that opened two legs."""
-    clock = ManualClock(FRIDAY_1320)
+    clock = ManualClock(start)
     root = tmp_path / "sim"
     root.mkdir()
     world = FakeWorld(clock)
@@ -386,9 +390,9 @@ def _small_simulated_record(tmp_path: Path) -> tuple[ManualClock, Path, Parts]:
     assert code == EXIT_OK, text
     run_parts = dataclasses.replace(parts, oi_thresholds=None)
     for at in (
-        FRIDAY_1320 + timedelta(minutes=5),
-        FRIDAY_1320 + timedelta(minutes=11),
-        FRIDAY_1320 + timedelta(minutes=41),
+        start + timedelta(minutes=5),
+        start + timedelta(minutes=11),
+        start + timedelta(minutes=41),
     ):
         clock.set(at)
         code, text = cli(
@@ -660,7 +664,7 @@ def test_offline_rivals_need_two_hourly_marks(tmp_path: Path) -> None:
 
 def test_offline_rivals_run_on_the_agent_snapshots_and_are_published(tmp_path: Path) -> None:
     clock, root, parts = _small_simulated_record(tmp_path)
-    clock.set(FRIDAY_1320 + timedelta(minutes=101))
+    clock.set(TUESDAY_1320 + timedelta(minutes=101))
     ran = cli(
         root,
         clock,

@@ -51,8 +51,10 @@ from sentiment_agent.hashing import content_hash
 from sentiment_agent.kernel.breaker import book_conditions, most_severe
 from sentiment_agent.kernel.guards import (
     EPS,
+    BookCap,
     GrossAllocation,
     Leg,
+    allocate_caps,
     allocate_gross,
     g1_venue_integrity,
     g2_weekend_freeze,
@@ -105,6 +107,7 @@ _PROTECTIVE_PRIORITY: Final[tuple[ProtectiveReason, ...]] = (
     ProtectiveReason.LLM_OUTAGE,
     ProtectiveReason.BREAKER,
     ProtectiveReason.VENUE_INTEGRITY,
+    ProtectiveReason.WINDOW_END,
     ProtectiveReason.WEEKEND_FREEZE,
 )
 """When several protective causes act at once, the ruling is filed under the broadest: book-wide
@@ -281,6 +284,22 @@ class RiskKernel:
                 {leg.symbol: (candidates[leg.symbol], leg.hold_ceiling) for leg in legs},
                 policy.gross_max,
             )
+        # Pass 2b: the net and cluster caps (run2-a3) on what the gross cap left.
+        book_caps: dict[str, tuple[float, str]] = {}
+        evaluated_caps: list[BookCap] = []
+        if allocation is not None and (policy.net_max < 1.0 or policy.cluster_caps):
+            after_gross = {
+                leg.symbol: (
+                    min(
+                        candidates[leg.symbol],
+                        allocation.ceilings.get(leg.symbol, candidates[leg.symbol]),
+                    ),
+                    leg.hold_ceiling,
+                    1 if leg.reference > 0 else -1 if leg.reference < 0 else 0,
+                )
+                for leg in legs
+            }
+            book_caps, evaluated_caps = allocate_caps(after_gross, policy)
         # Pass 3: G11's venue minimums on the weight that is left, then bind.
         instruments: list[InstrumentRuling] = []
         for leg in legs:
@@ -293,13 +312,16 @@ class RiskKernel:
                     gross_ceiling=gross_ceiling,
                     policy=policy,
                     gross_note=allocation.note() if allocation.binds else "",
+                    book_cap=book_caps.get(leg.symbol),
                 )
                 if gross_ceiling is not None:
                     candidate = min(candidate, gross_ceiling)
+                if leg.symbol in book_caps:
+                    candidate = min(candidate, book_caps[leg.symbol][0])
             if GuardId.G11_ELIGIBILITY in applied:
                 rulings[GuardId.G11_ELIGIBILITY] = self._g11(leg, scene, candidate)
             instruments.append(_bind(leg, [rulings[g] for g in GUARD_ORDER if g in rulings]))
-        return self._book_rulings(scene, allocation), tuple(instruments)
+        return self._book_rulings(scene, allocation, evaluated_caps), tuple(instruments)
 
     def _first_pass(self, leg: Leg, scene: _Scene) -> dict[GuardId, GuardRuling]:
         policy = self._policy
@@ -380,7 +402,10 @@ class RiskKernel:
         )
 
     def _book_rulings(
-        self, scene: _Scene, allocation: GrossAllocation | None
+        self,
+        scene: _Scene,
+        allocation: GrossAllocation | None,
+        book_caps: Sequence[BookCap] = (),
     ) -> tuple[GuardRuling, ...]:
         policy, book, applied = self._policy, scene.book, scene.applied
         out: list[GuardRuling] = []
@@ -398,6 +423,27 @@ class RiskKernel:
                         "gross_requested": allocation.requested,
                         "gross_held": allocation.held,
                         "gross_new": allocation.new,
+                    },
+                )
+            )
+        g3_basis = next(b for b in policy.guard_bases if b.guard is GuardId.G3_SIZE).basis
+        for cap in book_caps:
+            out.append(
+                GuardRuling(
+                    guard=GuardId.G3_SIZE,
+                    symbol=None,
+                    status=GuardStatus.FIRED if cap.allocation.binds else GuardStatus.PASSED,
+                    ceiling_abs_weight=cap.allocation.cap,
+                    reason=f"{cap.label}: "
+                    + cap.allocation.note().replace(
+                        "gross", "side" if "net" in cap.label else "cluster gross"
+                    ),
+                    basis=g3_basis,
+                    inputs={
+                        "cap": cap.allocation.cap,
+                        "requested": cap.allocation.requested,
+                        "held": cap.allocation.held,
+                        "new": cap.allocation.new,
                     },
                 )
             )
@@ -522,7 +568,11 @@ def _protective_reason(acting: Sequence[InstrumentRuling], *, llm_outage: bool) 
             elif g.guard is GuardId.G1_VENUE_INTEGRITY:
                 causes.add(ProtectiveReason.VENUE_INTEGRITY)
             elif g.guard is GuardId.G2_WEEKEND_FREEZE:
-                causes.add(ProtectiveReason.WEEKEND_FREEZE)
+                causes.add(
+                    ProtectiveReason.WINDOW_END
+                    if "scoring_window_end" in g.inputs
+                    else ProtectiveReason.WEEKEND_FREEZE
+                )
     for reason in _PROTECTIVE_PRIORITY:
         if reason in causes:
             return reason

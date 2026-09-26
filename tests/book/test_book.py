@@ -447,6 +447,22 @@ def test_losing_streak_counts_trailing_losses_across_symbols() -> None:
     assert state(b, T0 + 6 * H).consecutive_losses == 0  # a scratch trade is not a loss
 
 
+def test_the_last_loss_is_when_the_latest_losing_trade_closed() -> None:
+    """Policy v2's losing-streak cool-off (run2-a5) is measured from here."""
+    b = builder()
+
+    def round_trip(entry: str, exit_: str, hour: int) -> None:
+        model(b, make_fill(BUY, "1", entry, at=T0 + hour * H), OPEN)
+        model(b, make_fill(SELL, "1", exit_, at=T0 + hour * H + H / 2), CLOSE)
+
+    assert state(b, T0).last_loss_at is None
+    round_trip("100", "99", 0)
+    assert state(b, T0 + H).last_loss_at == T0 + H / 2
+    round_trip("100", "98", 1)
+    round_trip("100", "105", 2)  # a winner ends the streak but not the record of the last loss
+    assert state(b, T0 + 3 * H).last_loss_at == T0 + H + H / 2
+
+
 # ------------------------------------------------------------------------------------------------
 # Arrival order, duplicates, refusals
 # ------------------------------------------------------------------------------------------------

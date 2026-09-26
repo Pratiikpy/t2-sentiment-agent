@@ -66,6 +66,7 @@ from sentiment_agent.types import (
     Fill,
     MarkPoint,
     MetricSet,
+    ScoringWindow,
 )
 
 HOURS_PER_YEAR: Final = 8760
@@ -332,6 +333,23 @@ def fill_totals(fills: Sequence[Fill]) -> tuple[Decimal, Decimal]:
     return notional, paid
 
 
+def within_window(
+    marks: Sequence[MarkPoint],
+    trades: Sequence[ClosedTrade],
+    fills: Sequence[Fill],
+    window: ScoringWindow | None,
+) -> tuple[tuple[MarkPoint, ...], tuple[ClosedTrade, ...], tuple[Fill, ...]]:
+    """The record cut to the pre-registered scoring window (run2-a4): marks, fills and trades that
+    closed inside it. Unchanged when the policy sets no window (policy v1)."""
+    if window is None:
+        return tuple(marks), tuple(trades), tuple(fills)
+    return (
+        tuple(m for m in marks if window.start <= m.at <= window.end),
+        tuple(t for t in trades if window.start <= t.closed_at <= window.end),
+        tuple(f for f in fills if window.start <= f.executed_at <= window.end),
+    )
+
+
 def book_metrics(
     marks: Sequence[MarkPoint],
     trades: Sequence[ClosedTrade],
@@ -372,9 +390,13 @@ def book_arm(
     trades: Sequence[ClosedTrade],
     fills: Sequence[Fill],
     *,
+    window: ScoringWindow | None = None,
     ci_resamples: int = DEFAULT_RESAMPLES,
 ) -> ArmResult:
-    """The governed book as an :class:`ArmResult`, the reference every other arm is read against."""
+    """The governed book as an :class:`ArmResult`, the reference every other arm is read against:
+    over the policy's scoring window when it sets one (:func:`within_window`), so the arm's marks,
+    trades and metrics describe the same span."""
+    marks, trades, fills = within_window(marks, trades, fills, window)
     return ArmResult(
         spec=BOOK_SPEC,
         marks=book_marks(marks),
@@ -407,4 +429,5 @@ __all__ = [
     "sortino_ann",
     "total_return_of",
     "win_rate",
+    "within_window",
 ]

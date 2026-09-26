@@ -400,6 +400,17 @@ def g2_weekend_freeze(
     """US-equity and US-index legs: flat from Friday 20:00 to Monday 00:00 UTC, pre-flattened from
     19:45, and no new exposure from 18:00. Crypto is not affected."""
     rule = policy.weekend
+    window = policy.scoring_window
+    if window is not None and at >= window.end:
+        # Every asset class: the record ends here, and an open leg would leave its trade uncounted.
+        return _conclude(
+            GuardId.G2_WEEKEND_FREEZE,
+            leg,
+            policy,
+            inputs={"scoring_window_end": window.end.isoformat()},
+            exits=[f"the pre-registered scoring window ended at {window.end:%Y-%m-%d %H:%M} UTC"],
+            ok="",
+        )
     if asset_class is None:
         return _conclude(
             GuardId.G2_WEEKEND_FREEZE,
@@ -493,12 +504,67 @@ def allocate_gross(candidates: Mapping[str, tuple[float, float]], cap: float) ->
     )
 
 
+@dataclass(frozen=True)
+class BookCap:
+    """One book-level cap G3 applied beside the gross cap: the net cap or a cluster cap."""
+
+    label: str
+    allocation: GrossAllocation
+
+
+def allocate_caps(
+    candidates: Mapping[str, tuple[float, float, int]], policy: Policy
+) -> tuple[dict[str, tuple[float, str]], list[BookCap]]:
+    """The net cap and every cluster cap, shared out as :func:`allocate_gross` shares the gross cap.
+
+    ``candidates`` maps each symbol to (its ``|weight|`` after every other ceiling, its hold
+    ceiling, the sign of the weight asked for). Returns each constrained symbol's tightest ceiling
+    with the cap that set it, and every cap that was evaluated.
+
+    **Net.** The book's net weight is long minus short. Over ``net_max``, the dominant side's gross
+    is capped at ``net_max`` plus the other side's, and shared out the way the gross cap is: what is
+    held first, new exposure pro rata. Added for run 2 (declared change run2-a3): run 2's agent,
+    replayed on run 1's triggers, proposed books 100% short in 14 of 14 decisions (up to 20% net),
+    which no guard limited (validation/run2/act_rate.json).
+
+    **Clusters.** Each cluster's gross is capped the same way, so names that are one bet (MSTR,
+    COIN, HOOD and CRCL trade as bitcoin) cannot fill the book through several tickers."""
+    out: dict[str, tuple[float, str]] = {}
+    caps: list[BookCap] = []
+
+    def tighten(allocation: GrossAllocation, label: str) -> None:
+        caps.append(BookCap(label=label, allocation=allocation))
+        for symbol, ceiling in allocation.ceilings.items():
+            if symbol not in out or ceiling < out[symbol][0]:
+                out[symbol] = (ceiling, label)
+
+    if policy.net_max < 1.0:
+        long_side = {s: (c, h) for s, (c, h, sign) in candidates.items() if sign > 0}
+        short_side = {s: (c, h) for s, (c, h, sign) in candidates.items() if sign < 0}
+        longs = sum(c for c, _ in long_side.values())
+        shorts = sum(c for c, _ in short_side.values())
+        if abs(longs - shorts) > policy.net_max + EPS:
+            side, other = (long_side, shorts) if longs > shorts else (short_side, longs)
+            tighten(
+                allocate_gross(side, policy.net_max + other), f"the {policy.net_max:.0%} net cap"
+            )
+    for cluster in policy.cluster_caps:
+        members = {s: (c, h) for s, (c, h, _) in candidates.items() if s in cluster.symbols}
+        if members:
+            tighten(
+                allocate_gross(members, cluster.cap),
+                f"the {cluster.cap:.1%} {cluster.name} cluster cap",
+            )
+    return out, caps
+
+
 def g3_size(
     leg: Leg,
     *,
     gross_ceiling: float | None,
     policy: Policy,
     gross_note: str = "",
+    book_cap: tuple[float, str] | None = None,
 ) -> GuardRuling:
     """At most ``per_name_max`` per name, and this name's share of the ``gross_max`` headroom
     (``gross_ceiling``, from :func:`allocate_gross`; ``None`` when the gross cap does not bind)."""
@@ -509,6 +575,8 @@ def g3_size(
             max(0.0, gross_ceiling),
             f"its share of the {policy.gross_max:.0%} gross cap",
         )
+    if book_cap is not None and book_cap[0] < ceiling:
+        ceiling, which = max(0.0, book_cap[0]), f"its share of {book_cap[1]}"
     requested = abs(leg.reference)
     inputs: dict[str, InputValue] = {
         "per_name_max": per_name,
@@ -516,6 +584,8 @@ def g3_size(
         "gross_ceiling": gross_ceiling,
         "requested_abs_weight": requested,
     }
+    if book_cap is not None:
+        inputs["book_cap_ceiling"] = book_cap[0]
     note = f" ({gross_note})" if gross_note else ""
     if ceiling < requested - EPS:
         return _ruling(

@@ -510,10 +510,16 @@ class TriggerEngine:
             z = None if features is None else features.funding_z_live
             if z is None or not math.isfinite(z) or abs(z) <= rule.funding_z_threshold:
                 continue
+            rate = None if features is None else features.funding_rate_live
+            if rule.funding_abs_min and (
+                rate is None or not math.isfinite(rate) or abs(rate) < rule.funding_abs_min
+            ):
+                # A z-score on a series that settles at 0 most of the time is large for a
+                # one-tick print; the level says whether the crowd is actually paying.
+                continue
             kind = TriggerKind.FUNDING_ZSCORE
             if self._suppressed(f"{kind.value}|{symbol}", _sign(z), now):
                 continue
-            rate = None if features is None else features.funding_rate_live
             rate_text = (
                 "" if rate is None else f"; live funding rate {rate * 100:.4f}% per interval"
             )
@@ -526,7 +532,12 @@ class TriggerEngine:
                     symbols=(symbol,),
                     detail=f"live {symbol} funding z-score {z:+.2f} over the last "
                     f"{rule.funding_z_lookback_settlements} settlements, beyond "
-                    f"±{rule.funding_z_threshold:g}{rate_text}",
+                    f"±{rule.funding_z_threshold:g}{rate_text}"
+                    + (
+                        f", at or beyond the ±{rule.funding_abs_min * 100:.3f}% level floor"
+                        if rule.funding_abs_min
+                        else ""
+                    ),
                     observed=z,
                     threshold=math.copysign(rule.funding_z_threshold, z),
                     source=f"features.{symbol}.funding_z_live",
