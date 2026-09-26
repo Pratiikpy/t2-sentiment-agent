@@ -19,6 +19,10 @@ itself, and not from a README, what differs and why:
     When both Bitget data services leave a reading empty, the upstream they wrap is read directly
     (Binance futures positioning, alternative.me Fear & Greed, publishers' RSS), on its own
     labelled surface; see ``sources/upstream.py``.
+``run2-d4`` (prompt fix)
+    The fact legend in ``decision/prompt.py`` names the market each positioning figure comes from:
+    the long/short, top-trader, taker and open-interest-change figures are Binance USD-M's, which
+    Bitget's data services read. Run 1 told the model the top-trader ratio was Bitget's.
 ``run2-a1`` to ``run2-a6`` (policy amendments, v1 to v2, ``policy.RUN2_AMENDMENTS``)
     a1: ``funding_zscore`` is evaluated for every universe instrument, not BTCUSDT alone.
     a2: it also needs the live rate at 7.5 bp or more, since half of run 1's live rates were zero.
@@ -29,8 +33,8 @@ itself, and not from a README, what differs and why:
     Each is its own hashed policy, and the genesis declares them as a chain from v1 to v2.
 
 Nothing else changes: every other guard limit, the fee and edge bar, the mandate, the system prompt
-and its no-edge stance, and the prompt files (whose hashes the genesis carries and a test holds
-equal to run 1's). The replayed counts in the evidence are recomputed by
+and its no-edge stance, and the other prompt files (whose hashes the genesis carries and a test
+holds equal to run 1's). The replayed counts in the evidence are recomputed by
 ``scripts/replay_triggers.py`` from run 1's published ledger, cut at seq 363 (226 snapshots,
 2026-09-24 17:06 to 2026-09-25 12:58 UTC), and kept in ``validation/run2/run1_trigger_replay.json``;
 the agent's own behaviour on that market is ``validation/run2/act_rate.json``, by
@@ -53,7 +57,11 @@ RUN1_PROMPT_HASHES: Final[dict[str, str]] = {
         "67773d85dbebbd0e6b0db5dba48b558ac97e231aa1e37db39b23201da095007e"
     ),
 }
-"""Run 1's genesis ``prompt_hashes``; run 2 pre-registers the same files unchanged."""
+"""Run 1's genesis ``prompt_hashes``; run 2 pre-registers the same files, ``decision/prompt.py``
+changed by ``run2-d4`` alone."""
+
+RUN2_PROMPT_PY_HASH: Final = "1ce5b81a4368a3ba0d56a0640b861831473ac20c8f5b980137f5a073e35e85fd"
+"""``decision/prompt.py``'s hash after ``run2-d4``; a test holds it to the file."""
 
 REPLAY_EVIDENCE: Final = "validation/run2/run1_trigger_replay.json"
 OUTAGE_EVIDENCE: Final = "validation/run2/run1_feed_outage.json"
@@ -299,6 +307,28 @@ DECLARED_CHANGES: Final[tuple[DeclaredChange, ...]] = (
             "source": OUTAGE_EVIDENCE + ", by " + OUTAGE_COMMAND,
         },
     ),
+    DeclaredChange(
+        change_id="run2-d4",
+        kind="prompt_fix",
+        title="The prompt names the market each crowd-positioning figure comes from",
+        detail="Run 1's fact legend told the model that top_trader_long_short_ratio was 'the same "
+        "for Bitget's top traders', and described the retail long/short, taker and open-interest "
+        "change figures as 'live' with no market named. All four are Binance USD-M futures "
+        "figures: bitget-mcp-server and bitget-signal read them from Binance "
+        "(sources/bitget_data.py EXCHANGE), and run 2's fallback reads the same endpoints "
+        "(sources/upstream.py). The legend now names Binance USD-M for each; the funding rate "
+        "and open interest level, read from Bitget's own live market, keep their Bitget label. "
+        "Only decision/prompt.py changes: the system prompt, the output schema, the policy and "
+        "every guard limit are unchanged.",
+        files=("src/sentiment_agent/decision/prompt.py",),
+        evidence={
+            "decision/prompt.py": RUN1_PROMPT_HASHES["decision/prompt.py"]
+            + " in run 1's genesis, "
+            + RUN2_PROMPT_PY_HASH
+            + " after this change",
+            "source": "sources/bitget_data.py derivatives(); sources/upstream.py module docstring",
+        },
+    ),
     *(
         DeclaredChange(
             change_id=change_id,
@@ -333,5 +363,6 @@ __all__ = [
     "RUN1_CODE_COMMIT",
     "RUN1_GENESIS_HASH",
     "RUN1_PROMPT_HASHES",
+    "RUN2_PROMPT_PY_HASH",
     "declaration_for",
 ]

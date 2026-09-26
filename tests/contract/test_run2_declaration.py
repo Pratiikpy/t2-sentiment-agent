@@ -13,7 +13,7 @@ import pytest
 
 from helpers import T0
 from sentiment_agent.clock import ManualClock
-from sentiment_agent.decision.prompt import prompt_hashes
+from sentiment_agent.decision.prompt import FACT_LEGEND, prompt_hashes
 from sentiment_agent.ledger.genesis import GenesisError, build_genesis
 from sentiment_agent.policy import ACTIVE_POLICY, POLICY_V1, POLICY_V2, RUN2_STEPS
 from sentiment_agent.run2 import (
@@ -25,6 +25,7 @@ from sentiment_agent.run2 import (
     RUN1_CODE_COMMIT,
     RUN1_GENESIS_HASH,
     RUN1_PROMPT_HASHES,
+    RUN2_PROMPT_PY_HASH,
     declaration_for,
 )
 from sentiment_agent.types import (
@@ -79,8 +80,31 @@ def test_a_genesis_without_a_predecessor_is_written_in_the_1_0_0_form() -> None:
     assert Genesis.model_validate(dumped).model_dump(mode="json") == dumped
 
 
-def test_the_prompts_are_run_1s() -> None:
-    assert prompt_hashes() == RUN1_PROMPT_HASHES
+def test_the_prompts_are_run_1s_but_for_the_declared_legend_fix() -> None:
+    now = prompt_hashes()
+    assert set(now) == set(RUN1_PROMPT_HASHES)
+    changed = sorted(k for k in now if now[k] != RUN1_PROMPT_HASHES[k])
+    assert changed == ["decision/prompt.py"]
+    assert now["decision/prompt.py"] == RUN2_PROMPT_PY_HASH
+    fix = next(c for c in DECLARED_CHANGES if c.change_id == "run2-d4")
+    assert fix.kind == "prompt_fix"
+    assert fix.files == ("src/sentiment_agent/decision/prompt.py",)
+    assert RUN1_PROMPT_HASHES["decision/prompt.py"] in fix.evidence["decision/prompt.py"]
+    assert RUN2_PROMPT_PY_HASH in fix.evidence["decision/prompt.py"]
+
+
+def test_the_legend_names_the_market_of_every_positioning_figure() -> None:
+    """run2-d4: the figures Bitget's data services read from Binance are called Binance's."""
+    legend = dict(FACT_LEGEND)
+    for key in (
+        "oi_change_1h_pct / oi_change_24h_pct",
+        "retail_long_short_ratio",
+        "top_trader_long_short_ratio",
+        "taker_buy_sell_ratio",
+    ):
+        assert "Binance USD-M" in legend[key], key
+    assert not any("Bitget's top traders" in text for text in legend.values())
+    assert "Bitget" in legend["live_last"]
 
 
 # --- policy v2 is v1 with six declared amendments ------------------------------------------------
@@ -179,6 +203,7 @@ def test_run_2s_genesis_declares_its_predecessor_and_every_change() -> None:
         "run2-d1",
         "run2-d2",
         "run2-d3",
+        "run2-d4",
         *AMENDED,
     ]
     amendments = [c for c in genesis.declared_changes if c.kind == "policy_amendment"]
@@ -237,7 +262,7 @@ def test_a_declared_change_is_well_formed() -> None:
 
 def test_code_changes_leave_the_policy_and_prompts_alone() -> None:
     for change in DECLARED_CHANGES:
-        if change.kind != "policy_amendment":
+        if change.kind in ("code_fix", "observability"):
             assert "policy, the prompt files and every guard limit are unchanged" in change.detail
             assert "src/sentiment_agent/policy.py" not in change.files
             assert not any(f.startswith("src/sentiment_agent/decision/") for f in change.files)

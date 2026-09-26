@@ -1837,14 +1837,15 @@ class PredecessorRun(Model):
     """The earlier run's scored window, as its owner states it."""
 
 
-ChangeKind = Literal["code_fix", "observability", "policy_amendment"]
+ChangeKind = Literal["code_fix", "observability", "policy_amendment", "prompt_fix"]
 
 
 class DeclaredChange(Model):
     """One change against the predecessor run, declared in the genesis before the first order.
 
     A ``policy_amendment`` names the policy it replaces and the one it installs, exactly as an
-    :class:`Amendment` does inside a run; a code change names the files it touches and states that
+    :class:`Amendment` does inside a run; a ``prompt_fix`` names the prompt file it changes and
+    both of its hashes in ``evidence``; a code change names the files it touches and states that
     the policy and prompts are unchanged by it.
     """
 

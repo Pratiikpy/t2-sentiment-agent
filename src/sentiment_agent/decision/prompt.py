@@ -193,13 +193,17 @@ FACT_LEGEND: Final[tuple[tuple[str, str], ...]] = (
         "longs, strongly negative crowded shorts",
     ),
     ("open_interest_live", "live open interest as Bitget reports it"),
-    ("oi_change_1h_pct / oi_change_24h_pct", "change in live open interest, percent"),
+    (
+        "oi_change_1h_pct / oi_change_24h_pct",
+        "change in open interest on Binance USD-M futures, the market Bitget's data services read "
+        "crowd positioning from, percent",
+    ),
     (
         "retail_long_short_ratio",
-        "live retail accounts long per account short; above parity means more accounts are long",
+        "Binance USD-M accounts long per account short; above parity means more accounts are long",
     ),
-    ("top_trader_long_short_ratio", "the same for Bitget's top traders"),
-    ("taker_buy_sell_ratio", "live taker buy volume per unit of taker sell volume"),
+    ("top_trader_long_short_ratio", "the same for Binance USD-M's top traders"),
+    ("taker_buy_sell_ratio", "Binance USD-M taker buy volume per unit of taker sell volume"),
     ("price_change_24h_pct", "live price change over 24h, percent"),
     (
         "ma20_distance_atr",
