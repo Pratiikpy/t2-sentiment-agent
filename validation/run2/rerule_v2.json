@@ -1,0 +1,562 @@
+{
+  "acted": 14,
+  "cut_by_kernel": 7,
+  "decisions": [
+    {
+      "approved_weights": {
+        "NVDAUSDT": -0.05
+      },
+      "approved_weights_before": {
+        "NVDAUSDT": -0.05
+      },
+      "at": "2026-09-24T17:27:27.256213+00:00",
+      "binding_guards": [],
+      "book_rulings": [],
+      "decision_id": "dec-ae62c60f026949bb68606f1b5f901fc6",
+      "exposure_approved": {
+        "crypto_beta_gross": 0,
+        "gross": 0.05,
+        "net": -0.05
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0,
+        "gross": 0.05,
+        "net": -0.05
+      },
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "NVDAUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:NVDAUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "AMZNUSDT": -0.05,
+        "NVDAUSDT": -0.05
+      },
+      "approved_weights_before": {
+        "AMZNUSDT": -0.05,
+        "NVDAUSDT": -0.05
+      },
+      "at": "2026-09-24T20:38:21.910312+00:00",
+      "binding_guards": [],
+      "book_rulings": [],
+      "decision_id": "dec-004fadae1a49813e22f8c6612a8042d1",
+      "exposure_approved": {
+        "crypto_beta_gross": 0,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "AMZNUSDT": -0.05,
+        "NVDAUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:AMZNUSDT"
+      ]
+    },
+    {
+      "approved_weights_before": null,
+      "at": "2026-09-24T21:15:23.639702+00:00",
+      "decision_id": "dec-71e1c14663ea168841f9b0e2916e02db",
+      "exposure_approved": {
+        "crypto_beta_gross": 0,
+        "gross": 0,
+        "net": 0
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0,
+        "gross": 0,
+        "net": 0
+      },
+      "outcome": "decided",
+      "proposed_weights": {},
+      "stance": "flat_with_reasons",
+      "triggers": [
+        "funding_zscore:HOODUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "GOOGLUSDT": -0.05
+      },
+      "approved_weights_before": {
+        "GOOGLUSDT": -0.05
+      },
+      "at": "2026-09-24T21:25:58.202170+00:00",
+      "binding_guards": [],
+      "book_rulings": [],
+      "decision_id": "dec-b834cb2384479723c70a97b63b453a46",
+      "exposure_approved": {
+        "crypto_beta_gross": 0,
+        "gross": 0.05,
+        "net": -0.05
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0,
+        "gross": 0.05,
+        "net": -0.05
+      },
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "GOOGLUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:GOOGLUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "AMZNUSDT": -0.03333333333333333,
+        "HOODUSDT": -0.03333333333333333,
+        "NVDAUSDT": -0.03333333333333333
+      },
+      "approved_weights_before": {
+        "AMZNUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "NVDAUSDT": -0.05
+      },
+      "at": "2026-09-24T21:31:26.197892+00:00",
+      "binding_guards": [
+        "G3_size"
+      ],
+      "book_rulings": [
+        "the 10% net cap: side 15.0000% over the 10% cap: held 0.0000% kept, new exposure 15.0000% scaled by 0.6667"
+      ],
+      "decision_id": "dec-04a3d77a62796eb30dd74995f4ae34a2",
+      "exposure_approved": {
+        "crypto_beta_gross": 0.033333,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0.05,
+        "gross": 0.15,
+        "net": -0.15
+      },
+      "kernel_changed": true,
+      "outcome": "decided",
+      "proposed_weights": {
+        "AMZNUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "NVDAUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:NVDAUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "HOODUSDT": -0.0375,
+        "MSTRUSDT": -0.0375
+      },
+      "approved_weights_before": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "at": "2026-09-24T23:12:04.872854+00:00",
+      "binding_guards": [
+        "G3_size"
+      ],
+      "book_rulings": [
+        "the 7.5% crypto-beta cluster cap: cluster gross 10.0000% over the 8% cap: held 0.0000% kept, new exposure 10.0000% scaled by 0.7500"
+      ],
+      "decision_id": "dec-3930c0afef5ac3ce8e762dfb95632bfb",
+      "exposure_approved": {
+        "crypto_beta_gross": 0.075,
+        "gross": 0.075,
+        "net": -0.075
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0.1,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "kernel_changed": true,
+      "outcome": "decided",
+      "proposed_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:MSTRUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "NDX100USDT": -0.025
+      },
+      "approved_weights_before": {
+        "NDX100USDT": -0.025
+      },
+      "at": "2026-09-24T23:38:27.667372+00:00",
+      "binding_guards": [],
+      "book_rulings": [],
+      "decision_id": "dec-8a528e49c5972fa4b582f4f300afefef",
+      "exposure_approved": {
+        "crypto_beta_gross": 0,
+        "gross": 0.025,
+        "net": -0.025
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0,
+        "gross": 0.025,
+        "net": -0.025
+      },
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "NDX100USDT": -0.025
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:NDX100USDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "COINUSDT": -0.024999999999999994,
+        "HOODUSDT": -0.024999999999999994,
+        "MSTRUSDT": -0.024999999999999994
+      },
+      "approved_weights_before": {
+        "COINUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "at": "2026-09-25T00:13:06.439314+00:00",
+      "binding_guards": [
+        "G3_size"
+      ],
+      "book_rulings": [
+        "the 10% net cap: side 15.0000% over the 10% cap: held 0.0000% kept, new exposure 15.0000% scaled by 0.6667",
+        "the 7.5% crypto-beta cluster cap: cluster gross 15.0000% over the 8% cap: held 0.0000% kept, new exposure 15.0000% scaled by 0.5000"
+      ],
+      "decision_id": "dec-eb81d4ac59e105f0faf88ad5b9259c18",
+      "exposure_approved": {
+        "crypto_beta_gross": 0.075,
+        "gross": 0.075,
+        "net": -0.075
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0.15,
+        "gross": 0.15,
+        "net": -0.15
+      },
+      "kernel_changed": true,
+      "outcome": "decided",
+      "proposed_weights": {
+        "COINUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:COINUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "HOODUSDT": -0.03333333333333333,
+        "MSTRUSDT": -0.03333333333333333,
+        "SNDKUSDT": -0.03333333333333333
+      },
+      "approved_weights_before": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "SNDKUSDT": -0.05
+      },
+      "at": "2026-09-25T00:29:07.712906+00:00",
+      "binding_guards": [
+        "G3_size"
+      ],
+      "book_rulings": [
+        "the 10% net cap: side 15.0000% over the 10% cap: held 0.0000% kept, new exposure 15.0000% scaled by 0.6667",
+        "the 7.5% crypto-beta cluster cap: cluster gross 10.0000% over the 8% cap: held 0.0000% kept, new exposure 10.0000% scaled by 0.7500"
+      ],
+      "decision_id": "dec-d72d28f35820de80900ea1f7bf419170",
+      "exposure_approved": {
+        "crypto_beta_gross": 0.066667,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0.1,
+        "gross": 0.15,
+        "net": -0.15
+      },
+      "kernel_changed": true,
+      "outcome": "decided",
+      "proposed_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "SNDKUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:SNDKUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "AMZNUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "approved_weights_before": {
+        "AMZNUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "at": "2026-09-25T00:40:03.988757+00:00",
+      "binding_guards": [],
+      "book_rulings": [],
+      "decision_id": "dec-082a46b10c4efd0683767669d6af2fa0",
+      "exposure_approved": {
+        "crypto_beta_gross": 0.05,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0.05,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "AMZNUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:AMZNUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "HOODUSDT": -0.03333333333333333,
+        "MSTRUSDT": -0.03333333333333333,
+        "SNDKUSDT": -0.03333333333333333
+      },
+      "approved_weights_before": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "SNDKUSDT": -0.05
+      },
+      "at": "2026-09-25T01:17:13.396956+00:00",
+      "binding_guards": [
+        "G3_size"
+      ],
+      "book_rulings": [
+        "the 10% net cap: side 15.0000% over the 10% cap: held 0.0000% kept, new exposure 15.0000% scaled by 0.6667",
+        "the 7.5% crypto-beta cluster cap: cluster gross 10.0000% over the 8% cap: held 0.0000% kept, new exposure 10.0000% scaled by 0.7500"
+      ],
+      "decision_id": "dec-04d5b1d0bfec98621f58f0809ed6f938",
+      "exposure_approved": {
+        "crypto_beta_gross": 0.066667,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0.1,
+        "gross": 0.15,
+        "net": -0.15
+      },
+      "kernel_changed": true,
+      "outcome": "decided",
+      "proposed_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "SNDKUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:HOODUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "TSLAUSDT": -0.05
+      },
+      "approved_weights_before": {
+        "TSLAUSDT": -0.05
+      },
+      "at": "2026-09-25T10:25:04.370629+00:00",
+      "binding_guards": [],
+      "book_rulings": [],
+      "decision_id": "dec-4bd3fac522fae172c217897cc82090de",
+      "exposure_approved": {
+        "crypto_beta_gross": 0,
+        "gross": 0.05,
+        "net": -0.05
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0,
+        "gross": 0.05,
+        "net": -0.05
+      },
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "TSLAUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:TSLAUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "HOODUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "approved_weights_before": {
+        "HOODUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "at": "2026-09-25T10:46:00.535421+00:00",
+      "binding_guards": [],
+      "book_rulings": [],
+      "decision_id": "dec-456e7d13697601ac2a7d896a88208c26",
+      "exposure_approved": {
+        "crypto_beta_gross": 0.05,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0.05,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "HOODUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:HOODUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "HOODUSDT": -0.03333333333333333,
+        "MSTRUSDT": -0.03333333333333333,
+        "TSLAUSDT": -0.03333333333333333
+      },
+      "approved_weights_before": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "at": "2026-09-25T11:49:25.055038+00:00",
+      "binding_guards": [
+        "G3_size"
+      ],
+      "book_rulings": [
+        "the 10% net cap: side 15.0000% over the 10% cap: held 0.0000% kept, new exposure 15.0000% scaled by 0.6667",
+        "the 7.5% crypto-beta cluster cap: cluster gross 10.0000% over the 8% cap: held 0.0000% kept, new exposure 10.0000% scaled by 0.7500"
+      ],
+      "decision_id": "dec-049f3cfbc49f1069974a0ae13d834087",
+      "exposure_approved": {
+        "crypto_beta_gross": 0.066667,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0.1,
+        "gross": 0.15,
+        "net": -0.15
+      },
+      "kernel_changed": true,
+      "outcome": "decided",
+      "proposed_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:MSTRUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "GOOGLUSDT": -0.025,
+        "HOODUSDT": -0.025,
+        "MSTRUSDT": -0.025,
+        "TSLAUSDT": -0.025
+      },
+      "approved_weights_before": {
+        "GOOGLUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "at": "2026-09-25T12:05:10.880785+00:00",
+      "binding_guards": [
+        "G3_size"
+      ],
+      "book_rulings": [
+        "the 10% net cap: side 20.0000% over the 10% cap: held 0.0000% kept, new exposure 20.0000% scaled by 0.5000",
+        "the 7.5% crypto-beta cluster cap: cluster gross 10.0000% over the 8% cap: held 0.0000% kept, new exposure 10.0000% scaled by 0.7500"
+      ],
+      "decision_id": "dec-c9db4970272d15b1961c2633055aba82",
+      "exposure_approved": {
+        "crypto_beta_gross": 0.05,
+        "gross": 0.1,
+        "net": -0.1
+      },
+      "exposure_proposed": {
+        "crypto_beta_gross": 0.1,
+        "gross": 0.2,
+        "net": -0.2
+      },
+      "kernel_changed": true,
+      "outcome": "decided",
+      "proposed_weights": {
+        "GOOGLUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "stance": "act",
+      "triggers": [
+        "funding_zscore:GOOGLUSDT"
+      ]
+    }
+  ],
+  "event_decisions": 15,
+  "input": {
+    "answers": "validation/run2/act_rate.json",
+    "answers_policy_hash": "e83d4ab6d35064415cb0496fc9c4d920f7e485742314e73a81a1676ccadf04d0",
+    "answers_policy_step": "run2-a1",
+    "kernel_policy": "policy-v2",
+    "kernel_policy_hash": "bdafcdfc077ecc72a42d7f8d8f55ec61c37c320e9fd91862283184817a28b713",
+    "kernel_policy_step": "policy-v2",
+    "ledger_head_hash": "86bb2a29b35b31b30e24284065c622c7274ecb2e186ec4ebeedcf30953fe316c",
+    "public": "public",
+    "until_seq": 363
+  },
+  "label": "SIMULATED — run 2's recorded answers on run 1's market, ruled again by another kernel; no model call, no order, no ledger",
+  "max_crypto_beta_approved": 0.075,
+  "max_crypto_beta_proposed": 0.15,
+  "max_net_approved": -0.1,
+  "max_net_proposed": -0.2
+}

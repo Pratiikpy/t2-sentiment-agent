@@ -73,6 +73,8 @@ ACT_RATE_COMMAND: Final = (
     "python scripts/act_rate.py <run 1 public/> --until-seq 363 --policy run2-a1 --out "
     + ACT_RATE_EVIDENCE
 )
+RERULE_EVIDENCE: Final = "validation/run2/rerule_v2.json"
+RERULE_COMMAND: Final = "python scripts/rerule.py <run 1 public/> --until-seq 363"
 REPLAY_COMMAND: Final = (
     "python scripts/replay_triggers.py <run 1 public/> --until-seq 363 --out " + REPLAY_EVIDENCE
 )
@@ -155,7 +157,16 @@ _AMENDMENTS: Final[tuple[tuple[str, str, str, tuple[str, ...], dict[str, str]], 
             "policy v1 changed any of them",
             "crypto_beta": "COIN, HOOD and MSTR 5% short each at once (15%), 2026-09-25 00:13 "
             "UTC; MSTR moved 1.85x BTC over 30 days of hourly candles (correlation +0.83)",
-            "source": ACT_RATE_EVIDENCE + ", by " + ACT_RATE_COMMAND,
+            "ruled_by_policy_v2": "the same 15 recorded answers, parsed again and ruled by policy "
+            "v2's kernel with no model call: 7 of the 14 books cut, the largest net short from "
+            "20% to 10% and the crypto-beta names from 15% to 7.5%",
+            "source": ACT_RATE_EVIDENCE
+            + ", by "
+            + ACT_RATE_COMMAND
+            + "; "
+            + RERULE_EVIDENCE
+            + ", by "
+            + RERULE_COMMAND,
         },
     ),
     (
@@ -360,6 +371,8 @@ __all__ = [
     "PREDECESSOR",
     "REPLAY_COMMAND",
     "REPLAY_EVIDENCE",
+    "RERULE_COMMAND",
+    "RERULE_EVIDENCE",
     "RUN1_CODE_COMMIT",
     "RUN1_GENESIS_HASH",
     "RUN1_PROMPT_HASHES",

@@ -22,6 +22,7 @@ from sentiment_agent.run2 import (
     OUTAGE_EVIDENCE,
     PREDECESSOR,
     REPLAY_EVIDENCE,
+    RERULE_EVIDENCE,
     RUN1_CODE_COMMIT,
     RUN1_GENESIS_HASH,
     RUN1_PROMPT_HASHES,
@@ -378,6 +379,28 @@ def test_the_book_caps_are_declared_with_the_agents_own_books() -> None:
     assert "2026-09-25 12:05 UTC" in a3.evidence["one_sided_books"]
     assert "(15%), 2026-09-25 00:13" in a3.evidence["crypto_beta"]
     assert "14 of the 15" in _declared("run2-a2").evidence["agent_on_the_unfloored_triggers"]
+
+
+def test_policy_v2s_kernel_cuts_the_books_the_v1_kernel_let_through() -> None:
+    """The same recorded answers, ruled by v2's kernel offline (scripts/rerule.py)."""
+    doc: dict[str, Any] = json.loads((ROOT / RERULE_EVIDENCE).read_text(encoding="utf-8"))
+    assert doc["label"].startswith("SIMULATED")
+    assert doc["input"]["answers_policy_step"] == "run2-a1"
+    assert doc["input"]["answers_policy_hash"] == dict(RUN2_STEPS)["run2-a1"].content_hash()
+    assert doc["input"]["kernel_policy_hash"] == POLICY_V2.content_hash()
+    assert (doc["event_decisions"], doc["acted"], doc["cut_by_kernel"]) == (15, 14, 7)
+    assert (doc["max_net_proposed"], doc["max_net_approved"]) == (-0.2, -0.1)
+    assert doc["max_crypto_beta_proposed"] == pytest.approx(0.15)
+    assert doc["max_crypto_beta_approved"] == pytest.approx(0.075)
+    for row in doc["decisions"]:
+        approved = row.get("approved_weights") or {}
+        assert sum(approved.values()) >= -POLICY_V2.net_max - 1e-9
+        if row.get("kernel_changed"):
+            assert "G3_size" in row["binding_guards"]
+    quoted = _declared("run2-a3").evidence["ruled_by_policy_v2"]
+    assert "7 of the 14 books cut" in quoted
+    assert "from 20% to 10%" in quoted
+    assert "from 15% to 7.5%" in quoted
 
 
 def test_the_upstream_fallback_is_declared_with_run_1s_outage() -> None:
