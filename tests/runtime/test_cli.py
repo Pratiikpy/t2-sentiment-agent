@@ -759,6 +759,26 @@ def test_the_red_team_sample_spans_the_record() -> None:
         even_sample(5, 0)
 
 
+def test_a_comparison_replays_the_record_under_its_own_policy() -> None:
+    from types import SimpleNamespace
+    from typing import cast
+
+    from sentiment_agent.policy import POLICY_V1, POLICY_V2
+    from sentiment_agent.runtime.cli import UsageError, record_policy
+    from sentiment_agent.types import PerceptionSnapshot
+
+    def snaps(*versions: str) -> list[PerceptionSnapshot]:
+        # only policy_version is read
+        return [cast("PerceptionSnapshot", SimpleNamespace(policy_version=v)) for v in versions]
+
+    assert record_policy(snaps("policy-v1", "policy-v1")) is POLICY_V1
+    assert record_policy(snaps("policy-v2")) is POLICY_V2
+    with pytest.raises(UsageError):
+        record_policy(snaps("policy-v1", "policy-v2"))
+    with pytest.raises(UsageError):
+        record_policy(snaps("policy-v9"))
+
+
 def test_probe_toolkit_measures_both_services_and_logs_the_probe(tmp_path: Path) -> None:
     from sources.test_toolkit import probe_facade
 

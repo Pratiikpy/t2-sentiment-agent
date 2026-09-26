@@ -113,7 +113,7 @@ from sentiment_agent.llm.client import (
 )
 from sentiment_agent.llm.fakes import RecordedChatModel, completion_from_json
 from sentiment_agent.perception.snapshot import SnapshotBuilder
-from sentiment_agent.policy import ACTIVE_POLICY
+from sentiment_agent.policy import ACTIVE_POLICY, POLICY_V1, POLICY_V2
 from sentiment_agent.redteam.corpus import load_vectors
 from sentiment_agent.redteam.harness import AgentArm, RedTeamHarness, WithoutQuarantine, summarise
 from sentiment_agent.redteam.harness import estimate_qwen_tokens as redteam_estimate
@@ -2435,11 +2435,11 @@ def cmd_rivals(ctx: Context, args: argparse.Namespace) -> int:
     """Rival sentiment agents on the agent's own snapshots, marked by the same simulator
     (DESIGN.md §14.6). Written to var/analysis and published by the next export."""
     mode = _mode(args)
-    policy = ctx.parts.policy or ACTIVE_POLICY
     chain = open_chain(ctx.root, mode, ctx.clock)
     snapshots, books = _decision_inputs(chain)
     if not snapshots:
         raise UsageError("no decision snapshot in the ledger yet: nothing to compare rivals on")
+    policy = ctx.parts.policy or record_policy(snapshots)
     offline: list[RivalArm] = offline_rival_arms(policy)
     if finbert_installed():
         offline += [
@@ -2496,6 +2496,24 @@ def cmd_rivals(ctx: Context, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+KNOWN_POLICIES: Final[dict[str, Policy]] = {p.version: p for p in (POLICY_V1, POLICY_V2)}
+"""Every policy a record may have been taken under, by version."""
+
+
+def record_policy(snapshots: Sequence[PerceptionSnapshot]) -> Policy:
+    """The policy a record's snapshots were taken under. Run 1's record is policy v1 and run 2's
+    code loads v2 by default; replaying run 1's snapshots under v2 is refused by the harnesses
+    (and would change what the agent was allowed to do), so a comparison run uses the record's
+    own policy."""
+    versions = {s.policy_version for s in snapshots}
+    if len(versions) != 1:
+        raise UsageError(f"the record mixes policies {sorted(versions)}: nothing to replay under")
+    version = versions.pop()
+    if version not in KNOWN_POLICIES:
+        raise UsageError(f"the record was taken under {version!r}, which this code does not carry")
+    return KNOWN_POLICIES[version]
+
+
 def even_sample(total: int, k: int) -> list[int]:
     """``k`` indices spread evenly over ``range(total)``, the first and last included, so a sample
     spans the whole record rather than its start."""
@@ -2513,11 +2531,11 @@ def cmd_redteam(ctx: Context, args: argparse.Namespace) -> int:
     agent without the quarantine, and the lexicon and finBERT traders, paired against the clean
     decision on the same recorded snapshot. Published whatever the grade."""
     mode = _mode(args)
-    policy = ctx.parts.policy or ACTIVE_POLICY
     chain = open_chain(ctx.root, mode, ctx.clock)
     snapshots, books = _decision_inputs(chain)
     if not snapshots:
         raise UsageError("no decision snapshot in the ledger yet: nothing to attack")
+    policy = ctx.parts.policy or record_policy(snapshots)
     recorded = len(snapshots)
     if args.snapshots is not None:
         picks = even_sample(recorded, args.snapshots)
