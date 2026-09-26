@@ -285,7 +285,17 @@ redeployed` (no new record since the last deploy), or `not published` with the r
 
 ### 4. Check it
 
-Everything in §3-§5 applies unchanged. In addition:
+The switchover checks run in one command, read-only against both roots. Pass run 1's head as it
+was printed when run 1 stopped; after the first hourly publish every line should read PASS:
+
+```powershell
+python scripts\switchover_check.py --run1 <run 1 root> --run2 <run 2 root> --run1-head <hash>
+```
+
+It checks that run 2's genesis carries this code's policy, names run 1's actual genesis hash and
+declares exactly this code's changes; that its statement names the window and mandate the owner
+chose; that the first hourly publish was aliased; and that run 1's chain still verifies and ends
+where it closed. Everything in §3-§5 applies unchanged. In addition:
 
 | What | How |
 |---|---|
