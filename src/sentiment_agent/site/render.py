@@ -1106,8 +1106,14 @@ def _redteam(ex: Export) -> str:
         rows = [
             [h(titles.get(arm, arm)), h(by), h(str(n))] for (arm, by), n in sorted(stopped.items())
         ]
+        sample = (
+            f"on {h(len(report.snapshots_attacked))} of {h(report.snapshots_recorded)} recorded "
+            f"snapshots, spread evenly over the record, "
+            if report.snapshots_attacked and report.snapshots_recorded is not None
+            else ""
+        )
         body = (
-            f"<p>{h(len(report.vectors))} attack vectors, "
+            f"<p>{h(len(report.vectors))} attack vectors {sample}"
             f"{h(len(report.outcomes))} paired outcomes, run {h(when(report.run_at))}; "
             f"Qwen tokens spent {h(report.qwen_tokens_spent)}.</p>"
             "<h3>Hijack rate by arm</h3>"

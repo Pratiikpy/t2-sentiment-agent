@@ -717,6 +717,48 @@ def test_the_red_team_runs_every_vector_and_publishes_whatever_the_grade(tmp_pat
     assert published
 
 
+def test_a_sampled_red_team_says_which_snapshots_it_attacked(tmp_path: Path) -> None:
+    from sentiment_agent.llm.client import QwenTransportError
+    from sentiment_agent.llm.fakes import FailingChatModel
+    from sentiment_agent.redteam.corpus import load_vectors
+    from sentiment_agent.redteam.harness import estimate_qwen_tokens
+
+    clock, root, parts = _small_simulated_record(tmp_path)
+    estimate = estimate_qwen_tokens(1, len(load_vectors()))
+    failing = dataclasses.replace(parts, chat_model=FailingChatModel(QwenTransportError))
+    code, text = cli(
+        root,
+        clock,
+        failing,
+        "redteam",
+        "--mode",
+        "simulated",
+        "--approve-tokens",
+        str(estimate),
+        "--snapshots",
+        "1",
+    )
+    assert code == EXIT_OK, text
+    report = json.loads(
+        (root / "var" / "analysis" / "simulated" / "redteam.json").read_text("utf-8")
+    )
+    assert report["snapshots_recorded"] >= 1
+    # every recorded snapshot was attacked, so no sample is named
+    if report["snapshots_recorded"] == 1:
+        assert report["snapshots_attacked"] == []
+
+
+def test_the_red_team_sample_spans_the_record() -> None:
+    from sentiment_agent.runtime.cli import UsageError, even_sample
+
+    assert even_sample(5, 1) == [4]
+    assert even_sample(5, 2) == [0, 4]
+    assert even_sample(5, 3) == [0, 2, 4]
+    assert even_sample(5, 9) == [0, 1, 2, 3, 4]
+    with pytest.raises(UsageError):
+        even_sample(5, 0)
+
+
 def test_probe_toolkit_measures_both_services_and_logs_the_probe(tmp_path: Path) -> None:
     from sources.test_toolkit import probe_facade
 

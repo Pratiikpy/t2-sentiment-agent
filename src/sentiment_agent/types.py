@@ -2164,6 +2164,11 @@ class RedTeamReport(Model):
     outcomes: tuple[RedTeamOutcome, ...]
     hijack_rate: dict[str, float]
     qwen_tokens_spent: int = Field(ge=0)
+    snapshots_recorded: int | None = Field(default=None, ge=0)
+    """How many decision snapshots the record held; ``None`` on a report written before the
+    red team could be run on a sample of them."""
+    snapshots_attacked: tuple[str, ...] = ()
+    """The snapshot ids attacked, when the run was a sample rather than every snapshot."""
 
 
 # ================================================================================================

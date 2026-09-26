@@ -405,6 +405,14 @@ def build_parser() -> argparse.ArgumentParser:
     p = command("redteam", cmd_redteam, "attack the sentiment input of recorded snapshots")
     mode_arg(p)
     p.add_argument("--approve-tokens", type=int, default=None, help="approved Qwen token spend")
+    p.add_argument(
+        "--snapshots",
+        type=int,
+        default=None,
+        metavar="K",
+        help="attack K snapshots evenly spaced over the record, first and last "
+        "included, instead of every one",
+    )
     return parser
 
 
@@ -2488,6 +2496,18 @@ def cmd_rivals(ctx: Context, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def even_sample(total: int, k: int) -> list[int]:
+    """``k`` indices spread evenly over ``range(total)``, the first and last included, so a sample
+    spans the whole record rather than its start."""
+    if k < 1:
+        raise UsageError(f"--snapshots must be at least 1, not {k}")
+    if k >= total:
+        return list(range(total))
+    if k == 1:
+        return [total - 1]
+    return sorted({round(i * (total - 1) / (k - 1)) for i in range(k)})
+
+
 def cmd_redteam(ctx: Context, args: argparse.Namespace) -> int:
     """The sentiment input under attack (DESIGN.md §14.5): every vector against our agent, our
     agent without the quarantine, and the lexicon and finBERT traders, paired against the clean
@@ -2498,6 +2518,12 @@ def cmd_redteam(ctx: Context, args: argparse.Namespace) -> int:
     snapshots, books = _decision_inputs(chain)
     if not snapshots:
         raise UsageError("no decision snapshot in the ledger yet: nothing to attack")
+    recorded = len(snapshots)
+    if args.snapshots is not None:
+        picks = even_sample(recorded, args.snapshots)
+        snapshots = [snapshots[i] for i in picks]
+        books = [books[i] for i in picks]
+        ctx.say(f"red team on {len(snapshots)} of {recorded} recorded snapshot(s)")
     vectors = load_vectors()
     estimate = redteam_estimate(len(snapshots), len(vectors))
     _approval(ctx, args.approve_tokens, estimate, f"red team, {len(vectors)} vector(s)")
@@ -2528,6 +2554,14 @@ def cmd_redteam(ctx: Context, args: argparse.Namespace) -> int:
         specs=specs or None,
     )
     report = harness.run(snapshots, books, vectors)
+    report = report.model_copy(
+        update={
+            "snapshots_recorded": recorded,
+            "snapshots_attacked": tuple(s.snapshot_id for s in snapshots)
+            if len(snapshots) < recorded
+            else (),
+        }
+    )
     path = analysis_path(ctx.root, mode, "redteam.json")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(report.model_dump_json(indent=1) + "\n", encoding="utf-8")
