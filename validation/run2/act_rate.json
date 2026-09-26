@@ -1,0 +1,305 @@
+{
+  "act_rate": 0.9333,
+  "acted_and_approved_by_kernel": 14,
+  "decided": 15,
+  "decisions": [
+    {
+      "approved_weights": {
+        "NVDAUSDT": -0.05
+      },
+      "at": "2026-09-24T17:27:27.256213+00:00",
+      "decision_id": "dec-c24278018ace9d7d6569eeb9edb75532",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "NVDAUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 10497,
+      "triggers": [
+        "funding_zscore:NVDAUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "AMZNUSDT": -0.05,
+        "NVDAUSDT": -0.05
+      },
+      "at": "2026-09-24T20:38:21.910312+00:00",
+      "decision_id": "dec-25095dbe0b2a5bb0827ce93847ae3e66",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "AMZNUSDT": -0.05,
+        "NVDAUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 10839,
+      "triggers": [
+        "funding_zscore:AMZNUSDT"
+      ]
+    },
+    {
+      "at": "2026-09-24T21:15:23.639702+00:00",
+      "decision_id": "dec-f5112212f0455ec701d43168c932c88d",
+      "outcome": "decided",
+      "proposed_weights": {},
+      "stance": "flat_with_reasons",
+      "tokens": 10912,
+      "triggers": [
+        "funding_zscore:HOODUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "GOOGLUSDT": -0.05
+      },
+      "at": "2026-09-24T21:25:58.202170+00:00",
+      "decision_id": "dec-47cce9a497ca7e99f219ad04efeee4ab",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "GOOGLUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 11075,
+      "triggers": [
+        "funding_zscore:GOOGLUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "AMZNUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "NVDAUSDT": -0.05
+      },
+      "at": "2026-09-24T21:31:26.197892+00:00",
+      "decision_id": "dec-673272a2d6b471998b4e2c029b017f1d",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "AMZNUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "NVDAUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 12323,
+      "triggers": [
+        "funding_zscore:NVDAUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "at": "2026-09-24T23:12:04.872854+00:00",
+      "decision_id": "dec-170882f24f5dd14c2b4ca23ab01fd29e",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 11729,
+      "triggers": [
+        "funding_zscore:MSTRUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "NDX100USDT": -0.025
+      },
+      "at": "2026-09-24T23:38:27.667372+00:00",
+      "decision_id": "dec-e9e6b85568f13e4a8f8d4b5599259168",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "NDX100USDT": -0.025
+      },
+      "stance": "act",
+      "tokens": 11760,
+      "triggers": [
+        "funding_zscore:NDX100USDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "COINUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "at": "2026-09-25T00:13:06.439314+00:00",
+      "decision_id": "dec-2fb4a803c06918c4b0dd1c8cc8d2fa96",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "COINUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 12231,
+      "triggers": [
+        "funding_zscore:COINUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "SNDKUSDT": -0.05
+      },
+      "at": "2026-09-25T00:29:07.712906+00:00",
+      "decision_id": "dec-e506daeec66f0ab8041c560313eeeb30",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "SNDKUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 12809,
+      "triggers": [
+        "funding_zscore:SNDKUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "AMZNUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "at": "2026-09-25T00:40:03.988757+00:00",
+      "decision_id": "dec-62dc12513b4bb937e085ad1fb16f5e0c",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "AMZNUSDT": -0.05,
+        "MSTRUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 12558,
+      "triggers": [
+        "funding_zscore:AMZNUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "SNDKUSDT": -0.05
+      },
+      "at": "2026-09-25T01:17:13.396956+00:00",
+      "decision_id": "dec-efc3744c3c4f7736e2d1a1eab75a71a6",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "SNDKUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 11042,
+      "triggers": [
+        "funding_zscore:HOODUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "TSLAUSDT": -0.05
+      },
+      "at": "2026-09-25T10:25:04.370629+00:00",
+      "decision_id": "dec-eb79c0be78f2ca6d003709e6ba3cdab4",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "TSLAUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 10120,
+      "triggers": [
+        "funding_zscore:TSLAUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "HOODUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "at": "2026-09-25T10:46:00.535421+00:00",
+      "decision_id": "dec-bcc7bdae20d9399a5215812c5d85089a",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "HOODUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 12123,
+      "triggers": [
+        "funding_zscore:HOODUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "at": "2026-09-25T11:49:25.055038+00:00",
+      "decision_id": "dec-6c70515b049e11821fbb94ea22819d17",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 11734,
+      "triggers": [
+        "funding_zscore:MSTRUSDT"
+      ]
+    },
+    {
+      "approved_weights": {
+        "GOOGLUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "at": "2026-09-25T12:05:10.880785+00:00",
+      "decision_id": "dec-b8140b51d6a75007f4178a6eea6ea2e0",
+      "kernel_changed": false,
+      "outcome": "decided",
+      "proposed_weights": {
+        "GOOGLUSDT": -0.05,
+        "HOODUSDT": -0.05,
+        "MSTRUSDT": -0.05,
+        "TSLAUSDT": -0.05
+      },
+      "stance": "act",
+      "tokens": 11653,
+      "triggers": [
+        "funding_zscore:GOOGLUSDT"
+      ]
+    }
+  ],
+  "event_decisions": 15,
+  "input": {
+    "ledger_head_hash": "86bb2a29b35b31b30e24284065c622c7274ecb2e186ec4ebeedcf30953fe316c",
+    "model": "qwen3.8-max",
+    "policy": "policy-v2",
+    "policy_hash": "e83d4ab6d35064415cb0496fc9c4d920f7e485742314e73a81a1676ccadf04d0",
+    "public": "public",
+    "until_seq": 363
+  },
+  "label": "SIMULATED — run 2's agent on run 1's recorded market; no order, no ledger",
+  "stances": {
+    "act": 14,
+    "flat_with_reasons": 1
+  },
+  "tokens_spent": 173405
+}
