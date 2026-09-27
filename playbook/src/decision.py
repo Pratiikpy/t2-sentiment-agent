@@ -15,8 +15,8 @@ fed back, at most ``DECISION_MAX_ATTEMPTS`` times:
    are each named in the complaint. Integers are not accepted as booleans, nor floats as integers.
 3. **The book and the universe**: every held symbol addressed, nothing outside this subscription's
    symbols or on the excluded list, every horizon at least the mandate's, the stance consistent
-   with the targets, and a declared invalidation only on a held position and never used to add to
-   its side.
+   with the targets, no new exposure at a confidence of even odds or below, and a declared
+   invalidation only on a held position and never used to add to its side.
 
 A model-service failure ends the cycle with an outcome the kernel answers by flattening the book
 (DESIGN.md §9.5). Two replica-specific outcomes: ``deferred`` when the run had no time left to
@@ -316,6 +316,24 @@ class BookFacts:
     configured: tuple[str, ...]
 
 
+EVEN_ODDS = 0.5
+"""New exposure needs a stated confidence above this (primary ``decision/contract.py``, run2-d8)."""
+
+
+def _adds_exposure(symbol: str, value: float, book: BookFacts) -> bool:
+    """Whether a non-zero target opens, flips or enlarges the position; a same-side target whose
+    current weight cannot be measured is not claimed as an increase (primary ``_adds_exposure``)."""
+    side = book.held.get(symbol)
+    if side is None:
+        return True
+    if (value > 0) != (side > 0):
+        return True
+    current = book.weights.get(symbol)
+    if current is None:
+        return False
+    return abs(value) * policy.MANDATE_PER_NAME_MAX > abs(current) + 1e-6
+
+
 def contract_complaints(decision: Mapping[str, object], book: BookFacts) -> list[str]:
     complaints: list[str] = []
     targets = targets_of(decision)
@@ -373,6 +391,18 @@ def contract_complaints(decision: Mapping[str, object], book: BookFacts) -> list
                     f"stance 'hold' keeps {symbol} {word}: give it a target on the same side (its "
                     "position_target_equivalent), or use stance 'act' to change it"
                 )
+    for target in targets:
+        # run2-d8: no new exposure at even odds or below (primary ``EVEN_ODDS``).
+        symbol = str(target["symbol"])
+        value = as_number(target["target"])
+        confidence = as_number(target["confidence"])
+        if value != 0 and confidence <= EVEN_ODDS and _adds_exposure(symbol, value, book):
+            complaints.append(
+                f"{symbol}: confidence {confidence:g} is not above even odds, and after both fees "
+                "a position you think no more likely right than wrong loses; raise the confidence "
+                "only if the evidence supports it, otherwise keep what you hold (its "
+                "position_target_equivalent) or set the target to zero"
+            )
     for target in targets:
         if not target["invalidation_triggered"]:
             continue

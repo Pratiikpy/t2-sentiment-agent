@@ -13,8 +13,8 @@ back to the model, or ends the cycle with an outcome the kernel acts on (DESIGN.
    refusal is named in the complaint.
 3. **The book and the universe** (:func:`contract_complaints`): every held symbol addressed, no
    symbol outside the universe or on the excluded list, every horizon at least the mandate's, the
-   stance consistent with the targets, and a declared invalidation only on a position that is held
-   and never used to add to its side.
+   stance consistent with the targets, no new exposure at a confidence of even odds or below, and
+   a declared invalidation only on a position that is held and never used to add to its side.
 
 A failure of the model service itself (the daily budget, a timeout, a transport error) ends the
 cycle at once with that outcome; the client below has already retried what can be retried. Nothing
@@ -93,6 +93,26 @@ REQUEST_MEDIA_TYPE: Final = "application/json"
 """The first request, byte for byte the body the live client sends (``encode_payload``)."""
 
 ERROR_CHARS: Final = 2000
+
+EVEN_ODDS: Final = 0.5
+"""New exposure needs a stated confidence above this (run2-d8)."""
+
+
+def _adds_exposure(symbol: str, target: float, book: BookState, policy: Policy) -> bool:
+    """Whether a non-zero ``target`` opens, flips or enlarges ``symbol``'s position.
+
+    A same-side target is an increase only when its weight is measurably above the current one:
+    a model copying ``position_target_equivalent`` back writes it to six digits, and that rounding
+    is not a trade. With no mark the current weight cannot be measured and nothing is claimed,
+    as for the fired-invalidation check below."""
+    position = book.positions.get(symbol)
+    if position is None or position.is_flat:
+        return True
+    if (target > 0) != (position.qty > 0):
+        return True
+    if symbol not in book.marks:
+        return False
+    return abs(target) * policy.mandate.per_name_max > abs(book.weight(symbol)) + 1e-6
 
 
 class DecisionInvalid(ValueError):  # noqa: N818 - the name is the module contract (DESIGN M7)
@@ -297,6 +317,22 @@ def contract_complaints(
                     f"stance 'hold' keeps {target.symbol} {side}: give it a target on the same "
                     "side (its position_target_equivalent), or use stance 'act' to change it"
                 )
+
+    for target in decision.targets:
+        # run2-d8: new exposure at even odds or below is a bet the fees make negative. The
+        # prompt-v2 replay of run 1's market opened 14 of 25 positions at confidences of 0.38 to
+        # 0.48 (validation/run2/act_rate_prompt_v2.json), so the prompt's words alone did not hold.
+        if (
+            target.target != 0
+            and target.confidence <= EVEN_ODDS
+            and _adds_exposure(target.symbol, target.target, book, policy)
+        ):
+            complaints.append(
+                f"{target.symbol}: confidence {target.confidence:g} is not above even odds, and "
+                "after both fees a position you think no more likely right than wrong loses; "
+                "raise the confidence only if the evidence supports it, otherwise keep what you "
+                "hold (its position_target_equivalent) or set the target to zero"
+            )
 
     for target in decision.targets:
         if not target.invalidation_triggered:

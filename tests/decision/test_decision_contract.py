@@ -648,3 +648,34 @@ class TestADeclaredInvalidationNamesAFact:
         text = "reference.zero then NVDAUSDT.funding_z_live, and reference.zero again."
         assert cited_facts(text, self.FACTS) == ("reference.zero", "NVDAUSDT.funding_z_live")
         assert cited_facts(None, self.FACTS) == ()
+
+
+class TestNewExposureNeedsBetterThanEvenOdds:
+    """run2-d7: the prompt-v2 replay of run 1's market opened 14 of 25 positions at confidences
+    of 0.38 to 0.48. After both fees a position no more likely right than wrong loses, so the
+    contract sends such an answer back; cutting or closing at any confidence is left alone."""
+
+    @pytest.mark.parametrize("confidence", [0.38, 0.5])
+    def test_opening_at_even_odds_or_below_is_sent_back(self, confidence: float) -> None:
+        body = decision("act", [target("NVDAUSDT", -0.5, confidence=confidence)])
+        assert "is not above even odds" in _complaints(body)
+
+    def test_opening_above_even_odds_is_accepted(self) -> None:
+        _parse(decision("act", [target("NVDAUSDT", -0.5, confidence=0.52)]))
+
+    @pytest.mark.parametrize("value", [0.3, -0.9], ids=["flip", "increase"])
+    def test_flipping_or_adding_at_even_odds_is_sent_back(self, value: float) -> None:
+        body = decision(
+            "act",
+            [target("NVDAUSDT", value, confidence=0.45), target("BTCUSDT", 0, confidence=0.4)],
+        )
+        complaints = _complaints(body, held_book())
+        assert "NVDAUSDT: confidence 0.45 is not above even odds" in complaints
+        assert "BTCUSDT: confidence" not in complaints
+
+    def test_cutting_or_closing_needs_no_conviction(self) -> None:
+        body = decision(
+            "act",
+            [target("NVDAUSDT", -0.2, confidence=0.4), target("BTCUSDT", 0, confidence=0.3)],
+        )
+        _parse(body, held_book())

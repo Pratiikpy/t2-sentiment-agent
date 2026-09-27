@@ -24,9 +24,10 @@ US open, each funding settlement) and on event triggers.
 
 **Run 2** is prepared on this branch and not started. Its genesis will declare, against run 1,
 every change and the evidence for it (`src/sentiment_agent/run2.py`; table in
-[DESIGN.md](DESIGN.md)): six code and prompt fixes (d1-d6, among them crowd and calendar triggers
-that could never fire in run 1, a declared invalidation that must cite a fact, and funding counted
-in the scored equity) and seven policy amendments (a1-a7: funding triggers on every name with a
+[DESIGN.md](DESIGN.md)): eight code and prompt fixes (d1-d8, among them crowd and calendar triggers
+that could never fire in run 1, a declared invalidation that must cite a fact, funding counted in
+the scored equity, a system prompt that sizes by the evidence, and no new position at even odds or
+below) and seven policy amendments (a1-a7: funding triggers on every name with a
 level floor, net and crypto-beta caps, a pre-registered scoring window closed by G2, a lapsing
 losing-streak trip, an outage that flattens only on the third failure, and stops set at twice each
 name's Demo-live drift at the same loss per name).

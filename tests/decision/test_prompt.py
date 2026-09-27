@@ -129,7 +129,7 @@ def test_the_system_message_states_every_rule_from_the_policy() -> None:
         "a target of one is 5% of equity",
         "capped at 25% of equity",
         "at least 24 hours",
-        "venue stop 4% from entry",
+        "triggered on the mark price: 4% for most names",
         "down 1.5% from its 00:00 UTC equity",
         "at most 2 orders of yours per name",
         "reach 7 bps of equity, or 20 bps",

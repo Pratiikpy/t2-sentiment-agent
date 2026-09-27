@@ -40,9 +40,19 @@ itself, and not from a README, what differs and why:
     shrinks in proportion; the prompt shows each such name's stop and cap as facts.
     Each is its own hashed policy, and the genesis declares them as a chain from v1 to v2.
 
-Nothing else changes: every other guard limit, the fee and edge bar, the mandate, the system prompt
-and its no-edge stance, and the other prompt files (whose hashes the genesis carries and a test
-holds equal to run 1's). The replayed counts in the evidence are recomputed by
+``run2-d7`` (prompt fix)
+    The system prompt v2 (``system_v2.md``) sizes a target by the evidence behind it (one
+    measure past its reference is at most half a target), asks for a confidence only a little
+    above even odds without confirmation, keeps intensity words for facts beyond their
+    reference, and states the per-name stops of run2-a7. ``system_v1.md`` is kept byte for byte.
+
+``run2-d8`` (code fix)
+    The contract returns to the model any target that opens, flips or enlarges a position at a
+    confidence of 0.5 or below; replayed with prompt v2, 14 of 25 positions were opened there.
+
+Nothing else changes: every other guard limit, the fee and edge bar, the mandate, the no-edge
+stance, and the output schema (whose hashes the genesis carries and a test holds). The replayed
+counts in the evidence are recomputed by
 ``scripts/replay_triggers.py`` from run 1's published ledger, cut at seq 363 (226 snapshots,
 2026-09-24 17:06 to 2026-09-25 12:58 UTC), and kept in ``validation/run2/run1_trigger_replay.json``;
 the agent's own behaviour on that market is ``validation/run2/act_rate.json``, by
@@ -71,9 +81,15 @@ changed by ``run2-d4`` alone."""
 RUN2_D4_PROMPT_PY_HASH: Final = "1ce5b81a4368a3ba0d56a0640b861831473ac20c8f5b980137f5a073e35e85fd"
 """``decision/prompt.py``'s hash after ``run2-d4`` alone."""
 
-RUN2_PROMPT_PY_HASH: Final = "df7f36967adf2e26f454851a5d9e02bc26a0540e1e46cf7e0413cc475a74bd36"
-"""``decision/prompt.py``'s hash after ``run2-d4`` and ``run2-a7``'s two per-name facts; a test
-holds it to the file."""
+RUN2_A7_PROMPT_PY_HASH: Final = "df7f36967adf2e26f454851a5d9e02bc26a0540e1e46cf7e0413cc475a74bd36"
+"""``decision/prompt.py``'s hash after ``run2-a7``'s two per-name facts."""
+
+RUN2_PROMPT_PY_HASH: Final = "74c6f697c809c6c4a89e01f8cdcbdda1df4c7c76182f9b5838345dcc2ade6ca0"
+"""``decision/prompt.py``'s hash after ``run2-d7`` points it at ``system_v2.md``; a test holds it
+to the file."""
+
+RUN2_SYSTEM_V2_HASH: Final = "3a96252827c4d2872703387dc625e1338817099cafaa6f96a7b6eac39658cf13"
+"""``decision/prompts/system_v2.md`` (run2-d7); a test holds it to the file."""
 
 REPLAY_EVIDENCE: Final = "validation/run2/run1_trigger_replay.json"
 OUTAGE_EVIDENCE: Final = "validation/run2/run1_feed_outage.json"
@@ -81,6 +97,8 @@ OUTAGE_COMMAND: Final = (
     "python scripts/feed_outage.py <run 1 public/> --until-seq 546 --out " + OUTAGE_EVIDENCE
 )
 ACT_RATE_EVIDENCE: Final = "validation/run2/act_rate.json"
+ACT_RATE_V2_EVIDENCE: Final = "validation/run2/act_rate_prompt_v2.json"
+"""The same replay as :data:`ACT_RATE_EVIDENCE` with system prompt v2 (run2-d7), 2026-09-27."""
 ACT_RATE_COMMAND: Final = (
     "python scripts/act_rate.py <run 1 public/> --until-seq 363 --policy run2-a1 --out "
     + ACT_RATE_EVIDENCE
@@ -266,7 +284,7 @@ _AMENDMENTS: Final[tuple[tuple[str, str, str, tuple[str, ...], dict[str, str]], 
             "266.5 (policy.UNIVERSE, from validation/demo_venue)",
             "decision/prompt.py": RUN2_D4_PROMPT_PY_HASH
             + " after run2-d4, "
-            + RUN2_PROMPT_PY_HASH
+            + RUN2_A7_PROMPT_PY_HASH
             + " after this change",
         },
     ),
@@ -405,6 +423,57 @@ DECLARED_CHANGES: Final[tuple[DeclaredChange, ...]] = (
         },
     ),
     DeclaredChange(
+        change_id="run2-d7",
+        kind="prompt_fix",
+        title="The system prompt sizes by the evidence and states each name's stop",
+        detail="Replayed on run 1's market, run 2's agent acted in 14 of 15 decisions and 30 of "
+        "its 31 proposed weights were a full target (5% of equity), whatever the evidence "
+        "behind them (validation/run2/act_rate.json), and after run2-a7 the prompt's "
+        "flat 4% stop was no longer true of five names. System prompt v2 keeps v1 and adds: a "
+        "target's size follows the evidence (one positioning measure past its reference, "
+        "unconfirmed, is at most half a target; a full target needs two independent measures "
+        "the same way; crowd text alone never sizes); confidence is the probability of being "
+        "right at the horizon after fees, and new exposure needs it above even odds, only a "
+        "little above without confirmation; a magnitude is "
+        "stated with its facts, and words like extreme only for a fact beyond its reference. The "
+        "stop rule names the wider stop and smaller cap of the drifting names. The output "
+        "schema, the policy and every guard limit are unchanged.",
+        files=(
+            "src/sentiment_agent/decision/prompts/system_v2.md",
+            "src/sentiment_agent/decision/prompt.py",
+        ),
+        evidence={
+            "decision/prompts/system_v1.md": RUN1_PROMPT_HASHES["decision/prompts/system_v1.md"]
+            + " in run 1's genesis; replaced by system_v2.md "
+            + RUN2_SYSTEM_V2_HASH,
+            "decision/prompt.py": RUN2_A7_PROMPT_PY_HASH
+            + " after run2-a7, "
+            + RUN2_PROMPT_PY_HASH
+            + " after this change",
+            "act_rate": ACT_RATE_EVIDENCE,
+            "replayed_with_v2": ACT_RATE_V2_EVIDENCE + ": acted in 10 of 15 decisions, all 25 "
+            "proposed weights half a target, the largest net book 10% of equity",
+        },
+    ),
+    DeclaredChange(
+        change_id="run2-d8",
+        kind="code_fix",
+        title="New exposure needs a confidence above even odds",
+        detail="Replayed on run 1's market with system prompt v2 (run2-d7), the agent sized by "
+        "the evidence but opened 14 of its 25 positions at a stated confidence of 0.38 to 0.48: "
+        "trades it judged more likely wrong than right, which the fees then make a loss. The "
+        "prompt's words did not hold that line, so from run 2 the contract returns to the model "
+        "any target that opens, flips or enlarges a position at a confidence of 0.5 or below "
+        "(decision/contract.py EVEN_ODDS); a cut or a close is accepted at any confidence. "
+        + _UNCHANGED,
+        files=("src/sentiment_agent/decision/contract.py",),
+        evidence={
+            "replayed_with_v2": ACT_RATE_V2_EVIDENCE,
+            "test": "tests/decision/test_decision_contract.py::"
+            "TestNewExposureNeedsBetterThanEvenOdds",
+        },
+    ),
+    DeclaredChange(
         change_id="run2-d6",
         kind="code_fix",
         title="Funding the venue books is in the scored equity",
@@ -473,7 +542,9 @@ __all__ = [
     "RUN1_CODE_COMMIT",
     "RUN1_GENESIS_HASH",
     "RUN1_PROMPT_HASHES",
+    "RUN2_A7_PROMPT_PY_HASH",
     "RUN2_D4_PROMPT_PY_HASH",
     "RUN2_PROMPT_PY_HASH",
+    "RUN2_SYSTEM_V2_HASH",
     "declaration_for",
 ]

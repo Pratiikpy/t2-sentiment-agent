@@ -65,11 +65,12 @@ from sentiment_agent.types import (
     TriggerKind,
 )
 
-PROMPT_VERSION: Final = "prompt-v1"
+PROMPT_VERSION: Final = "prompt-v2"
 
 PACKAGE_DIR: Final = Path(__file__).resolve().parents[1]
 """``src/sentiment_agent``: hashed paths are recorded relative to it."""
-SYSTEM_TEMPLATE: Final = "decision/prompts/system_v1.md"
+SYSTEM_TEMPLATE: Final = "decision/prompts/system_v2.md"
+"""Run 2 (run2-d7). ``system_v1.md`` is kept byte for byte: run 1's genesis pins its hash."""
 SCHEMA_TEMPLATE: Final = "decision/prompts/output_schema_v1.md"
 HASHED_SOURCES: Final[tuple[str, ...]] = (SYSTEM_TEMPLATE, SCHEMA_TEMPLATE, "decision/prompt.py")
 """What :func:`prompt_hashes` pins: both templates, and this module, which renders the user turn."""

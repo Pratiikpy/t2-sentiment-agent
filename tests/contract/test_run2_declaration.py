@@ -26,8 +26,10 @@ from sentiment_agent.run2 import (
     RUN1_CODE_COMMIT,
     RUN1_GENESIS_HASH,
     RUN1_PROMPT_HASHES,
+    RUN2_A7_PROMPT_PY_HASH,
     RUN2_D4_PROMPT_PY_HASH,
     RUN2_PROMPT_PY_HASH,
+    RUN2_SYSTEM_V2_HASH,
     declaration_for,
 )
 from sentiment_agent.types import (
@@ -82,12 +84,23 @@ def test_a_genesis_without_a_predecessor_is_written_in_the_1_0_0_form() -> None:
     assert Genesis.model_validate(dumped).model_dump(mode="json") == dumped
 
 
-def test_the_prompts_are_run_1s_but_for_the_declared_legend_fix() -> None:
+def test_the_prompts_are_run_1s_but_for_the_declared_fixes() -> None:
+    """d4 and a7 changed prompt.py; d7 replaced system_v1.md with system_v2.md. The output
+    schema is run 1's."""
     now = prompt_hashes()
-    assert set(now) == set(RUN1_PROMPT_HASHES)
-    changed = sorted(k for k in now if now[k] != RUN1_PROMPT_HASHES[k])
-    assert changed == ["decision/prompt.py"]
+    assert set(now) == {
+        "decision/prompts/system_v2.md",
+        "decision/prompts/output_schema_v1.md",
+        "decision/prompt.py",
+    }
+    schema = "decision/prompts/output_schema_v1.md"
+    assert now[schema] == RUN1_PROMPT_HASHES[schema]
     assert now["decision/prompt.py"] == RUN2_PROMPT_PY_HASH
+    assert now["decision/prompts/system_v2.md"] == RUN2_SYSTEM_V2_HASH
+    v2 = next(c for c in DECLARED_CHANGES if c.change_id == "run2-d7")
+    assert v2.kind == "prompt_fix"
+    assert RUN2_SYSTEM_V2_HASH in v2.evidence["decision/prompts/system_v1.md"]
+    assert RUN2_PROMPT_PY_HASH in v2.evidence["decision/prompt.py"]
     fix = next(c for c in DECLARED_CHANGES if c.change_id == "run2-d4")
     assert fix.kind == "prompt_fix"
     assert fix.files == ("src/sentiment_agent/decision/prompt.py",)
@@ -97,7 +110,7 @@ def test_the_prompts_are_run_1s_but_for_the_declared_legend_fix() -> None:
     stops = next(c for c in DECLARED_CHANGES if c.change_id == "run2-a7")
     assert "src/sentiment_agent/decision/prompt.py" in stops.files
     assert RUN2_D4_PROMPT_PY_HASH in stops.evidence["decision/prompt.py"]
-    assert RUN2_PROMPT_PY_HASH in stops.evidence["decision/prompt.py"]
+    assert RUN2_A7_PROMPT_PY_HASH in stops.evidence["decision/prompt.py"]
 
 
 def test_the_legend_names_the_market_of_every_positioning_figure() -> None:
@@ -213,6 +226,8 @@ def test_run_2s_genesis_declares_its_predecessor_and_every_change() -> None:
         "run2-d3",
         "run2-d4",
         "run2-d5",
+        "run2-d7",
+        "run2-d8",
         "run2-d6",
         *AMENDED,
     ]
