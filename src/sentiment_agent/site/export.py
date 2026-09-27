@@ -315,7 +315,7 @@ def scan_bytes(name: str, data: bytes, literals: Sequence[tuple[str, str]]) -> l
         if index >= 0:
             findings.append(Finding(name, label, index))
     if text is not None:
-        quoted_out = _mask_third_party(_mask_untrusted(text))
+        quoted_out = _mask_third_party(_mask_spans(_mask_untrusted(text)))
         for label, pattern in _TEXT_RULES:
             # A path shape in third-party text is somebody else's path quoted in a post the agent
             # read (2026-09-27: a Reddit help request carrying a stranger's
@@ -381,6 +381,27 @@ def _mask_third_party(text: str) -> str:
             if form and form in masked:
                 masked = masked.replace(form, " " * len(form))
     return masked
+
+
+THIRD_PARTY_OPEN: Final = "<!--3p-->"
+THIRD_PARTY_CLOSE: Final = "<!--/3p-->"
+"""The markers ``render.third_party`` puts around third-party text in a rendered page."""
+
+
+def _mask_spans(text: str) -> str:
+    """``text`` with every rendered third-party span blanked, offsets kept."""
+    out: list[str] = []
+    at = 0
+    while True:
+        start = text.find(THIRD_PARTY_OPEN, at)
+        end = text.find(THIRD_PARTY_CLOSE, start) if start >= 0 else -1
+        if start < 0 or end < 0:
+            out.append(text[at:])
+            return "".join(out)
+        end += len(THIRD_PARTY_CLOSE)
+        out.append(text[at:start])
+        out.append(" " * (end - start))
+        at = end
 
 
 def _mask_untrusted(text: str) -> str:

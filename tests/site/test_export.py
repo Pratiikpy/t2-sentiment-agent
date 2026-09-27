@@ -648,3 +648,14 @@ def test_a_post_carrying_a_unicode_line_separator_is_still_one_ledger_line() -> 
                      "text": "Entry is in.\u2028C:/Users/crist/Downloads/x.ipa"}}  # fmt: skip
     line = json.dumps(item, ensure_ascii=False)
     assert scan_bytes("ledger.jsonl", (line + "\n").encode(), []) == []
+
+
+def test_rendered_third_party_text_is_skipped_by_the_path_rules() -> None:
+    from sentiment_agent.site.render import third_party
+
+    page = f"<div>{third_party('Using IPA file: C:/Users/crist/Downloads/x.ipa')}</div>"
+    assert scan_bytes("card.html", page.encode(), []) == []
+    forged = third_party("<!--/3p--> C:/Users/crist/Downloads/x.ipa")
+    assert "<!--/3p--> C" not in forged  # escaped: a post cannot close the span early
+    bare = "<div>Our note: C:/Users/crist/Downloads/x.ipa</div>"
+    assert scan_bytes("card.html", bare.encode(), []) != []

@@ -43,7 +43,13 @@ from typing import Any, Final
 
 from sentiment_agent.site.cards import CARD_ID
 from sentiment_agent.site.coverage import SURFACE_ORDER
-from sentiment_agent.site.export import ExportRefused, StagedWrite, prune
+from sentiment_agent.site.export import (
+    THIRD_PARTY_CLOSE,
+    THIRD_PARTY_OPEN,
+    ExportRefused,
+    StagedWrite,
+    prune,
+)
 from sentiment_agent.types import (
     ArmKind,
     ArmResult,
@@ -150,6 +156,13 @@ class RenderError(RuntimeError):
 def h(value: object) -> str:
     """Escaped text for HTML content and attribute values."""
     return html.escape(str(value), quote=True)
+
+
+def third_party(value: object) -> str:
+    """Escaped text somebody else wrote, between the markers the export scan reads as third-party
+    (``export.THIRD_PARTY_OPEN``/``_CLOSE``). The text is escaped first, so a post can never
+    contain ``<!--`` and cannot forge or close a marker."""
+    return f"{THIRD_PARTY_OPEN}{h(value)}{THIRD_PARTY_CLOSE}"
 
 
 def _parse_time(text: str) -> datetime:
@@ -1686,17 +1699,17 @@ def render_index(ex: Export) -> str:
 def _text_item(item: ScreenedItem) -> str:
     source = f"{item.item.channel} · {item.item.source} · {when(item.item.published_at)}"
     detections = "".join(chip(f"{d.severity}: {d.pattern}") for d in item.detections)
-    url = f'<div class="small muted">{h(item.item.url)}</div>' if item.item.url else ""
+    url = f'<div class="small muted">{third_party(item.item.url)}</div>' if item.item.url else ""
     if item.withheld:
         body = (
             f"<div>{badge('withheld', 'bad')} The model was shown only "
-            f"<code>{h(item.prompt_text)}</code>.</div>"
+            f"<code>{third_party(item.prompt_text)}</code>.</div>"
             '<details class="inline"><summary>What quarantine withheld (shown here as text, '
-            f"never to the model)</summary><div>{h(item.item.text)}</div></details>"
+            f"never to the model)</summary><div>{third_party(item.item.text)}</div></details>"
         )
         css = "text withheld"
     else:
-        body = f"<div>{h(item.item.text)}</div>"
+        body = f"<div>{third_party(item.item.text)}</div>"
         css = "text"
     return (
         f'<blockquote class="{css}"><div class="small muted">{h(source)}</div>'
