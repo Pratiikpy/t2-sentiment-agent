@@ -228,6 +228,7 @@ def test_run_2s_genesis_declares_its_predecessor_and_every_change() -> None:
         "run2-d5",
         "run2-d7",
         "run2-d8",
+        "run2-d9",
         "run2-d6",
         *AMENDED,
     ]

@@ -49,6 +49,8 @@ itself, and not from a README, what differs and why:
 ``run2-d8`` (code fix)
     The contract returns to the model any target that opens, flips or enlarges a position at a
     confidence of 0.5 or below; replayed with prompt v2, 14 of 25 positions were opened there.
+``run2-d9`` (code fix)
+    MCP sessions are ended (HTTP DELETE) when a command finishes, instead of left to expire.
 
 Nothing else changes: every other guard limit, the fee and edge bar, the mandate, the no-edge
 stance, and the output schema (whose hashes the genesis carries and a test holds). The replayed
@@ -471,6 +473,32 @@ DECLARED_CHANGES: Final[tuple[DeclaredChange, ...]] = (
             "replayed_with_v2": ACT_RATE_V2_EVIDENCE,
             "test": "tests/decision/test_decision_contract.py::"
             "TestNewExposureNeedsBetterThanEvenOdds",
+        },
+    ),
+    DeclaredChange(
+        change_id="run2-d9",
+        kind="code_fix",
+        title="MCP sessions are ended when a command finishes",
+        detail="Neither MCP client ever ended a session: the live runner held one per server for "
+        "its lifetime, and every one-shot command (probe-toolkit, verify, the preflight) left "
+        "two open on Bitget's servers until they expired. bitget-mcp-server began refusing new "
+        "sessions with 'Too many open sessions' on 2026-09-26 (ARGUS measured it, "
+        "argus/data/skill_runs). From run 2 the client ends its session with the HTTP DELETE "
+        "the streamable-HTTP transport specifies, and every command ends the sessions its "
+        "default toolkit opened. " + _UNCHANGED,
+        files=(
+            "src/sentiment_agent/sources/mcp_http.py",
+            "src/sentiment_agent/sources/bitget_data.py",
+            "src/sentiment_agent/sources/signal_skills.py",
+            "src/sentiment_agent/sources/toolkit.py",
+            "src/sentiment_agent/runtime/wiring.py",
+            "src/sentiment_agent/runtime/cli.py",
+        ),
+        evidence={
+            "specification": "MCP streamable HTTP, revision 2025-06-18: a client that no longer "
+            "needs a session SHOULD send HTTP DELETE with its Mcp-Session-Id",
+            "test": "tests/sources/test_mcp_http.py::"
+            "test_close_ends_the_session_with_a_delete_once",
         },
     ),
     DeclaredChange(

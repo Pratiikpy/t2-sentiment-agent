@@ -139,6 +139,11 @@ class ToolkitFacade:
     def data(self) -> BitgetDataService:
         return self._data
 
+    def close(self) -> None:
+        """End both MCP sessions (audit finding 106); safe to call more than once."""
+        self._signal.close()
+        self._data.close()
+
     def _fear_greed_fallback(
         self, surface: ToolkitSurface, source: str
     ) -> Callable[[str], FearGreed]:

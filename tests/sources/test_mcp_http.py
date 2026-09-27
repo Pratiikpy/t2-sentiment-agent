@@ -626,3 +626,63 @@ def test_live_tool_surfaces_match_the_recording() -> None:
     assert recorded_signal <= live_signal
     live_data = {t["name"]: t for t in data.list_tools()}
     assert live_data["do_query"]["inputSchema"]["required"] == ["entry_id"]
+
+
+# ================================================================================================
+# Ending a session (audit finding 106)
+# ================================================================================================
+
+
+def test_close_ends_the_session_with_a_delete_once() -> None:
+    deleted: list[tuple[str, dict[str, str], float]] = []
+
+    def delete(url: str, headers: Mapping[str, str], timeout: float) -> int:
+        deleted.append((url, dict(headers), timeout))
+        return 200
+
+    mcp = _client(DATA, RecordedHttp(DATA), delete=delete)
+    mcp.call_tool("do_query", {"entry_id": "sentiment_market_fear_greed", "params": {}})
+    session = mcp.session_id
+    mcp.close()
+    mcp.close()
+    assert len(deleted) == 1
+    url, headers, timeout = deleted[0]
+    assert url == DATA.url
+    assert headers["Mcp-Session-Id"] == session
+    assert headers["User-Agent"] == "curl/8.0"
+    assert timeout <= 5.0
+    assert mcp.session_id is None
+
+
+def test_close_without_a_session_sends_nothing_and_a_refusal_is_not_raised() -> None:
+    calls: list[str] = []
+
+    def refuses(url: str, headers: Mapping[str, str], timeout: float) -> int:
+        calls.append(url)
+        raise OSError("connection refused")
+
+    idle = _client(DATA, RecordedHttp(DATA), delete=refuses)
+    idle.close()
+    assert calls == []
+    used = _client(DATA, RecordedHttp(DATA), delete=refuses)
+    used.call_tool("do_query", {"entry_id": "sentiment_market_fear_greed", "params": {}})
+    used.close()
+    assert len(calls) == 1
+    assert used.session_id is None
+
+
+def test_a_command_ends_the_sessions_its_default_toolkit_opened() -> None:
+    from sentiment_agent.runtime import wiring
+
+    class Closing:
+        def __init__(self) -> None:
+            self.closed = 0
+
+        def close(self) -> None:
+            self.closed += 1
+
+    first, second = Closing(), Closing()
+    wiring._OPENED.extend([first, second])  # type: ignore[list-item]
+    wiring.close_default_toolkits()
+    assert (first.closed, second.closed) == (1, 1)
+    assert wiring._OPENED == []

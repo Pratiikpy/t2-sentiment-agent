@@ -806,10 +806,12 @@ def crypto_symbols(policy: Policy) -> tuple[str, ...]:
 
 
 def default_data_service(clock: Clock, blobs: FileBlobStore | None) -> BitgetDataService:
-    return BitgetDataService(
+    service = BitgetDataService(
         StreamableHttpMcp(DATA_MCP_URL, server_label="bitget-mcp-server", clock=clock, blobs=blobs),
         clock,
     )
+    _OPENED.append(service)
+    return service
 
 
 def default_toolkit(clock: Clock, blobs: FileBlobStore | None) -> ToolkitFacade:
@@ -817,9 +819,26 @@ def default_toolkit(clock: Clock, blobs: FileBlobStore | None) -> ToolkitFacade:
         StreamableHttpMcp(SIGNAL_MCP_URL, server_label="bitget-signal", clock=clock, blobs=blobs),
         clock,
     )
-    return ToolkitFacade(
+    toolkit = ToolkitFacade(
         signal, default_data_service(clock, blobs), upstream=UpstreamDirect(clock, blobs=blobs)
     )
+    _OPENED.append(toolkit)
+    return toolkit
+
+
+_OPENED: list[ToolkitFacade | BitgetDataService] = []
+"""Every toolkit and data service the defaults built in this process, so the command that built
+them can end their MCP sessions when it finishes (:func:`close_default_toolkits`)."""
+
+
+def close_default_toolkits() -> None:
+    """End the MCP sessions of every default toolkit built so far; never raises."""
+    while _OPENED:
+        opened = _OPENED.pop()
+        try:
+            opened.close()
+        except Exception:  # noqa: S112 - closing is best effort; the command's work is done
+            continue
 
 
 # ================================================================================================

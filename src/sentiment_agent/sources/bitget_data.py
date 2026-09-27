@@ -248,6 +248,12 @@ class BitgetDataService:
     def server(self) -> str:
         return self._mcp.server
 
+    def close(self) -> None:
+        """End the MCP session, when the caller has one to end (audit finding 106)."""
+        end = getattr(self._mcp, "close", None)
+        if callable(end):
+            end()
+
     @property
     def clock(self) -> Clock:
         return self._clock

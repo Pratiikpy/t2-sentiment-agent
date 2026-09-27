@@ -47,6 +47,7 @@ User-Agent rule are taken from ARGUS ``argus/src/argus/market/bitget_mcp.py`` (s
 expiry, protocol-version header, pagination and deadline are new here.
 """
 
+import contextlib
 import http.client
 import json
 import math
@@ -183,6 +184,21 @@ def urllib_post(
         return int(response.status), _lower_headers(response.headers), b"".join(chunks)
 
 
+HttpDelete = Callable[[str, Mapping[str, str], float], int]
+"""``(url, headers, timeout) -> status``: how :meth:`StreamableHttpMcp.close` ends a session."""
+
+
+def urllib_delete(url: str, headers: Mapping[str, str], timeout: float) -> int:
+    """The standard-library :data:`HttpDelete`: an HTTP DELETE, the status it answered."""
+    _check_url(url)
+    request = urllib.request.Request(url, headers=dict(headers), method="DELETE")  # noqa: S310 - scheme checked above
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - scheme checked above
+            return int(response.status)
+    except urllib.error.HTTPError as exc:
+        return int(exc.code)
+
+
 def _header(headers: Mapping[str, str], name: str) -> str | None:
     """Case-insensitive header lookup (servers send ``mcp-session-id`` in lower case)."""
     wanted = name.lower()
@@ -307,6 +323,7 @@ class StreamableHttpMcp:
         server_label: str,
         clock: Clock,
         http: HttpPost = urllib_post,
+        delete: HttpDelete | None = None,
         blobs: BlobStore | None = None,
         timeout_s: float = 45.0,
         user_agent: str = "curl/8.0",
@@ -330,6 +347,7 @@ class StreamableHttpMcp:
         self._label = server_label
         self._clock = clock
         self._http = http
+        self._delete: HttpDelete = delete or urllib_delete
         self._blobs = blobs
         self._timeout = timeout_s
         self._user_agent = user_agent
@@ -440,6 +458,34 @@ class StreamableHttpMcp:
             text="\n".join(texts),
             raw=self._store(raw, headers),
         )
+
+    def close(self) -> None:
+        """End the session: an HTTP DELETE carrying ``Mcp-Session-Id``, as the streamable-HTTP
+        transport specifies for a client that no longer needs it; a server that does not let
+        clients end sessions answers 405, which is not an error here.
+
+        Ported from ARGUS ``market/rpc.py`` ``JsonRpcClient.close`` (same author, MIT), added
+        there on 2026-09-26 when ``bitget-mcp-server`` began refusing new sessions with "Too many
+        open sessions". This client opened a session per process and never ended one, so every
+        one-shot command (``probe-toolkit``, ``verify``) left two behind until the server expired
+        them (audit finding 106). Best effort: a failure to close is never raised, because the
+        work the session served is already done."""
+        with self._lock:
+            session, self._session, self._ready = self._session, None, False
+            protocol = self._protocol
+        if not session:
+            return
+        headers = {"User-Agent": self._user_agent, "Mcp-Session-Id": session}
+        if protocol:
+            headers["MCP-Protocol-Version"] = protocol
+        with contextlib.suppress(Exception):  # best effort, documented above
+            self._delete(self._url, headers, min(self._timeout, 5.0))
+
+    def __enter__(self) -> "StreamableHttpMcp":
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
 
     # --- internals ------------------------------------------------------------------------------
 
@@ -862,6 +908,7 @@ __all__ = [
     "MAX_REPLY_BYTES",
     "PROTOCOL_VERSION",
     "SIGNAL_MCP_URL",
+    "HttpDelete",
     "HttpPost",
     "Invocation",
     "McpError",
@@ -882,5 +929,6 @@ __all__ = [
     "rows_of",
     "source_call",
     "tool_payload",
+    "urllib_delete",
     "urllib_post",
 ]

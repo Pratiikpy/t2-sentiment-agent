@@ -145,6 +145,7 @@ from sentiment_agent.runtime.wiring import (
     RefusedToStart,
     archive_ledger,
     build_app,
+    close_default_toolkits,
     crypto_symbols,
     default_data_service,
     default_toolkit,
@@ -293,6 +294,10 @@ def run_cli(
     except LedgerError as exc:
         ctx.say(f"LEDGER ERROR: {exc}")
         return EXIT_FAILED
+    finally:
+        # Every MCP session a default toolkit opened is ended with the command, so a one-shot
+        # command no longer leaves two sessions open on Bitget's servers (audit finding 106).
+        close_default_toolkits()
 
 
 def build_parser() -> argparse.ArgumentParser:
