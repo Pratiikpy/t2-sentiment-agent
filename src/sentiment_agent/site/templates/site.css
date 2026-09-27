@@ -6,7 +6,7 @@
   --panel-2: #f1f1ec;
   --ink: #16181d;
   --ink-2: #4a4f5a;
-  --ink-3: #737987;
+  --ink-3: #5f6572; /* 4.95:1 on the lightest panel, AA for small text (was #737987, 3.69:1) */
   --rule: #dcdcd4;
   --accent: #0b5cad;
   --accent-ink: #ffffff;
