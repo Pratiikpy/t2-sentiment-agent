@@ -16,19 +16,47 @@ Market Sentiment Agent.
 
 ## Status
 
-**Paper run live on Bitget Demo since 2026-09-24 17:06:23 UTC.** Genesis hash
+**Run 1** has traded on Bitget Demo since 2026-09-24 17:06:23 UTC. Genesis hash
 `ebbf607a8fe199bccc0f612ededf2a6902e4884a38d21fbfea498dff7da453a5`, timestamped with
 OpenTimestamps, pins the code commit, the dependency locks, the policy and the metric definitions
-before the first decision. Starting equity 49,999.98 USDT. The agent ticks every 30 seconds and
-decides on pre-registered heartbeats (the US open, each funding settlement) and on event triggers.
+before the first decision. Starting equity 49,999.98 USDT. No order was placed in it. The agent ticks every 30 seconds and decides on pre-registered heartbeats (the
+US open, each funding settlement) and on event triggers.
+
+**Run 2** is prepared on this branch and not started. Its genesis will declare, against run 1,
+every change and the evidence for it (`src/sentiment_agent/run2.py`; table in
+[DESIGN.md](DESIGN.md)): six code and prompt fixes (d1-d6, among them crowd and calendar triggers
+that could never fire in run 1, a declared invalidation that must cite a fact, and funding counted
+in the scored equity) and seven policy amendments (a1-a7: funding triggers on every name with a
+level floor, net and crypto-beta caps, a pre-registered scoring window closed by G2, a lapsing
+losing-streak trip, an outage that flattens only on the third failure, and stops set at twice each
+name's Demo-live drift at the same loss per name).
 
 - Live record, republished hourly from the log: https://t2-sentiment-agent-live.vercel.app
 - Check it yourself: `t2sa verify` (hash chain and head anchor), `t2sa status`, and
   `scripts/recompute.py` for every published figure.
-- Known gap, disclosed rather than patched under a live run: `bitget-signal`'s hosted server
-  returns empty envelopes for `news_feed` and `reddit_trending` (reproduced through a second MCP
-  client, while their upstreams answer directly). Mood and positioning come from
-  `bitget-mcp-server`, which answers. Every failed call is in the log as failed.
+- What the data services actually answered in run 1 (`validation/run2/run1_feed_outage.json`,
+  recomputed from its ledger): Bitget's public market API 38,617 of 38,733 calls;
+  `bitget-mcp-server` 1,592 of 2,808, and from 2026-09-25 08:33 UTC only 144 of 1,356;
+  `bitget-signal`'s hosted server 0 of 939, every answer an empty envelope while its upstreams
+  answered directly. Run 2 reads those upstreams itself on a labelled surface when both services
+  are empty (run2-d3), and every failed call is in the log as failed.
+
+## From event to order
+
+```
+market / crowd / calendar  ->  trigger (pre-registered; cooldowns, daily cap)
+        -> snapshot (every figure logged, with its source and health)
+        -> Qwen decides: target book, thesis, invalidation, what the crowd believes vs our view
+        -> contract (schema, universe, fact-cited invalidation) and grounding (every number
+           resolves to a logged fact)
+        -> risk kernel: 11 guards that can only shrink or refuse, each ruling logged per guard
+        -> Agent Hub: `bgc --dry-run` preview, then the order on Demo with a preset stop
+        -> reconciliation: fills, positions, stops, funding, equity against the venue
+        -> hourly mark -> published record -> scripts/recompute.py
+```
+
+Each step is a ledger event; a decision card on the live record shows one decision through all of
+them.
 
 [RUNBOOK.md](RUNBOOK.md) is the operator's procedure; `t2sa go-live` is the one command that
 starts or resumes the run.
