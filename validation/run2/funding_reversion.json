@@ -1,0 +1,251 @@
+{
+  "input": {
+    "ledger_events": 1167,
+    "ledger_head_seq": 1166,
+    "ledger_head_hash": "cdc2070682b1a492f93309dcc9b11c8c1000eba03dfe680ec0b38ecc6eec75e8",
+    "snapshots": 724
+  },
+  "episodes": 5,
+  "record_ends": "2026-09-27T09:58:47.620697+00:00",
+  "rule": {
+    "funding_z_threshold": 2.0,
+    "funding_abs_min": 0.00075,
+    "min_hold_hours": 24,
+    "round_trip_bps": 12.0
+  },
+  "by_level": {
+    "z_within_1": {
+      "reverted": 5,
+      "not_reverted_before_record_end": 0,
+      "hours": {
+        "n": 5,
+        "median": 10.24,
+        "mean": 8.14,
+        "min": 3.28,
+        "max": 12.97
+      },
+      "fade_net_bps": {
+        "n": 5,
+        "median": -10.9,
+        "mean": 22.56,
+        "min": -34.8,
+        "max": 136.2
+      },
+      "follow_net_bps": {
+        "n": 5,
+        "median": -13.1,
+        "mean": -46.56,
+        "min": -160.2,
+        "max": 10.8
+      }
+    },
+    "z_within_0.5": {
+      "reverted": 5,
+      "not_reverted_before_record_end": 0,
+      "hours": {
+        "n": 5,
+        "median": 10.33,
+        "mean": 8.53,
+        "min": 3.55,
+        "max": 13.32
+      },
+      "fade_net_bps": {
+        "n": 5,
+        "median": -9.3,
+        "mean": 13.56,
+        "min": -48.5,
+        "max": 146.3
+      },
+      "follow_net_bps": {
+        "n": 5,
+        "median": -14.7,
+        "mean": -37.56,
+        "min": -170.3,
+        "max": 24.5
+      }
+    },
+    "z_within_0": {
+      "reverted": 5,
+      "not_reverted_before_record_end": 0,
+      "hours": {
+        "n": 5,
+        "median": 10.42,
+        "mean": 9.12,
+        "min": 3.82,
+        "max": 13.67
+      },
+      "fade_net_bps": {
+        "n": 5,
+        "median": -6.9,
+        "mean": 8.58,
+        "min": -82.6,
+        "max": 150.8
+      },
+      "follow_net_bps": {
+        "n": 5,
+        "median": -17.1,
+        "mean": -32.58,
+        "min": -174.8,
+        "max": 58.6
+      }
+    }
+  },
+  "at_min_hold": {
+    "fade_net_bps": {
+      "n": 5,
+      "median": 23.1,
+      "mean": 38.1,
+      "min": -19.5,
+      "max": 164.3
+    },
+    "follow_net_bps": {
+      "n": 5,
+      "median": -47.1,
+      "mean": -62.1,
+      "min": -188.3,
+      "max": -4.5
+    }
+  },
+  "rows": [
+    {
+      "symbol": "MSTRUSDT",
+      "opened_at": "2026-09-25T00:18:33.437508+00:00",
+      "z": 3.284,
+      "rate_bp": 7.68,
+      "z_within_1": {
+        "reverted": true,
+        "hours": 3.28,
+        "fade_net_bps": -34.8,
+        "follow_net_bps": 10.8
+      },
+      "z_within_0.5": {
+        "reverted": true,
+        "hours": 3.55,
+        "fade_net_bps": -32.3,
+        "follow_net_bps": 8.3
+      },
+      "z_within_0": {
+        "reverted": true,
+        "hours": 3.82,
+        "fade_net_bps": -31.7,
+        "follow_net_bps": 7.7
+      },
+      "at_min_hold": {
+        "fade_net_bps": 164.3,
+        "follow_net_bps": -188.3
+      }
+    },
+    {
+      "symbol": "SNDKUSDT",
+      "opened_at": "2026-09-25T01:28:09.724188+00:00",
+      "z": 4.648,
+      "rate_bp": 7.5,
+      "z_within_1": {
+        "reverted": true,
+        "hours": 3.54,
+        "fade_net_bps": -19.6,
+        "follow_net_bps": -4.4
+      },
+      "z_within_0.5": {
+        "reverted": true,
+        "hours": 4.5,
+        "fade_net_bps": -48.5,
+        "follow_net_bps": 24.5
+      },
+      "z_within_0": {
+        "reverted": true,
+        "hours": 6.45,
+        "fade_net_bps": -82.6,
+        "follow_net_bps": 58.6
+      },
+      "at_min_hold": {
+        "fade_net_bps": 23.1,
+        "follow_net_bps": -47.1
+      }
+    },
+    {
+      "symbol": "CRCLUSDT",
+      "opened_at": "2026-09-25T14:02:30.220074+00:00",
+      "z": 2.984,
+      "rate_bp": 7.57,
+      "z_within_1": {
+        "reverted": true,
+        "hours": 12.97,
+        "fade_net_bps": 136.2,
+        "follow_net_bps": -160.2
+      },
+      "z_within_0.5": {
+        "reverted": true,
+        "hours": 13.32,
+        "fade_net_bps": 146.3,
+        "follow_net_bps": -170.3
+      },
+      "z_within_0": {
+        "reverted": true,
+        "hours": 13.67,
+        "fade_net_bps": 150.8,
+        "follow_net_bps": -174.8
+      },
+      "at_min_hold": {
+        "fade_net_bps": 29.5,
+        "follow_net_bps": -53.5
+      }
+    },
+    {
+      "symbol": "HOODUSDT",
+      "opened_at": "2026-09-25T14:23:30.864434+00:00",
+      "z": 6.009,
+      "rate_bp": 7.51,
+      "z_within_1": {
+        "reverted": true,
+        "hours": 10.24,
+        "fade_net_bps": 41.9,
+        "follow_net_bps": -65.9
+      },
+      "z_within_0.5": {
+        "reverted": true,
+        "hours": 10.33,
+        "fade_net_bps": 11.6,
+        "follow_net_bps": -35.6
+      },
+      "z_within_0": {
+        "reverted": true,
+        "hours": 10.42,
+        "fade_net_bps": 13.3,
+        "follow_net_bps": -37.3
+      },
+      "at_min_hold": {
+        "fade_net_bps": -6.9,
+        "follow_net_bps": -17.1
+      }
+    },
+    {
+      "symbol": "TSLAUSDT",
+      "opened_at": "2026-09-25T15:00:09.114006+00:00",
+      "z": 8.181,
+      "rate_bp": 7.57,
+      "z_within_1": {
+        "reverted": true,
+        "hours": 10.69,
+        "fade_net_bps": -10.9,
+        "follow_net_bps": -13.1
+      },
+      "z_within_0.5": {
+        "reverted": true,
+        "hours": 10.96,
+        "fade_net_bps": -9.3,
+        "follow_net_bps": -14.7
+      },
+      "z_within_0": {
+        "reverted": true,
+        "hours": 11.22,
+        "fade_net_bps": -6.9,
+        "follow_net_bps": -17.1
+      },
+      "at_min_hold": {
+        "fade_net_bps": -19.5,
+        "follow_net_bps": -4.5
+      }
+    }
+  ]
+}

@@ -1609,6 +1609,8 @@ the agent proposed, so run 2 holds less of each bet than it asks for; the window
 every trade by Thursday 00:00 UTC, one that might have run longer included. Whether equity funding
 extremes carry information the model can use is not known, and run 2 is where it is measured.
 
+**Considered and not adopted: a funding-reversion exit.** A trigger that wakes the model when the funding extreme behind a held leg has reverted was measured before run 2 rather than declared (`scripts/funding_reversion.py`, `validation/run2/funding_reversion.json`). Run 1's record holds five episodes that meet policy v2's funding rule (MSTR, SNDK, CRCL, HOOD, TSLA); each came back inside |z| 0.5 after 3.6 to 13.3 hours (median 10.3), well inside the 24-hour minimum hold. Fading the crowd and closing at that reversion netted a median -9.3 bp after the 12 bp round trip; holding the same fade to the minimum hold netted a median +23.1 bp. Five episodes prove nothing either way, but they do not support an exit the data would have made worse, and the funding heartbeats at 00, 08 and 16 UTC already put every held leg in front of the model at most eight hours apart. Run 2 therefore carries no reversion exit; its pre-registered exits stay the G4 venue stop, G2's close at the scoring window's end, and the model's own decisions.
+
 **NOT VERIFIED.** How run 2's reports behave against live outages beyond run 1's recorded ones;
 whether coordinated clusters, which the design only reads at decisions, would have changed any of
 run 1's two decisions (the model saw the same text either way; the clusters were not named to it as
