@@ -511,6 +511,7 @@ def test_take_profit_rounds_toward_the_entry(
     entry: str, side: Side, step: str, expected: str
 ) -> None:
     target = take_profit_price(Decimal(entry), side, TP, spec(NVDA, price_step=step))
+    assert target is not None
     assert str(target) == expected
     assert abs(target - Decimal(entry)) / Decimal(entry) <= Decimal("0.01")
 

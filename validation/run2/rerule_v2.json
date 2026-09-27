@@ -517,7 +517,7 @@
     "answers_policy_hash": "e83d4ab6d35064415cb0496fc9c4d920f7e485742314e73a81a1676ccadf04d0",
     "answers_policy_step": "run2-a1",
     "kernel_policy": "policy-v2",
-    "kernel_policy_hash": "d719e75950df438ce15db99f82e48d7baf6f06366ed5766be6b981012b2ac380",
+    "kernel_policy_hash": "eaee6d5a27f608db9923e870fdd23f786925b92a2e11d440c5c7b37aeb93689e",
     "kernel_policy_step": "policy-v2",
     "ledger_head_hash": "86bb2a29b35b31b30e24284065c622c7274ecb2e186ec4ebeedcf30953fe316c",
     "public": "run1view",

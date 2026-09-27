@@ -60,6 +60,7 @@ NET_MAX = 1.0
 CLUSTER_CAPS = ()
 SCORING_WINDOW = None
 STOP_GAP_MULTIPLE = None
+TAKE_PROFIT_PCT = None
 GUARD_IDS = (
     'G1_venue_integrity',
     'G2_weekend_freeze',

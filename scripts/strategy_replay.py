@@ -69,6 +69,7 @@ GUARDS = tuple(g for g in GuardId if g is not GuardId.G9_GROUNDING)
 """Every guard but G9: grounding checks a model's cited numbers, and a rule cites none."""
 STARTING_EQUITY = 10_000.0
 FUNDING_LOOKBACK = 90
+EQUITIES = frozenset(e.symbol for e in POLICY_V2.universe if e.asset_class.value == "us_equity")
 Z_THRESHOLD = 2.0
 
 
@@ -217,25 +218,43 @@ def _decision_hours(start: datetime, end: datetime) -> list[datetime]:
 
 
 def _extremes(
-    hist: History, policy: Policy, start: datetime, end: datetime, floor: float
+    hist: History,
+    policy: Policy,
+    start: datetime,
+    end: datetime,
+    floor: float,
+    *,
+    symbols: frozenset[str] | None = None,
+    floor_quantile: float | None = None,
 ) -> list[tuple[datetime, str, float]]:
     """(the first hour after a settlement, symbol, rate) for settlements whose live rate is at or
     beyond ``floor`` and whose z over the prior 90 settlements is beyond +/-2 — run 2's
-    `funding_zscore` condition (policy v2: every class, level floor run2-a2), read at settlement."""
+    `funding_zscore` condition (policy v2: every class, level floor run2-a2), read at settlement.
+
+    ``symbols`` narrows the scope; ``floor_quantile`` replaces the fixed floor with that quantile
+    of |rate| over the same prior 90 settlements (the audit's per-instrument floor, 4.3)."""
     out = []
     scope = {
         e.symbol
         for e in policy.universe
         if e.asset_class in policy.triggers.funding_z_asset_classes
     }
+    if symbols is not None:
+        scope &= symbols
     for symbol, series in hist.funding.items():
         if symbol not in scope:
             continue
         for i in range(FUNDING_LOOKBACK, len(series)):
             at, rate = series[i]
-            if not start <= at < end or abs(rate) < floor:
+            if not start <= at < end:
                 continue
             prior = [r for _, r in series[i - FUNDING_LOOKBACK : i]]
+            level = floor
+            if floor_quantile is not None:
+                ranked = sorted(abs(r) for r in prior)
+                level = ranked[min(len(ranked) - 1, int(floor_quantile * len(ranked)))]
+            if abs(rate) < level or rate == 0:
+                continue
             sd = statistics.pstdev(prior)
             if sd == 0 or abs((rate - statistics.fmean(prior)) / sd) <= Z_THRESHOLD:
                 continue
@@ -243,7 +262,13 @@ def _extremes(
     return sorted(out)
 
 
-def fade_rule(floor: float, hold_hours: int = 24) -> Rule:
+def fade_rule(
+    floor: float,
+    hold_hours: int = 24,
+    *,
+    symbols: frozenset[str] | None = None,
+    floor_quantile: float | None = None,
+) -> Rule:
     """Half a target against the crowd on each funding extreme, held ``hold_hours``, then closed
     at the next decision hour: the model's registered behaviour on its only event signal."""
 
@@ -251,7 +276,9 @@ def fade_rule(floor: float, hold_hours: int = 24) -> Rule:
         hist: History, policy: Policy, start: datetime, end: datetime, _rng: random.Random
     ) -> list[tuple[datetime, dict[str, float]]]:
         half = policy.per_name_max / 2
-        events = _extremes(hist, policy, start, end, floor)
+        events = _extremes(
+            hist, policy, start, end, floor, symbols=symbols, floor_quantile=floor_quantile
+        )
         opens: dict[str, tuple[datetime, float]] = {}
         instants = sorted({t for t, _, _ in events} | set(_decision_hours(start, end)))
         schedule = []
@@ -337,6 +364,8 @@ def equal_long_rule(
 ARMS: dict[str, Rule] = {
     "fade_7.5bp_registered": fade_rule(0.00075),
     "fade_5bp": fade_rule(0.0005),
+    "fade_equities_7.5bp": fade_rule(0.00075, symbols=EQUITIES),
+    "fade_btc_p97": fade_rule(0.0, symbols=frozenset({"BTCUSDT"}), floor_quantile=0.97),
     "cross_section_funding": cross_section_rule,
     "btc_hold_5pct": btc_hold_rule,
     "equal_weight_long_1pct": equal_long_rule,
@@ -441,7 +470,10 @@ def _band(values: Sequence[float | None]) -> dict[str, Any]:
     vals = sorted(v for v in values if v is not None)
     if not vals:
         return {"n": 0}
-    q = lambda p: vals[min(len(vals) - 1, max(0, round(p * (len(vals) - 1))))]  # noqa: E731
+
+    def q(p: float) -> float:
+        return vals[min(len(vals) - 1, max(0, round(p * (len(vals) - 1))))]
+
     return {
         "n": len(vals),
         "p10": round(q(0.1), 5),

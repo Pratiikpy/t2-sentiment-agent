@@ -560,6 +560,37 @@ def _run2_a7(policy: Policy) -> Policy:
     )
 
 
+RUN2_ENVELOPE: Final[dict[str, str]] = {
+    "source": "validation/run2/strategy_replay.json (no-edge coin-flip book: five names a day at "
+    "half a target, 50 seeds on each of 51 rolling 216 h windows of Bitget history, 2026-07-30 to "
+    "2026-09-26, ruled, sized and filled by the production kernel, planner and book)",
+    "return_on_equity_bps": "median -3.5, p05 -75.9, p95 +93.6",
+    "max_drawdown_pct": "median -0.45, p05 -0.95, worst -1.67",
+    "sharpe_ann": "median -0.5, p05 -12.3, p95 +11.1",
+    "win_rate": "median 0.45, p05 0.28, p95 0.62",
+    "closed_trades": "median 23",
+}
+"""run2-a8: what a book with no edge scores over run 2's nine days (policy v1's envelope was a
+72 h simulation outside the kernel)."""
+
+
+def _run2_a8(policy: Policy) -> Policy:
+    g7 = next(g for g in policy.guard_bases if g.guard is GuardId.G7_FEE_BUDGET)
+    return policy.model_copy(
+        update={
+            "expected_envelope": RUN2_ENVELOPE,
+            "guard_bases": _guard(
+                policy,
+                GuardId.G7_FEE_BUDGET,
+                g7.rule,
+                "; policy v2 (run2-a8): over the nine-day window the no-edge book paid a median "
+                "6.3 and a p95 of 8.2 bps of equity in fees "
+                "(validation/run2/strategy_replay.json), so the 20 bps window budget is kept",
+            ),
+        }
+    )
+
+
 RUN2_AMENDMENTS: Final[tuple[tuple[str, Callable[[Policy], Policy]], ...]] = (
     ("run2-a1", _run2_a1),
     ("run2-a2", _run2_a2),
@@ -568,8 +599,9 @@ RUN2_AMENDMENTS: Final[tuple[tuple[str, Callable[[Policy], Policy]], ...]] = (
     ("run2-a5", _run2_a5),
     ("run2-a6", _run2_a6),
     ("run2-a7", _run2_a7),
+    ("run2-a8", _run2_a8),
 )
-"""Policy v1 to v2 as seven amendments applied in order, each one a hashed policy of its own, so run
+"""Policy v1 to v2 as eight amendments applied in order, each one a hashed policy of its own, so run
 2's genesis can declare them as a chain (``Genesis`` requires each amendment to replace the last).
 The policies between v1 and v2 are never run; they exist so each change carries its own hash."""
 
@@ -586,7 +618,7 @@ RUN2_STEPS: Final[tuple[tuple[str, Policy], ...]] = _steps()
 """Each run-2 amendment's id and the policy in force after it; the last is :data:`POLICY_V2`."""
 
 POLICY_V2: Final[Policy] = RUN2_STEPS[-1][1]
-"""Policy v1 amended for run 2 (run2-a1..a7): the funding z-score trigger covers the whole universe
+"""Policy v1 amended for run 2 (run2-a1..a8): the funding z-score trigger covers the whole universe
 and needs a funding level; G3 caps the book's net weight at 10% and the crypto-beta names at 7.5%;
 the record is scored over a pre-registered window that G2 closes; the losing-streak trip lapses
 after 24 hours; a model outage flattens the book on its third failed decision, not its first; and

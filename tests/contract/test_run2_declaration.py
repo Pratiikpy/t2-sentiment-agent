@@ -140,6 +140,17 @@ AMENDED: dict[str, dict[str, set[str]]] = {
     },
     "run2-a6": {"decision": {"outage_flatten_after", "basis"}, "guard_bases": {"G10_BREAKER"}},
     "run2-a7": {"stop_gap_multiple": set(), "guard_bases": {"G3_SIZE", "G4_STOP"}},
+    "run2-a8": {
+        "expected_envelope": {
+            "source",
+            "return_on_equity_bps",
+            "max_drawdown_pct",
+            "sharpe_ann",
+            "win_rate",
+            "closed_trades",
+        },
+        "guard_bases": {"G7_FEE_BUDGET"},
+    },
 }
 """What each amendment may touch: top-level policy keys, and inside them the keys (or, for
 ``guard_bases``, the guards) it changes. Anything else changing is an undeclared change."""

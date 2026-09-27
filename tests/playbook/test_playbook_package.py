@@ -124,6 +124,7 @@ def test_every_policy_field_is_rendered_and_equal(generated: ModuleType) -> None
             else (p.scoring_window.start.isoformat(), p.scoring_window.end.isoformat())
         ),
         "STOP_GAP_MULTIPLE": p.stop_gap_multiple,
+        "TAKE_PROFIT_PCT": p.take_profit_pct,
         "GUARD_RULES": {b.guard.value: b.rule for b in p.guard_bases},
         "GUARD_BASES": {b.guard.value: b.basis for b in p.guard_bases},
     }

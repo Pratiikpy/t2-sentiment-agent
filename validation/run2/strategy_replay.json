@@ -1,6 +1,7 @@
 {
  "method": "Replay candidate trading designs over every nine-day window of Bitget history, through the\nproduction kernel, planner and book, before run 2's genesis (T2 of the pre-genesis audit).\n\n    python scripts/strategy_replay.py --history <history.json> --marks <history_marks.json> \\\n        [--window-hours 216] [--seeds 50] [--out validation/run2/strategy_replay.json]\n\nWhy this exists. The pre-genesis audit (`research/harvest/quant/T2_STRATEGY_AUDIT.md` in the\nARGUS workspace) measured run 2's funding-fade trigger in a proxy simulator and found it loses. A\nproxy can be wrong where the real kernel is not, so every figure here comes from\n`analysis/armsim.ArmSimulator`: the production `RiskKernel` rules each target, `plan_orders` sizes\nit on the Demo grid, `BookBuilder` books the fills, and the venue stops (G4), weekend freeze (G2),\ndaily kill (G5) and breaker (G10) act between decisions exactly as in the live run. Only the\ndecision-maker is replaced: each arm is a fixed rule standing in for the model, so the question is\nwhat the rules and the kernel do to Sharpe, drawdown and win rate, not what Qwen would decide.\n\nData (keyless public endpoints, fetched by `research/harvest/quant/replay/fetch_*.py`):\n* Demo mark 1H candles, where the Demo venue serves them (BTC from 2026-01-30; equities from\n  2026-08-25; SP500/NDX100 from 2026-09-03), else the live mark as a proxy. Every window records\n  which symbols it marked on live prices (`proxy_symbols`).\n* Live funding settlements (270 per symbol, ~90 days), read at settlement, never ahead of it.\n* Demo instrument specs as served; half the Demo spread from `validation/demo_venue/\n  universe_probe.json`'s bid/ask per symbol (one number per symbol, as armsim documents).\n\nWindows start at 00:00 UTC every day with a full window of marks behind them; each carries the\npolicy's own scoring window set to itself, so G2 closes every leg at its end as it will in run 2.\nOverlapping windows are not independent: the report says how many non-overlapping ones there are.\nNothing here calls a model or a credential.\n",
  "window_hours": 216,
+ "take_profit_pct": null,
  "windows": 51,
  "non_overlapping_windows": 5,
  "starting_equity": 10000.0,
@@ -81,6 +82,72 @@
      "p10": 0,
      "median": 4,
      "p90": 9
+    },
+    "p_return_positive": 0.216
+   },
+   "fade_equities_7.5bp": {
+    "return": {
+     "n": 51,
+     "p10": -0.00097,
+     "median": 0.0,
+     "p90": 0.00096
+    },
+    "sharpe": {
+     "n": 30,
+     "p10": -5.00395,
+     "median": 2.3502,
+     "p90": 9.18417
+    },
+    "max_dd": {
+     "n": 51,
+     "p10": -0.00145,
+     "median": -0.00036,
+     "p90": 0.0
+    },
+    "win_rate": {
+     "n": 30,
+     "p10": 0.0,
+     "median": 1.0,
+     "p90": 1.0
+    },
+    "closed_trades": {
+     "n": 51,
+     "p10": 0,
+     "median": 1,
+     "p90": 2
+    },
+    "p_return_positive": 0.373
+   },
+   "fade_btc_p97": {
+    "return": {
+     "n": 51,
+     "p10": -0.00101,
+     "median": 0.0,
+     "p90": 0.0033
+    },
+    "sharpe": {
+     "n": 18,
+     "p10": -5.81583,
+     "median": 1.46777,
+     "p90": 11.89333
+    },
+    "max_dd": {
+     "n": 51,
+     "p10": -0.00123,
+     "median": 0.0,
+     "p90": 0.0
+    },
+    "win_rate": {
+     "n": 18,
+     "p10": 0.0,
+     "median": 1.0,
+     "p90": 1.0
+    },
+    "closed_trades": {
+     "n": 51,
+     "p10": 0,
+     "median": 0,
+     "p90": 1
     },
     "p_return_positive": 0.216
    },
@@ -311,6 +378,72 @@
     },
     "p_return_positive": 0.44
    },
+   "fade_equities_7.5bp": {
+    "return": {
+     "n": 25,
+     "p10": 0.0,
+     "median": 0.00074,
+     "p90": 0.00096
+    },
+    "sharpe": {
+     "n": 21,
+     "p10": 1.79555,
+     "median": 2.3502,
+     "p90": 9.18417
+    },
+    "max_dd": {
+     "n": 25,
+     "p10": -0.00143,
+     "median": -0.00045,
+     "p90": 0.0
+    },
+    "win_rate": {
+     "n": 21,
+     "p10": 0.5,
+     "median": 1.0,
+     "p90": 1.0
+    },
+    "closed_trades": {
+     "n": 25,
+     "p10": 0,
+     "median": 1,
+     "p90": 2
+    },
+    "p_return_positive": 0.76
+   },
+   "fade_btc_p97": {
+    "return": {
+     "n": 25,
+     "p10": -0.00101,
+     "median": 0.0,
+     "p90": 0.00375
+    },
+    "sharpe": {
+     "n": 18,
+     "p10": -5.81583,
+     "median": 1.46777,
+     "p90": 11.89333
+    },
+    "max_dd": {
+     "n": 25,
+     "p10": -0.00123,
+     "median": -0.00091,
+     "p90": 0.0
+    },
+    "win_rate": {
+     "n": 18,
+     "p10": 0.0,
+     "median": 1.0,
+     "p90": 1.0
+    },
+    "closed_trades": {
+     "n": 25,
+     "p10": 0,
+     "median": 1,
+     "p90": 1
+    },
+    "p_return_positive": 0.44
+   },
    "cross_section_funding": {
     "return": {
      "n": 25,
@@ -535,6 +668,66 @@
      "p10": 0,
      "median": 1,
      "p90": 9
+    },
+    "p_return_positive": 0.0
+   },
+   "fade_equities_7.5bp": {
+    "return": {
+     "n": 26,
+     "p10": -0.00097,
+     "median": 0.0,
+     "p90": 0.0
+    },
+    "sharpe": {
+     "n": 9,
+     "p10": -6.702,
+     "median": -5.00395,
+     "p90": -5.00395
+    },
+    "max_dd": {
+     "n": 26,
+     "p10": -0.00145,
+     "median": 0.0,
+     "p90": 0.0
+    },
+    "win_rate": {
+     "n": 9,
+     "p10": 0.0,
+     "median": 0.0,
+     "p90": 0.0
+    },
+    "closed_trades": {
+     "n": 26,
+     "p10": 0,
+     "median": 0,
+     "p90": 1
+    },
+    "p_return_positive": 0.0
+   },
+   "fade_btc_p97": {
+    "return": {
+     "n": 26,
+     "p10": 0.0,
+     "median": 0.0,
+     "p90": 0.0
+    },
+    "sharpe": {
+     "n": 0
+    },
+    "max_dd": {
+     "n": 26,
+     "p10": 0.0,
+     "median": 0.0,
+     "p90": 0.0
+    },
+    "win_rate": {
+     "n": 0
+    },
+    "closed_trades": {
+     "n": 26,
+     "p10": 0,
+     "median": 0,
+     "p90": 0
     },
     "p_return_positive": 0.0
    },
@@ -765,6 +958,66 @@
     },
     "p_return_positive": 0.0
    },
+   "fade_equities_7.5bp": {
+    "return": {
+     "n": 15,
+     "p10": -0.00134,
+     "median": -0.00097,
+     "p90": 0.0
+    },
+    "sharpe": {
+     "n": 9,
+     "p10": -6.702,
+     "median": -5.00395,
+     "p90": -5.00395
+    },
+    "max_dd": {
+     "n": 15,
+     "p10": -0.00176,
+     "median": -0.00145,
+     "p90": 0.0
+    },
+    "win_rate": {
+     "n": 9,
+     "p10": 0.0,
+     "median": 0.0,
+     "p90": 0.0
+    },
+    "closed_trades": {
+     "n": 15,
+     "p10": 0,
+     "median": 1,
+     "p90": 4
+    },
+    "p_return_positive": 0.0
+   },
+   "fade_btc_p97": {
+    "return": {
+     "n": 15,
+     "p10": 0.0,
+     "median": 0.0,
+     "p90": 0.0
+    },
+    "sharpe": {
+     "n": 0
+    },
+    "max_dd": {
+     "n": 15,
+     "p10": 0.0,
+     "median": 0.0,
+     "p90": 0.0
+    },
+    "win_rate": {
+     "n": 0
+    },
+    "closed_trades": {
+     "n": 15,
+     "p10": 0,
+     "median": 0,
+     "p90": 0
+    },
+    "p_return_positive": 0.0
+   },
    "cross_section_funding": {
     "return": {
      "n": 15,
@@ -963,6 +1216,24 @@
      "closed_trades": 11,
      "fees": 3.286884085115482,
      "turnover": 0.5506962189516824
+    },
+    "fade_equities_7.5bp": {
+     "return": -0.0028627284764041194,
+     "sharpe": -7.331338957335295,
+     "max_dd": -0.003852210281574564,
+     "win_rate": 0.3333333333333333,
+     "closed_trades": 3,
+     "fees": 0.8842205651183602,
+     "turnover": 0.1478224303782914
+    },
+    "fade_btc_p97": {
+     "return": 6.720495078882394e-05,
+     "sharpe": 1.2188638735020558,
+     "max_dd": -0.0002632392268601125,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.2952998957974296,
+     "turnover": 0.049216785172029445
     },
     "cross_section_funding": {
      "return": -0.006180480022678014,
@@ -1493,6 +1764,24 @@
      "fees": 2.984846459027754,
      "turnover": 0.4995552159760897
     },
+    "fade_equities_7.5bp": {
+     "return": -0.0011260970348555555,
+     "sharpe": -3.6505806441647417,
+     "max_dd": -0.0019016900711078533,
+     "win_rate": 0.5,
+     "closed_trades": 2,
+     "fees": 0.5805850130535746,
+     "turnover": 0.09691319395619821
+    },
+    "fade_btc_p97": {
+     "return": 8.338312127498249e-05,
+     "sharpe": 1.4677744132434682,
+     "max_dd": -0.0002632392268601125,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.29539702309672705,
+     "turnover": 0.04923232245626646
+    },
     "cross_section_funding": {
      "return": -0.002461517817612724,
      "sharpe": -2.7932898594771087,
@@ -2021,6 +2310,24 @@
      "closed_trades": 4,
      "fees": 1.2108814751336785,
      "turnover": 0.20179778257774242
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0006323032806818674,
+     "sharpe": 9.184165999114262,
+     "max_dd": -0.0001930747658309695,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.2934817203499375,
+     "turnover": 0.048903353828744035
+    },
+    "fade_btc_p97": {
+     "return": -0.0010114157021507975,
+     "sharpe": -5.815830686002766,
+     "max_dd": -0.0012346765525388381,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.2888242865142222,
+     "turnover": 0.04814129601445427
     },
     "cross_section_funding": {
      "return": -0.00547772764475174,
@@ -2551,6 +2858,24 @@
      "fees": 1.5097998387294649,
      "turnover": 0.2515950754365782
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0006323032806818674,
+     "sharpe": 9.184165999114262,
+     "max_dd": -0.0001930747658309695,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.2934817203499375,
+     "turnover": 0.04889995055062274
+    },
+    "fade_btc_p97": {
+     "return": -0.0010114157021507975,
+     "sharpe": -5.815830686002766,
+     "max_dd": -0.0012346765525388381,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.2888242865142222,
+     "turnover": 0.04814665750940413
+    },
     "cross_section_funding": {
      "return": -0.005721163570095111,
      "sharpe": -7.7285773905936095,
@@ -3079,6 +3404,24 @@
      "closed_trades": 5,
      "fees": 1.5051326667780276,
      "turnover": 0.2507933614201036
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0008033263847735395,
+     "sharpe": 10.483449503554622,
+     "max_dd": -0.0001930747658309695,
+     "win_rate": 1.0,
+     "closed_trades": 2,
+     "fees": 0.5892660368094983,
+     "turnover": 0.09817605962314412
+    },
+    "fade_btc_p97": {
+     "return": -0.0010114157021507975,
+     "sharpe": -5.815830686002766,
+     "max_dd": -0.0012346765525388381,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.2888242865142222,
+     "turnover": 0.04815202019870612
     },
     "cross_section_funding": {
      "return": -0.005285903103109613,
@@ -3609,6 +3952,24 @@
      "fees": 1.203958067501952,
      "turnover": 0.20037646995664588
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0009447306065928363,
+     "sharpe": 10.34395988780713,
+     "max_dd": -0.00021067623523274293,
+     "win_rate": 1.0,
+     "closed_trades": 2,
+     "fees": 0.5884181202285306,
+     "turnover": 0.0980254186039467
+    },
+    "fade_btc_p97": {
+     "return": -0.0010114157021507975,
+     "sharpe": -5.815830686002766,
+     "max_dd": -0.0012346765525388381,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.2888242865142222,
+     "turnover": 0.04815738408275939
+    },
     "cross_section_funding": {
      "return": -0.0018838980151847373,
      "sharpe": -2.824386097687194,
@@ -4137,6 +4498,24 @@
      "closed_trades": 4,
      "fees": 1.2063171612825279,
      "turnover": 0.20075744115923377
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0007407958746221688,
+     "sharpe": 7.661793649404128,
+     "max_dd": -0.0003631308005431766,
+     "win_rate": 1.0,
+     "closed_trades": 2,
+     "fees": 0.5896409948955543,
+     "turnover": 0.09822029102399427
+    },
+    "fade_btc_p97": {
+     "return": -0.0010114157021507975,
+     "sharpe": -5.815830686002766,
+     "max_dd": -0.0012346765525388381,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.2888242865142222,
+     "turnover": 0.04816274916196323
     },
     "cross_section_funding": {
      "return": -0.0011614646203504941,
@@ -4667,6 +5046,24 @@
      "fees": 1.1902031726368736,
      "turnover": 0.19821314499112908
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0007677976858238011,
+     "sharpe": 7.5226763756310415,
+     "max_dd": -0.00044822501270680437,
+     "win_rate": 1.0,
+     "closed_trades": 2,
+     "fees": 0.5894790811765757,
+     "turnover": 0.09818512935896036
+    },
+    "fade_btc_p97": {
+     "return": -0.0010114157021507975,
+     "sharpe": -5.815830686002766,
+     "max_dd": -0.0012346765525388381,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.2888242865142222,
+     "turnover": 0.048168115436717146
+    },
     "cross_section_funding": {
      "return": 0.0007114893732249605,
      "sharpe": 1.278396679066746,
@@ -5195,6 +5592,24 @@
      "closed_trades": 4,
      "fees": 1.1923460330207336,
      "turnover": 0.19861380791538463
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.00041513902348366827,
+     "sharpe": 4.9996980678280645,
+     "max_dd": -0.0004483829644129633,
+     "win_rate": 1.0,
+     "closed_trades": 2,
+     "fees": 0.5916219415604357,
+     "turnover": 0.09856986654081981
+    },
+    "fade_btc_p97": {
+     "return": -0.0010138418013991846,
+     "sharpe": -6.4688116628229615,
+     "max_dd": -0.001118285953129572,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.2895169506162024,
+     "turnover": 0.048289319347446014
     },
     "cross_section_funding": {
      "return": -0.0008669565678283142,
@@ -5725,6 +6140,24 @@
      "fees": 0.8967214522869361,
      "turnover": 0.14939793381421057
     },
+    "fade_equities_7.5bp": {
+     "return": 0.00013549440514215583,
+     "sharpe": 1.7955540341894785,
+     "max_dd": -0.0004485082931375839,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.2959973608266381,
+     "turnover": 0.04932810687431103
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": 0.0008001010447569179,
      "sharpe": 2.329341261074353,
@@ -6253,6 +6686,24 @@
      "closed_trades": 5,
      "fees": 1.4779524091195595,
      "turnover": 0.24621702094954384
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.00013549440514215583,
+     "sharpe": 1.7955540341894785,
+     "max_dd": -0.0004485082931375839,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.2959973608266381,
+     "turnover": 0.049327371138422026
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
     },
     "cross_section_funding": {
      "return": 0.003296833580267,
@@ -6783,6 +7234,24 @@
      "fees": 1.7545462126437599,
      "turnover": 0.2923122047017991
     },
+    "fade_equities_7.5bp": {
+     "return": 0.00013549440514215583,
+     "sharpe": 1.7955540341894785,
+     "max_dd": -0.0004485082931375839,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.2959973608266381,
+     "turnover": 0.04932663542447991
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": -0.001311672283839993,
      "sharpe": -2.245294280870299,
@@ -7311,6 +7780,24 @@
      "closed_trades": 7,
      "fees": 2.056120655122115,
      "turnover": 0.34267526675904564
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0009563953157010197,
+     "sharpe": 2.633837222401605,
+     "max_dd": -0.0014286589525397408,
+     "win_rate": 1.0,
+     "closed_trades": 2,
+     "fees": 0.5901832179319572,
+     "turnover": 0.09834335570882208
+    },
+    "fade_btc_p97": {
+     "return": 0.00028059963588611403,
+     "sharpe": 4.559681197113809,
+     "max_dd": -0.00016322614834152205,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.2975855625505626,
+     "turnover": 0.04959730874236232
     },
     "cross_section_funding": {
      "return": -0.0007967044198534667,
@@ -7841,6 +8328,24 @@
      "fees": 2.0534668347850045,
      "turnover": 0.342300606146692
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0011911796106596206,
+     "sharpe": 2.9733980631512753,
+     "max_dd": -0.0014289253195366447,
+     "win_rate": 0.5,
+     "closed_trades": 2,
+     "fees": 0.5906939257839148,
+     "turnover": 0.09843478033077659
+    },
+    "fade_btc_p97": {
+     "return": 0.0016032999911688162,
+     "sharpe": 11.89333304049792,
+     "max_dd": -0.00018283711089761567,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.30552652926228613,
+     "turnover": 0.05091471060538465
+    },
     "cross_section_funding": {
      "return": -0.0032462469164018515,
      "sharpe": -4.000411910738281,
@@ -8369,6 +8874,24 @@
      "closed_trades": 7,
      "fees": 2.0558356261054294,
      "turnover": 0.3427538904322293
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0009552508590215947,
+     "sharpe": 2.3502034756056562,
+     "max_dd": -0.0014288523792475027,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.29338024078433594,
+     "turnover": 0.0488832482871809
+    },
+    "fade_btc_p97": {
+     "return": 0.0035147826148174133,
+     "sharpe": 12.979479898217567,
+     "max_dd": -0.000910792173585806,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.317002310472904,
+     "turnover": 0.05280931921509209
     },
     "cross_section_funding": {
      "return": -0.0017602525650023404,
@@ -8899,6 +9422,24 @@
      "fees": 2.0568808483443153,
      "turnover": 0.3428786554100043
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0009552508590215947,
+     "sharpe": 2.3502034756056562,
+     "max_dd": -0.0014288523792475027,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.29338024078433594,
+     "turnover": 0.04887810942428353
+    },
+    "fade_btc_p97": {
+     "return": 0.0030749498478894743,
+     "sharpe": 10.803459468053553,
+     "max_dd": -0.000910792173585806,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.3143617295227675,
+     "turnover": 0.052351052763879566
+    },
     "cross_section_funding": {
      "return": -0.0019163258811686346,
      "sharpe": -2.317764145493528,
@@ -9427,6 +9968,24 @@
      "closed_trades": 4,
      "fees": 1.164299431877615,
      "turnover": 0.19410697468319393
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0009552508590215947,
+     "sharpe": 2.3502034756056562,
+     "max_dd": -0.0014288523792475027,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.29338024078433594,
+     "turnover": 0.04887297164172091
+    },
+    "fade_btc_p97": {
+     "return": 0.003301324307563025,
+     "sharpe": 11.24978418145325,
+     "max_dd": -0.0011717869542520187,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.31572079171812606,
+     "turnover": 0.05255952917127327
     },
     "cross_section_funding": {
      "return": -0.0008887097047929338,
@@ -9957,6 +10516,24 @@
      "fees": 1.164299431877615,
      "turnover": 0.1941132690786633
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0009552508590215947,
+     "sharpe": 2.3502034756056562,
+     "max_dd": -0.0014288523792475027,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.29338024078433594,
+     "turnover": 0.048867834939152394
+    },
+    "fade_btc_p97": {
+     "return": 0.0037475971616305337,
+     "sharpe": 11.842445966282455,
+     "max_dd": -0.0011717869542520187,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.3184000363893321,
+     "turnover": 0.05298520836448692
+    },
     "cross_section_funding": {
      "return": -0.004020721576421971,
      "sharpe": -4.813319309820542,
@@ -10485,6 +11062,24 @@
      "closed_trades": 4,
      "fees": 1.164299431877615,
      "turnover": 0.19411956388236837
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0009552508590215947,
+     "sharpe": 2.3502034756056562,
+     "max_dd": -0.0014288523792475027,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.29338024078433594,
+     "turnover": 0.0488626993162375
+    },
+    "fade_btc_p97": {
+     "return": 0.0035873505240928694,
+     "sharpe": 10.603543318642801,
+     "max_dd": -0.0011717869542520187,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.31743797932987133,
+     "turnover": 0.05280233783093174
     },
     "cross_section_funding": {
      "return": -0.0042144756171199615,
@@ -11015,6 +11610,24 @@
      "fees": 0.5952262898842264,
      "turnover": 0.09905137298753375
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0009552508590215947,
+     "sharpe": 2.3502034756056562,
+     "max_dd": -0.0014288523792475027,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.29338024078433594,
+     "turnover": 0.04885756477263588
+    },
+    "fade_btc_p97": {
+     "return": 0.0037618085271056145,
+     "sharpe": 10.919944535510277,
+     "max_dd": -0.0011717869542520187,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.31848535577381504,
+     "turnover": 0.05295539532121687
+    },
     "cross_section_funding": {
      "return": -0.005565194675202112,
      "sharpe": -7.449735201197083,
@@ -11543,6 +12156,24 @@
      "closed_trades": 3,
      "fees": 0.8980843990995182,
      "turnover": 0.14958908484799108
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0009552508590215947,
+     "sharpe": 2.3502034756056562,
+     "max_dd": -0.0014288523792475027,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.29338024078433594,
+     "turnover": 0.0488524313080073
+    },
+    "fade_btc_p97": {
+     "return": 0.004200130212134834,
+     "sharpe": 11.936481804498495,
+     "max_dd": -0.0011717869542520187,
+     "win_rate": 1.0,
+     "closed_trades": 1,
+     "fees": 0.32111686478939894,
+     "turnover": 0.05336944647519378
     },
     "cross_section_funding": {
      "return": -0.004225862105276756,
@@ -12073,6 +12704,24 @@
      "fees": 0.6050362056913268,
      "turnover": 0.10088212038295849
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": -0.006151297792403088,
      "sharpe": -11.334536573882607,
@@ -12601,6 +13250,24 @@
      "closed_trades": 2,
      "fees": 0.6050362056913268,
      "turnover": 0.10090191290547924
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
     },
     "cross_section_funding": {
      "return": -0.005272034960047134,
@@ -13131,6 +13798,24 @@
      "fees": 0.30871378119098575,
      "turnover": 0.05148487037789597
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": -0.007811263792289136,
      "sharpe": -18.272102823138447,
@@ -13659,6 +14344,24 @@
      "closed_trades": 1,
      "fees": 0.30871378119098575,
      "turnover": 0.051494018032775105
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
     },
     "cross_section_funding": {
      "return": -0.007811263792289136,
@@ -14189,6 +14892,24 @@
      "fees": 0.30871378119098575,
      "turnover": 0.051503168938879705
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": -0.00540850050205699,
      "sharpe": -10.971257477705258,
@@ -14718,6 +15439,24 @@
      "fees": 0.30871378119098575,
      "turnover": 0.05151232309794335
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": -0.001950412142588398,
      "sharpe": -3.8099226562940287,
@@ -15235,6 +15974,24 @@
      "closed_trades": 1,
      "fees": 0.30871378119098575,
      "turnover": 0.051521480511700905
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
     },
     "cross_section_funding": {
      "return": -0.007104549929360604,
@@ -15754,6 +16511,24 @@
      "fees": 0.30871378119098575,
      "turnover": 0.05153064118188845
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": -0.004148555480668392,
      "sharpe": -4.916161998645119,
@@ -16264,6 +17039,24 @@
      "turnover": 0.0
     },
     "fade_5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
      "return": 0.0,
      "sharpe": null,
      "max_dd": 0.0,
@@ -16790,6 +17583,24 @@
      "fees": 0.0,
      "turnover": 0.0
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": 0.0010339984396834367,
      "sharpe": 1.3867837868700807,
@@ -17300,6 +18111,24 @@
      "turnover": 0.0
     },
     "fade_5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
      "return": 0.0,
      "sharpe": null,
      "max_dd": 0.0,
@@ -17826,6 +18655,24 @@
      "fees": 0.0,
      "turnover": 0.0
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": 0.0013486416959820335,
      "sharpe": 1.7994225969387827,
@@ -18336,6 +19183,24 @@
      "turnover": 0.0
     },
     "fade_5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
      "return": 0.0,
      "sharpe": null,
      "max_dd": 0.0,
@@ -18862,6 +19727,24 @@
      "fees": 0.0,
      "turnover": 0.0
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": 0.004137563982351988,
      "sharpe": 8.393777171720913,
@@ -19372,6 +20255,24 @@
      "turnover": 0.0
     },
     "fade_5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
      "return": 0.0,
      "sharpe": null,
      "max_dd": 0.0,
@@ -19895,6 +20796,24 @@
      "fees": 0.0,
      "turnover": 0.0
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": -0.0021619951675604376,
      "sharpe": -3.670413784971191,
@@ -20402,6 +21321,24 @@
      "turnover": 0.0
     },
     "fade_5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
      "return": 0.0,
      "sharpe": null,
      "max_dd": 0.0,
@@ -20925,6 +21862,24 @@
      "fees": 0.30858585774545455,
      "turnover": 0.051434667233920935
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": -0.002675523529267365,
      "sharpe": -4.614045197097425,
@@ -21439,6 +22394,24 @@
      "closed_trades": 2,
      "fees": 0.6035853030280933,
      "turnover": 0.10062397521194971
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
     },
     "cross_section_funding": {
      "return": -0.0028915104767022193,
@@ -21955,6 +22928,24 @@
      "fees": 0.8951042647713563,
      "turnover": 0.1492529544858984
     },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": -0.00324212310155203,
      "sharpe": -5.000347343294954,
@@ -22469,6 +23460,24 @@
      "closed_trades": 4,
      "fees": 1.2204865223378354,
      "turnover": 0.20355668410574027
+    },
+    "fade_equities_7.5bp": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
     },
     "cross_section_funding": {
      "return": -0.005321869124424894,
@@ -22985,6 +23994,24 @@
      "fees": 2.0757332625059117,
      "turnover": 0.3463959761424626
     },
+    "fade_equities_7.5bp": {
+     "return": -0.0009722698272316421,
+     "sharpe": -5.003951703680519,
+     "max_dd": -0.0014488680843256496,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.30503559463140495,
+     "turnover": 0.050841547245273365
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": 0.0003281078746864008,
      "sharpe": 0.6473744325697949,
@@ -23499,6 +24526,24 @@
      "closed_trades": 8,
      "fees": 2.0757332625059117,
      "turnover": 0.34669472108477467
+    },
+    "fade_equities_7.5bp": {
+     "return": -0.0009722698272316421,
+     "sharpe": -5.003951703680519,
+     "max_dd": -0.0014488680843256496,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.30503559463140495,
+     "turnover": 0.05084699009439106
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
     },
     "cross_section_funding": {
      "return": -9.700092747766398e-05,
@@ -24015,6 +25060,24 @@
      "fees": 2.0757332625059117,
      "turnover": 0.346993981769673
     },
+    "fade_equities_7.5bp": {
+     "return": -0.0009722698272316421,
+     "sharpe": -5.003951703680519,
+     "max_dd": -0.0014488680843256496,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.30503559463140495,
+     "turnover": 0.05085243410900351
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": 0.0024516251166819547,
      "sharpe": 5.566186028997766,
@@ -24529,6 +25592,24 @@
      "closed_trades": 8,
      "fees": 2.0757332625059117,
      "turnover": 0.34729375953385067
+    },
+    "fade_equities_7.5bp": {
+     "return": -0.0009722698272316421,
+     "sharpe": -5.003951703680519,
+     "max_dd": -0.0014488680843256496,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.30503559463140495,
+     "turnover": 0.05085787928948512
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
     },
     "cross_section_funding": {
      "return": 0.0024516251166819547,
@@ -25045,6 +26126,24 @@
      "fees": 2.3718979377852505,
      "turnover": 0.397189378302173
     },
+    "fade_equities_7.5bp": {
+     "return": -0.0009722698272316421,
+     "sharpe": -5.003951703680519,
+     "max_dd": -0.0014488680843256496,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.30503559463140495,
+     "turnover": 0.05086332563621043
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": 0.002137577068720198,
      "sharpe": 4.541088755423817,
@@ -25559,6 +26658,24 @@
      "closed_trades": 9,
      "fees": 2.355862306906981,
      "turnover": 0.39417339246302335
+    },
+    "fade_equities_7.5bp": {
+     "return": -0.0009722698272316421,
+     "sharpe": -5.003951703680519,
+     "max_dd": -0.0014488680843256496,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.30503559463140495,
+     "turnover": 0.05086877314955416
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
     },
     "cross_section_funding": {
      "return": 0.0024222948089080987,
@@ -26075,6 +27192,24 @@
      "fees": 2.0480896684292667,
      "turnover": 0.34308843535187755
     },
+    "fade_equities_7.5bp": {
+     "return": -0.0009722698272316421,
+     "sharpe": -5.003951703680519,
+     "max_dd": -0.0014488680843256496,
+     "win_rate": 0.0,
+     "closed_trades": 1,
+     "fees": 0.30503559463140495,
+     "turnover": 0.0508742218298912
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": 0.0017161159437781848,
      "sharpe": 3.5572269217313113,
@@ -26590,6 +27725,24 @@
      "fees": 2.9763320715212522,
      "turnover": 0.49945912289504657
     },
+    "fade_equities_7.5bp": {
+     "return": -0.001341306031549916,
+     "sharpe": -6.7019966300258575,
+     "max_dd": -0.001762901988853427,
+     "win_rate": 0.0,
+     "closed_trades": 4,
+     "fees": 1.2044876498962593,
+     "turnover": 0.20091012378936188
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
+    },
     "cross_section_funding": {
      "return": 0.0038271508681746447,
      "sharpe": 6.4888038673509385,
@@ -27104,6 +28257,24 @@
      "closed_trades": 9,
      "fees": 2.372603488416516,
      "turnover": 0.397051989296147
+    },
+    "fade_equities_7.5bp": {
+     "return": -0.001341306031549916,
+     "sharpe": -6.7019966300258575,
+     "max_dd": -0.001762901988853427,
+     "win_rate": 0.0,
+     "closed_trades": 4,
+     "fees": 1.2044876498962593,
+     "turnover": 0.20093981988509002
+    },
+    "fade_btc_p97": {
+     "return": 0.0,
+     "sharpe": null,
+     "max_dd": 0.0,
+     "win_rate": null,
+     "closed_trades": 0,
+     "fees": 0.0,
+     "turnover": 0.0
     },
     "cross_section_funding": {
      "return": 0.0009279921429015126,

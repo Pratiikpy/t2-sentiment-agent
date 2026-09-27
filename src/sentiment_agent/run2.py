@@ -29,7 +29,7 @@ itself, and not from a README, what differs and why:
 ``run2-d6`` (code fix)
     Funding the venue books on the account is read on every reconciliation, logged as a
     ``funding`` event and counted in the book's equity and each trade's net P&L.
-``run2-a1`` to ``run2-a7`` (policy amendments, v1 to v2, ``policy.RUN2_AMENDMENTS``)
+``run2-a1`` to ``run2-a8`` (policy amendments, v1 to v2, ``policy.RUN2_AMENDMENTS``)
     a1: ``funding_zscore`` is evaluated for every universe instrument, not BTCUSDT alone.
     a2: it also needs the live rate at 7.5 bp or more, since half of run 1's live rates were zero.
     a3: G3 caps the book's net weight at 10% and the crypto-beta names at 7.5% together.
@@ -289,6 +289,28 @@ _AMENDMENTS: Final[tuple[tuple[str, str, str, tuple[str, ...], dict[str, str]], 
             + " after run2-d4, "
             + RUN2_A7_PROMPT_PY_HASH
             + " after this change",
+        },
+    ),
+    (
+        "run2-a8",
+        "The expected numbers and the fee budget's basis, measured for nine days",
+        "Policy v1 pre-registered what a no-edge book scores over 72 hours, from a simulation "
+        "outside the kernel. From run2-a8 the envelope is the nine-day coin-flip book ruled, "
+        "sized and filled by the production kernel, planner and book over 51 rolling windows of "
+        "Bitget history (median return -3.5 bp, median drawdown -0.45%, median win rate 0.45, "
+        "median 23 closed trades). G7's 20 bp window budget is kept: the no-edge book paid a "
+        "median 6.3 and a p95 of 8.2 bp in fees over nine days.",
+        (
+            "src/sentiment_agent/policy.py",
+            "scripts/strategy_replay.py",
+            "src/sentiment_agent/analysis/armsim.py",
+        ),
+        {
+            "envelope": "validation/run2/strategy_replay.json, by python "
+            "scripts/strategy_replay.py --history <history.json> --marks <history_marks.json> "
+            "--seeds 50",
+            "window": "run 2 scores 216 hours (run2-a4), three times the 72 hours policy v1's "
+            "envelope measured",
         },
     ),
 )

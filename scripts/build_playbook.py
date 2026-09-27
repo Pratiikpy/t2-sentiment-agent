@@ -230,6 +230,9 @@ def policy_constants(policy: Policy = POLICY_V1) -> dict[str, object]:
         ),
         # run2-a7: unset in v1, so every name keeps the policy's single stop and cap
         "STOP_GAP_MULTIPLE": policy.stop_gap_multiple,
+        # Policy.take_profit_pct: unset in v1 and v2 (measured and not adopted, 2026-09-27), so
+        # the replica presets no take-profit.
+        "TAKE_PROFIT_PCT": policy.take_profit_pct,
         "WEEKEND_FREEZE_WEEKDAY": w.freeze_weekday,
         "WEEKEND_FREEZE_HOUR": w.freeze_hour,
         "WEEKEND_REOPEN_WEEKDAY": w.reopen_weekday,
@@ -329,6 +332,7 @@ _SECTIONS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
             "CLUSTER_CAPS",
             "SCORING_WINDOW",
             "STOP_GAP_MULTIPLE",
+            "TAKE_PROFIT_PCT",
             "GUARD_IDS",
         ),
     ),
