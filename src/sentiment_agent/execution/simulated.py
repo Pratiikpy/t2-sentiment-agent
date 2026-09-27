@@ -47,6 +47,7 @@ from sentiment_agent.types import (
     FeeLine,
     Fill,
     FillVenue,
+    FundingSettlement,
     MarketData,
     OrderIntent,
     PriceSource,
@@ -111,6 +112,8 @@ class SimulatedVenue:
         self._order_seq = 0
         self._fill_seq = 0
         self._stop_seq = 0
+        self._funding: list[FundingSettlement] = []
+        self._funding_total = Decimal(0)
 
     # --- VenueTransport ---------------------------------------------------------------------
 
@@ -206,6 +209,15 @@ class SimulatedVenue:
 
     def fills(self, *, since: datetime, until: datetime) -> list[Fill]:
         return [f for f in self._book.fills if since <= f.executed_at <= until]
+
+    def funding(self, *, since: datetime, until: datetime) -> list[FundingSettlement]:
+        """Funding booked by :meth:`settle_funding`; the simulator settles none on its own."""
+        return [s for s in self._funding if since <= s.settled_at <= until]
+
+    def settle_funding(self, settlement: FundingSettlement) -> None:
+        """Book a funding payment on the simulated account, as the venue would."""
+        self._funding.append(settlement)
+        self._funding_total += settlement.amount
 
     def positions(self) -> list[VenuePosition]:
         return [
@@ -327,9 +339,9 @@ class SimulatedVenue:
 
     @property
     def realized_equity(self) -> Decimal:
-        """Starting equity + realised P&L − fees (no unrealised)."""
+        """Starting equity + realised P&L − fees + funding settled (no unrealised)."""
         realized = sum((p.realized for p in self._positions.values()), Decimal(0))
-        return self._starting_equity + realized - self._fees_paid
+        return self._starting_equity + realized - self._fees_paid + self._funding_total
 
     @property
     def fees_paid(self) -> Decimal:

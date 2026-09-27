@@ -103,6 +103,7 @@ from sentiment_agent.types import (
     ClosedTrade,
     Fill,
     FillVenue,
+    FundingSettlement,
     GuardId,
     MarkPoint,
     OrderPurpose,
@@ -440,6 +441,7 @@ class BookBuilder:
         self._marks: dict[datetime, MarkPoint] = {}
         self._venue: FillVenue | None = None
         self._last_fill_at: datetime | None = None
+        self._funding: dict[str, FundingSettlement] = {}
 
     # --- inputs -----------------------------------------------------------------------------
 
@@ -493,6 +495,37 @@ class BookBuilder:
         if self._last_fill_at is None or fill.executed_at > self._last_fill_at:
             self._last_fill_at = fill.executed_at
         return [c.trade for c in book.closed if c.exec_id == fill.exec_id]
+
+    def apply_funding(self, settlement: FundingSettlement) -> None:
+        """Book one funding payment (run2-d6). It moves equity by its signed amount and is counted
+        in the net P&L of the trade open on its symbol when it settled. A payment already applied
+        is ignored when identical and refused when it differs."""
+        existing = self._funding.get(settlement.record_id)
+        if existing is not None:
+            if existing != settlement:
+                raise BookError(
+                    f"funding record {settlement.record_id} was applied before with different "
+                    "content"
+                )
+            return
+        self._funding[settlement.record_id] = settlement
+
+    @property
+    def funding_total(self) -> Decimal:
+        """Funding booked since genesis, positive when received."""
+        with localcontext(DECIMAL_CONTEXT):
+            return sum((s.amount for s in self._funding.values()), _ZERO)
+
+    def _funding_between(self, symbol: str, opened: datetime, closed: datetime) -> Decimal:
+        with localcontext(DECIMAL_CONTEXT):
+            return sum(
+                (
+                    s.amount
+                    for s in self._funding.values()
+                    if s.symbol == symbol and opened < s.settled_at <= closed
+                ),
+                _ZERO,
+            )
 
     def apply_stop_sync(self, sync: StopSync) -> None:
         """Record what the venue's stop for ``sync.symbol`` now is (module docstring, Stops).
@@ -593,9 +626,10 @@ class BookBuilder:
             return sum((b.fees for b in self._books.values()), _ZERO)
 
     def realized_equity(self) -> Decimal:
-        """Starting equity + realized - fees: the equity with every position valued at entry."""
+        """Starting equity + realized - fees + funding: the equity with every position valued at
+        entry."""
         with localcontext(DECIMAL_CONTEXT):
-            return self._start + self.realized_total - self.fees_total
+            return self._start + self.realized_total - self.fees_total + self.funding_total
 
     def unrealized(self, marks: Mapping[str, Decimal]) -> dict[str, Decimal]:
         """Unrealized P&L of each open position at ``marks``. Every open position needs a mark."""
@@ -617,10 +651,21 @@ class BookBuilder:
             return self.realized_equity() + sum(unrealized.values(), _ZERO)
 
     def closed_trades(self) -> tuple[ClosedTrade, ...]:
-        """Every closed trade, in the order they closed on the venue."""
+        """Every closed trade, in the order they closed on the venue, with the funding booked on
+        its symbol while it was open in its net P&L."""
         closed = [c for b in self._books.values() for c in b.closed]
         closed.sort(key=lambda c: c.order)
-        return tuple(c.trade for c in closed)
+        out: list[ClosedTrade] = []
+        for c in closed:
+            funding = self._funding_between(c.trade.symbol, c.trade.opened_at, c.trade.closed_at)
+            out.append(
+                c.trade
+                if funding == 0
+                else c.trade.model_copy(
+                    update={"funding": funding, "net_pnl": c.trade.net_pnl + funding}
+                )
+            )
+        return tuple(out)
 
     def marks(self) -> tuple[MarkPoint, ...]:
         return tuple(self._marks[at] for at in sorted(self._marks))
@@ -665,6 +710,7 @@ class BookBuilder:
             consecutive_losses=self._consecutive_losses(),
             activation=activation,
             last_loss_at=self._last_loss_at(at),
+            funding_total=self.funding_total,
         )
 
     # --- book-level folds -------------------------------------------------------------------

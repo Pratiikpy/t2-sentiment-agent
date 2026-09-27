@@ -35,6 +35,7 @@ from sentiment_agent.types import (
     ClosedTrade,
     Fill,
     FillVenue,
+    FundingSettlement,
     GuardId,
     OrderPurpose,
     PriceSource,
@@ -741,3 +742,67 @@ def test_the_utc_midnight_helper() -> None:
     )
     with pytest.raises(BookError):
         utc_midnight(datetime(2026, 9, 23))  # noqa: DTZ001
+
+
+# --- funding (run2-d6) ----------------------------------------------------------------------------
+
+
+def _funding(record_id: str, amount: str, at: object, symbol: str = NVDA) -> FundingSettlement:
+    return FundingSettlement(
+        record_id=record_id,
+        symbol=symbol,
+        amount=d(amount),
+        record_type="CONTRACT_MAIN_SETTLE_FEE_USER_IN"
+        if d(amount) >= 0
+        else "CONTRACT_MAIN_SETTLE_FEE_USER_OUT",
+        settled_at=at,  # type: ignore[arg-type]
+    )
+
+
+def test_funding_moves_equity_and_the_open_trades_net_pnl() -> None:
+    b = builder()
+    b.apply_fill(make_fill(BUY, "1", "100", fee="0.06", at=T0), decision_id="dec-1", purpose=OPEN)
+    b.apply_funding(_funding("f-1", "-0.50", T0 + 8 * H))
+    b.apply_funding(_funding("f-2", "0.20", T0 + 16 * H))
+    # a settlement on another symbol belongs to no NVDA trade, but it is still the account's
+    b.apply_funding(_funding("f-3", "0.10", T0 + 8 * H, symbol=BTC))
+    assert b.funding_total == d("-0.20")
+    assert b.realized_equity() == START - d("0.06") - d("0.20")
+    closing = make_fill(SELL, "1", "101", fee="0.06", at=T0 + 20 * H)
+    (trade,) = b.apply_fill(closing, decision_id="dec-2", purpose=CLOSE)
+    (closed,) = b.closed_trades()
+    assert closed.funding == d("-0.30")
+    assert closed.net_pnl == d("1") - d("0.12") - d("0.30")
+    # the trade returned by apply_fill is the fill's own fold, before funding is attached
+    assert trade.net_pnl == d("1") - d("0.12")
+
+
+def test_funding_after_a_trade_closed_is_not_counted_in_it() -> None:
+    b = builder()
+    b.apply_fill(make_fill(BUY, "1", "100", fee="0", at=T0), decision_id="dec-1", purpose=OPEN)
+    b.apply_fill(
+        make_fill(SELL, "1", "100", fee="0", at=T0 + H), decision_id="dec-2", purpose=CLOSE
+    )
+    b.apply_funding(_funding("late", "-1", T0 + 8 * H))
+    (closed,) = b.closed_trades()
+    assert closed.funding == 0
+    assert b.realized_equity() == START - d("1")
+
+
+def test_a_funding_record_is_booked_once() -> None:
+    b = builder()
+    b.apply_funding(_funding("f-1", "0.5", T0))
+    b.apply_funding(_funding("f-1", "0.5", T0))
+    assert b.funding_total == d("0.5")
+    with pytest.raises(BookError):
+        b.apply_funding(_funding("f-1", "0.9", T0))
+
+
+def test_the_book_state_carries_the_funding_total_and_omits_it_at_zero() -> None:
+    b = builder()
+    state = b.state(at=T0, marks={}, mark_source=PriceSource.DEMO, activation=Activation.ACTIVE)
+    assert "funding_total" not in state.model_dump(mode="json")
+    b.apply_funding(_funding("f-1", "0.5", T0))
+    state = b.state(at=T0, marks={}, mark_source=PriceSource.DEMO, activation=Activation.ACTIVE)
+    assert state.funding_total == d("0.5")
+    assert state.equity == START + d("0.5")

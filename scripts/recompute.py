@@ -38,7 +38,9 @@ What it reads from the directory, and what each file must be:
     precede every fill). Then, for each ``mark`` event, every fill logged *before it* is folded
     by the trade rules below, and the mark must agree: the same open symbols with the same
     signed quantities, each ``unrealized_demo = qty * (demo_mark - avg_entry)``, and ``equity_book
-    = start + realized - fees + sum(unrealized_demo)``, within ``1e-12`` relative. So a bug or an
+    = start + realized - fees + funding + sum(unrealized_demo)``, within ``1e-12`` relative, where
+    ``funding`` is the signed ``amount`` of every ``funding`` event logged before the mark (run 2,
+    run2-d6; none in run 1). So a bug or an
     edit in how a mark was valued fails here even when the chain was re-hashed around it.
 
 ``trades.csv``
@@ -51,7 +53,9 @@ What it reads from the directory, and what each file must be:
     trades listed in the order of their closing fill under the same key; average-cost positions; a
     reducing fill realizes ``(price - avg_entry) * qty * direction``; a fill larger than the
     position it reduces flips it, with its fee split by quantity; a trade runs flat to flat; the
-    fees of every fill in it are in ``fees``; ``net_pnl = gross_pnl - fees``; ``entry_avg`` and
+    fees of every fill in it are in ``fees``; ``funding`` (a column from run 2; absent reads as
+    zero) is the signed amount of every ``funding`` event on its symbol settled after it opened
+    and at or before it closed; ``net_pnl = gross_pnl - fees + funding``; ``entry_avg`` and
     ``exit_avg`` are the quantity-weighted prices of the fills that opened and closed it. Decimal
     arithmetic at 28 digits, half-even, as the book. A repeated ``exec_id`` with identical content
     is counted once; with different content it is a failure. Fees must be in USDT.
@@ -555,9 +559,62 @@ def fold(fills: Sequence[FillRow]) -> Folded:
     return Folded(closed=closed, open=still_open, realized=realized, fees=fees)
 
 
-def rebuild_trades(fills: Sequence[FillRow]) -> list[dict[str, Any]]:
-    """Closed trades by the book's rules (module docstring), in the order they closed."""
-    return [trade for _, trade in fold(fills).closed]
+@dataclass(frozen=True)
+class FundingRow:
+    """One ``funding`` event: a payment the venue booked on the account (run 2, run2-d6)."""
+
+    record_id: str
+    symbol: str
+    amount: Decimal
+    at: datetime
+    ledger_index: int
+
+
+def funding_of(events: Sequence[dict[str, Any]]) -> list[FundingRow]:
+    """Unique funding payments in ledger order; a repeated record id must be identical."""
+    seen: dict[str, dict[str, Any]] = {}
+    rows: list[FundingRow] = []
+    for index, event in enumerate(events):
+        if event["kind"] != "funding":
+            continue
+        payload = event["payload"]
+        record_id = str(payload["record_id"])
+        if record_id in seen:
+            if seen[record_id] != payload:
+                raise MismatchError(f"funding {record_id} appears twice with different content")
+            continue
+        seen[record_id] = payload
+        rows.append(
+            FundingRow(
+                record_id=record_id,
+                symbol=str(payload["symbol"]),
+                amount=dec(payload["amount"], "amount"),
+                at=parse_time(payload["settled_at"]),
+                ledger_index=index,
+            )
+        )
+    return rows
+
+
+def rebuild_trades(
+    fills: Sequence[FillRow], funding: Sequence[FundingRow] = ()
+) -> list[dict[str, Any]]:
+    """Closed trades by the book's rules (module docstring), in the order they closed, with the
+    funding settled on their symbol while they were open."""
+    out: list[dict[str, Any]] = []
+    with localcontext(BOOK_CONTEXT):
+        for _, trade in fold(fills).closed:
+            paid = sum(
+                (
+                    f.amount
+                    for f in funding
+                    if f.symbol == trade["symbol"]
+                    and trade["opened_at"] < f.at <= trade["closed_at"]
+                ),
+                Decimal(0),
+            )
+            out.append({**trade, "funding": paid, "net_pnl": trade["net_pnl"] + paid})
+    return out
 
 
 # ================================================================================================
@@ -585,8 +642,13 @@ def logged_start(events: Sequence[dict[str, Any]], first_fill: int | None) -> De
     return None
 
 
-def check_marks_rebuilt(events: Sequence[dict[str, Any]], fills: Sequence[FillRow]) -> str:
-    """Every mark event recomputed from the fills logged before it (module docstring)."""
+def check_marks_rebuilt(
+    events: Sequence[dict[str, Any]],
+    fills: Sequence[FillRow],
+    funding: Sequence[FundingRow] = (),
+) -> str:
+    """Every mark event recomputed from the fills and funding logged before it (module
+    docstring)."""
     marks = [(i, e["payload"]) for i, e in enumerate(events) if e["kind"] == "mark"]
     if not marks:
         if fills:
@@ -643,7 +705,8 @@ def check_marks_rebuilt(events: Sequence[dict[str, Any]], fills: Sequence[FillRo
                         f"{where}: {symbol} unrealized {stated}, recomputed {expected}"
                     )
                 unrealized_total += expected
-            equity = start + book.realized - book.fees + unrealized_total
+            paid = sum((f.amount for f in funding if f.ledger_index < index), Decimal(0))
+            equity = start + book.realized - book.fees + paid + unrealized_total
             stated_equity = dec(payload["equity_book"], "equity_book")
             if not same_decimal(stated_equity, equity):
                 raise MismatchError(
@@ -675,6 +738,13 @@ def check_trades(
             if not same_decimal(dec(row[column], column), trade[column]):
                 raise MismatchError(
                     f"{where}: {column} {row[column]} differs from the fills ({trade[column]})"
+                )
+        if "funding" in row or trade["funding"] != 0:
+            stated = dec(row.get("funding", "0"), "funding")
+            if not same_decimal(stated, trade["funding"]):
+                raise MismatchError(
+                    f"{where}: funding {stated} differs from the ledger's funding events "
+                    f"({trade['funding']})"
                 )
         net.append(dec(row["net_pnl"], "net_pnl"))
     return net
@@ -972,7 +1042,7 @@ def verify(root: Path) -> Report:
             found, repeats = fills_of(events)
             fills.extend(found)
             rows = read_csv(root / "trades.csv", TRADE_COLUMNS)
-            rebuilt = rebuild_trades(found)
+            rebuilt = rebuild_trades(found, funding_of(events))
             net.extend(check_trades(rows, rebuilt))
             closed_at.extend(trade["closed_at"] for trade in rebuilt)
             note = f"; {repeats} repeated fill events ignored" if repeats else ""
@@ -981,7 +1051,10 @@ def verify(root: Path) -> Report:
         equity_ok = step("equity_hourly.csv", equity)
         trades_ok = step("trades.csv", trades)
         if trades_ok:
-            rebuilt_ok = step("marks from fills", lambda: check_marks_rebuilt(events, fills))
+            rebuilt_ok = step(
+                "marks from fills",
+                lambda: check_marks_rebuilt(events, fills, funding_of(events)),
+            )
             equity_ok = equity_ok and rebuilt_ok
         else:
             report.fail("marks from fills", "not rebuilt: the fills did not verify")

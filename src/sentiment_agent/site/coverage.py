@@ -228,6 +228,7 @@ BGC_ENTRY_STOP_CANCEL: Final = "strategy_order --action cancel --paper-trading"
 BGC_ENTRY_ACCOUNT: Final = "account_overview --paper-trading"
 BGC_ENTRY_ASSETS_DEMO: Final = "raw --operationId getAccountAssets --paper-trading"
 BGC_ENTRY_ASSETS_LIVE: Final = "raw --operationId getAccountAssets --read-only"
+BGC_ENTRY_FUNDING: Final = "funds_records --action financial --paper-trading"
 
 BGC_USED_ROWS: Final[tuple[_Declared, ...]] = (
     _Declared(
@@ -321,6 +322,16 @@ BGC_USED_ROWS: Final[tuple[_Declared, ...]] = (
     ),
     _Declared(
         _BGC,
+        BGC_ENTRY_FUNDING,
+        "funding payments the venue booked on the account, read every sweep and written as "
+        "funding events, so the book's equity and each trade's net P&L carry them (run2-d6); "
+        "whether Demo books funding at all is shown by whether any appear",
+        LINE_QUANT,
+        ("execution.reconcile.Reconciler", *_TRANSPORT),
+        AT_EQUITY,
+    ),
+    _Declared(
+        _BGC,
         BGC_ENTRY_ASSETS_DEMO,
         "the same account read as one operation, so a refusal keeps its error code: a 40099 "
         "here means the key is not a Demo key, and the agent exits",
@@ -383,13 +394,6 @@ BGC_UNUSED_ROWS: Final[tuple[_Declared, ...]] = (
         "withdrawals",
         "a paper book moves no funds, and the Demo key is created without the Withdraw "
         "permission (DESIGN.md §21)",
-    ),
-    _unused(
-        _BGC,
-        "funds_records",
-        "funding and transfer records",
-        "the book is built from fills; the hourly venue equity (account_overview) captures any "
-        "funding credit as a published gap",
     ),
     _unused(_BGC, "repayment", "margin loan repayment", "no margin loan is taken"),
     _unused(_BGC, "subaccount", "sub-account management", "one Demo account, no sub-accounts"),

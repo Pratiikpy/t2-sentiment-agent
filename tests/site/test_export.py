@@ -188,7 +188,7 @@ def test_csv_files_are_the_ledger_marks_and_the_book_trades(site: Site) -> None:
     assert tuple(trades[0].split(",")) == TRADE_COLUMNS
     closed = site.world.projection().closed_trades
     assert len(trades) - 1 == len(closed) == 2
-    reasons = [row.split(",")[10] for row in trades[1:]]
+    reasons = [row.split(",")[TRADE_COLUMNS.index("exit_reason")] for row in trades[1:]]
     assert reasons == [t.exit_reason for t in closed]
 
 

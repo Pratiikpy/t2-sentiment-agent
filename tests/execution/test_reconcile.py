@@ -42,6 +42,7 @@ from sentiment_agent.types import (
     EventKind,
     Fill,
     FillVenue,
+    FundingSettlement,
     OrderIntent,
     OrderState,
     Position,
@@ -76,6 +77,7 @@ class FakeVenue:
         self.stop_rows: list[VenueStopOrder] = []
         self.equity: Decimal | None = Decimal("10000")
         self.history_rows: list[VenueOrder] = []
+        self.funding_rows: list[FundingSettlement] = []
         self.failing: set[str] = set()
         self.reads: list[str] = []
 
@@ -115,6 +117,10 @@ class FakeVenue:
     def stop_orders(self) -> list[VenueStopOrder]:
         self._read("stops")
         return list(self.stop_rows)
+
+    def funding(self, *, since: datetime, until: datetime) -> list[FundingSettlement]:
+        self._read("funding")
+        return [f for f in self.funding_rows if since <= f.settled_at <= until]
 
     def account(self) -> AccountSnapshot:
         self._read("account")
@@ -306,6 +312,7 @@ def test_a_timed_out_send_is_resolved_by_reading_it_back(clock: ManualClock) -> 
     stop_row.update(symbol="NVDAUSDT", stopLoss="213.97", takeProfit="")
     runner.on(verb("strategy_order"), ok_result([stop_row]))
     runner.on(verb("raw"), _account_assets("10000"))
+    runner.on(verb("funds_records"), ok_result({"list": [], "cursor": ""}))
 
     ledger = MemoryLedger(RunMode.PAPER, clock)
     ledger.append(EventKind.ENVIRONMENT_PROOF, _proof())
@@ -606,3 +613,91 @@ def test_a_clean_sweep_is_logged(clock: ManualClock) -> None:
     assert report.clean
     logged = ReconciliationReport.model_validate(ledger.rows[-1].payload)
     assert logged == report
+
+
+# --- funding (run2-d6) ----------------------------------------------------------------------------
+
+
+def funding(record_id: str, amount: str, *, at: datetime = T0) -> FundingSettlement:
+    return FundingSettlement(
+        record_id=record_id,
+        symbol="NVDAUSDT",
+        amount=Decimal(amount),
+        record_type="CONTRACT_MAIN_SETTLE_FEE_USER_IN"
+        if Decimal(amount) >= 0
+        else "CONTRACT_MAIN_SETTLE_FEE_USER_OUT",
+        settled_at=at,
+    )
+
+
+def test_funding_the_venue_booked_is_written_once(clock: ManualClock) -> None:
+    venue = FakeVenue(clock)
+    venue.funding_rows = [funding("f-1", "1.25"), funding("f-2", "-0.40")]
+    rec, ledger, _ = reconciler(venue, clock)
+    first = run(rec, empty_book(), clock)
+    assert first.new_funding_ids == ("f-1", "f-2")
+    assert first.funding_read
+    written = [e for e in ledger.rows if e.kind is EventKind.FUNDING]
+    assert [e.payload["record_id"] for e in written] == ["f-1", "f-2"]
+    again = run(rec, empty_book(), clock, known_funding_ids=frozenset({"f-1", "f-2"}))
+    assert again.new_funding_ids == ()
+    assert len([e for e in ledger.rows if e.kind is EventKind.FUNDING]) == 2
+
+
+def test_an_unreadable_funding_endpoint_is_recorded_not_a_discrepancy(clock: ManualClock) -> None:
+    """Demo may not serve financial records; that must never trip the breaker."""
+    venue = FakeVenue(clock)
+    venue.failing.add("funding")
+    rec, _, _ = reconciler(venue, clock)
+    report = run(rec, empty_book(), clock)
+    assert not report.funding_read
+    assert report.clean
+    assert "funding_read" in report.model_dump(mode="json")
+
+
+def test_a_report_with_no_funding_serialises_as_before(clock: ManualClock) -> None:
+    rec, _, _ = reconciler(FakeVenue(clock), clock)
+    dumped = run(rec, empty_book(), clock).model_dump(mode="json")
+    assert "new_funding_ids" not in dumped
+    assert "funding_read" not in dumped
+
+
+def test_the_transport_reads_funding_across_pages_and_skips_other_records(
+    clock: ManualClock,
+) -> None:
+    def record(record_type: str, record_id: str, amount: str) -> dict[str, Any]:
+        return {
+            "id": record_id,
+            "symbol": "NVDAUSDT",
+            "type": record_type,
+            "amount": amount,
+            "ts": utc_to_ms(T0),
+        }
+
+    runner = ScriptedRunner()
+    runner.on(
+        verb("funds_records"),
+        ok_result(
+            {
+                "list": [
+                    record("CONTRACT_MAIN_SETTLE_FEE_USER_OUT", "7", "0.3"),
+                    record("ORDER_DEALT_IN", "8", "5"),
+                    record("CONTRACT_MAIN_SETTLE_FEE_USER_IN", "9", "0.2"),
+                ],
+                "cursor": "",
+            }
+        ),
+    )
+    transport = BgcTransport(
+        runner=runner,
+        clock=clock,
+        blobs=MemoryBlobStore(),
+        credentials=CREDS,
+        proof=_proof(),
+        dry_run_only=False,
+    )
+    got = transport.funding(since=T0 - timedelta(days=1), until=T0 + timedelta(minutes=1))
+    assert [(s.record_id, s.amount) for s in got] == [("7", Decimal("-0.3")), ("9", Decimal("0.2"))]
+    (argv,) = runner.argvs()
+    assert argv[:3] == ("funds_records", "--action", "financial")
+    assert "--paper-trading" in argv

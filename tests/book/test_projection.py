@@ -49,6 +49,7 @@ from sentiment_agent.types import (
     FeedHealthReport,
     Fill,
     FillVenue,
+    FundingSettlement,
     Genesis,
     GuardId,
     GuardRuling,
@@ -448,6 +449,16 @@ def paper_ledger() -> MemoryLedger:
     )
     ledger.append(EventKind.NOTE, Note(at=T0 + H, author="system", text="started"))
     ledger.append(
+        EventKind.FUNDING,
+        FundingSettlement(
+            record_id="funding-1",
+            symbol="NVDAUSDT",
+            amount=Decimal("0"),
+            record_type="CONTRACT_MAIN_SETTLE_FEE_USER_IN",
+            settled_at=T0 + H,
+        ),
+    )
+    ledger.append(
         EventKind.HEALTH,
         HealthBeat(
             at=T0 + H,
@@ -686,6 +697,7 @@ def test_every_event_kind_is_readable_as_its_typed_payload() -> None:
         (projection.anchors, AnchorRecord, 1),
         (projection.health_beats, HealthBeat, 1),
         (projection.feed_health, FeedHealthReport, 1),
+        (projection.funding, FundingSettlement, 1),
         (projection.notes, Note, 1),
     ]
     for items, model, count in views:

@@ -504,6 +504,11 @@ class FakeBgc:
         paper = "--paper-trading" in argv
         if argv[0] == "account_overview" and paper:
             return _result(self.demo_overview, equity=self.equity)
+        if argv[:3] == ("funds_records", "--action", "financial"):
+            # run2-d6: the account's financial records; this venue books no funding
+            return BgcResult(
+                exit_code=0, stdout={"data": {"list": [], "cursor": ""}}, stderr=None, duration_ms=1
+            )
         if argv[:3] == ("raw", "--operationId", "getAccountAssets"):
             if paper:
                 return _result("loopback_demo_assets_ok", equity=self.equity)

@@ -804,6 +804,7 @@ class RunLoop:
             since=self._fills_since(now, full=full),
             known_fill_ids=app.tracker.fill_ids(),
             full_history=full,
+            known_funding_ids=app.projection.funding_ids(),
         )
         self._last_reconcile = report.at
         if report.fills_read:

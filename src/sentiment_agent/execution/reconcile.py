@@ -15,10 +15,15 @@ Read-only (DESIGN.md §11.5). One :meth:`Reconciler.run`:
    exactly (``position_mismatch``).
 4. **Stops.** Every open position must have a venue stop (``missing_stop``); a stop on a symbol with
    no position, or a second stop on one symbol, is an ``orphan_stop``.
-5. **Equity.** The venue's account equity is compared with the book's. The two are read at slightly
-   different moments and marks, and whether Demo credits funding is NOT VERIFIED (DESIGN.md §13), so
-   a gap above ``equity_tolerance`` of the book's equity is an ``equity_gap``; the hourly ``MARK``
-   event publishes the raw gap regardless.
+5. **Funding (run2-d6).** The account's funding records over the last :data:`FUNDING_LOOKBACK`
+   are read and every one not yet in the ledger is written as a ``FUNDING`` event, so the book's
+   equity carries what the venue paid or charged. Whether Demo books funding at all is NOT
+   VERIFIED: no position of run 1 was ever held across a settlement. If it does not, this reads
+   nothing and changes nothing. A failed read is recorded (``funding_read`` false), never a
+   discrepancy, so an endpoint Demo does not serve cannot trip the breaker.
+6. **Equity.** The venue's account equity is compared with the book's. The two are read at slightly
+   different moments and marks, so a gap above ``equity_tolerance`` of the book's equity is an
+   ``equity_gap``; the hourly ``MARK`` event publishes the raw gap regardless.
 
 Every difference is a :class:`~sentiment_agent.types.Discrepancy` in the logged
 ``RECONCILIATION`` report. Nothing is silently corrected. A read that fails is itself reported
@@ -45,6 +50,7 @@ from sentiment_agent.types import (
     Discrepancy,
     EventKind,
     Fill,
+    FundingSettlement,
     LedgerWriter,
     Model,
     OrderState,
@@ -55,6 +61,10 @@ from sentiment_agent.types import (
     VenueStopOrder,
     VenueTransport,
 )
+
+FUNDING_LOOKBACK: Final = timedelta(days=4)
+"""How far back each sweep reads funding records. Longer than the 72-hour scored window, so a
+sweep that failed cannot leave a settlement behind; the records are deduplicated by id."""
 
 UNKNOWN_GRACE_S: Final = 300.0
 """How long an order the venue cannot find stays live before it is declared never received."""
@@ -100,6 +110,7 @@ class Reconciler:
         since: datetime,
         known_fill_ids: frozenset[str],
         full_history: bool = False,
+        known_funding_ids: frozenset[str] = frozenset(),
     ) -> ReconciliationReport:
         """One sweep. ``full_history`` also reads order history (the daily sweep) to find orders
         the venue holds under a ``clientOid`` this ledger has never recorded."""
@@ -129,6 +140,7 @@ class Reconciler:
         new_fills, fills_read = self._fills(
             book, since, until, known_fill_ids, observed, discrepancies
         )
+        new_funding, funding_read = self._funding(now, until, known_funding_ids)
         expected = self._expected_positions(book, new_fills)
         self._positions(expected, discrepancies)
         self._stops(expected, discrepancies)
@@ -142,9 +154,33 @@ class Reconciler:
             discrepancies=tuple(discrepancies),
             account=account,
             fills_read=fills_read,
+            new_funding_ids=tuple(s.record_id for s in new_funding),
+            funding_read=funding_read,
         )
         self._log(EventKind.RECONCILIATION, report, *(() if account is None else (account.blob,)))
         return report
+
+    # --- funding ------------------------------------------------------------------------------
+
+    def _funding(
+        self, now: datetime, until: datetime, known: frozenset[str]
+    ) -> tuple[list[FundingSettlement], bool]:
+        """Funding not yet in the ledger, written as ``FUNDING`` events, and whether it was read."""
+        try:
+            settlements = self._transport.funding(since=now - FUNDING_LOOKBACK, until=until)
+        except EnvironmentRefused:
+            raise
+        except (VenueCallError, TimeoutError, OSError):
+            return [], False
+        new: list[FundingSettlement] = []
+        for settlement in settlements:
+            if settlement.record_id in known or any(
+                s.record_id == settlement.record_id for s in new
+            ):
+                continue
+            self._log(EventKind.FUNDING, settlement, settlement.blob)
+            new.append(settlement)
+        return new, True
 
     # --- orders -------------------------------------------------------------------------------
 

@@ -54,6 +54,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Final, Protocol
 
 from sentiment_agent.execution.environment import (
@@ -85,6 +86,7 @@ from sentiment_agent.types import (
     FeeLine,
     Fill,
     FillVenue,
+    FundingSettlement,
     OrderIntent,
     RunMode,
     Side,
@@ -378,6 +380,62 @@ def fills_args(start_ms: str, end_ms: str, cursor: str | None = None) -> list[st
 
 def history_args(start_ms: str, end_ms: str, cursor: str | None = None) -> list[str]:
     return _window_args("history", start_ms, end_ms, cursor)
+
+
+FUNDING_RECORD_TYPES: Final[Mapping[str, int]] = MappingProxyType(
+    {
+        "CONTRACT_MAIN_SETTLE_FEE_USER_IN": 1,
+        "CONTRACT_MAIN_SETTLE_FEE_USER_OUT": -1,
+        "MARGIN_SETTLE_FEE_USER_IN": 1,
+        "MARGIN_SETTLE_FEE_USER_OUT": -1,
+        "RWA_CONTRACT_MAIN_SETTLE_FEE_USER_IN": 1,
+        "RWA_CONTRACT_MAIN_SETTLE_FEE_USER_OUT": -1,
+        "RWA_FIXED_SETTLE_FEE_USER_IN": 1,
+        "RWA_FIXED_SETTLE_FEE_USER_OUT": -1,
+    }
+)
+"""The ``financial-records`` types that are a funding fee on the user's own account, and the sign
+each carries (+1 received). From Bitget's UTA enumeration (bitget.com/docs/uta/enum,
+"type-financial-records", read 2026-09-27): cross-margin and isolated funding fee in and out, and
+the RWA cross and isolated variants. The system and reserve-account RWA types move money between
+Bitget's own accounts and are not the user's."""
+
+
+def funding_args(start_ms: str, end_ms: str, cursor: str | None = None) -> list[str]:
+    """``funds_records --action financial``: the account's financial records in a window."""
+    parts = [
+        "funds_records",
+        "--action",
+        "financial",
+        "--category",
+        CATEGORY,
+        "--startTime",
+        start_ms,
+        "--endTime",
+        end_ms,
+        "--limit",
+        str(PAGE_LIMIT),
+    ]
+    if cursor is not None:
+        parts += ["--cursor", _require_venue_id(cursor)]
+    return _paper(*parts)
+
+
+def parse_funding(row: Mapping[str, Any], *, blob: BlobRef | None) -> FundingSettlement | None:
+    """A funding settlement from one financial record, or ``None`` for any other record type."""
+    record_type = _text(row, "type")
+    sign = FUNDING_RECORD_TYPES.get(record_type or "")
+    if record_type is None or sign is None:
+        return None
+    amount = _required_decimal(row, "amount")
+    return FundingSettlement(
+        record_id=_required_text(row, "id"),
+        symbol=_required_text(row, "symbol"),
+        amount=abs(amount) * sign,
+        record_type=record_type,
+        settled_at=ms_to_utc(_required_text(row, "ts")),
+        blob=blob,
+    )
 
 
 def positions_args() -> list[str]:
@@ -907,11 +965,11 @@ class BgcTransport:
     def _paged(self, action: str, since: datetime, until: datetime) -> list[tuple[Any, BlobRef]]:
         rows: list[tuple[Any, BlobRef]] = []
         start = since
+        builder = {"fills": fills_args, "history": history_args, "funding": funding_args}[action]
         while start < until:
             end = min(until, start + QUERY_WINDOW)
             cursor: str | None = None
             for _page in range(MAX_PAGES):
-                builder = fills_args if action == "fills" else history_args
                 data, blob = self._read(
                     builder(utc_to_ms(start), utc_to_ms(end), cursor), f"{action} page"
                 )
@@ -951,6 +1009,19 @@ class BgcTransport:
                 raise VenueReadError(f"unreadable order-history row: {exc}", blob=blob) from None
             found.setdefault(order.venue_order_id, order)
         return sorted(found.values(), key=lambda o: (o.created_at, o.venue_order_id))
+
+    def funding(self, *, since: datetime, until: datetime) -> list[FundingSettlement]:
+        """Funding the venue booked on the account in ``[since, until]``, de-duplicated by record
+        id, oldest first (run2-d6). Every other financial record type is skipped."""
+        found: dict[str, FundingSettlement] = {}
+        for row, blob in self._paged("funding", since, until):
+            try:
+                settlement = parse_funding(row, blob=blob)
+            except VenueParseError as exc:
+                raise VenueReadError(f"unreadable funding record: {exc}", blob=blob) from None
+            if settlement is not None:
+                found.setdefault(settlement.record_id, settlement)
+        return sorted(found.values(), key=lambda s: (s.settled_at, s.record_id))
 
     def positions(self) -> list[VenuePosition]:
         data, blob = self._read(positions_args(), "positions")

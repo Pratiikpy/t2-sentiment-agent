@@ -595,9 +595,12 @@ pydantic writes them, sets refused, `NaN` refused.
 trades (flat to flat; a flip closes one and opens another). `book/marks.py` writes a `MARK` event on
 every UTC hour with three equities:
 
-* `equity_book`: starting equity + realized − fees + unrealized at Demo mark. The primary series.
+* `equity_book`: starting equity + realized − fees + funding + unrealized at Demo mark. The primary
+  series. Funding is every payment the venue booked on the account, read from its financial records
+  on each reconciliation and logged as a `funding` event (run2-d6); whether Demo books funding at
+  all is NOT VERIFIED, and if it does not, none appear and the term is zero.
 * `equity_venue`: the venue's own account equity, read in PAPER mode. Published beside it; the gap
-  is a reconciliation discrepancy (it would reveal, for example, Demo funding credits, NOT VERIFIED).
+  is a reconciliation discrepancy.
 * `equity_live_mirror`: the same positions marked at live prices (§14.4).
 
 Starting equity is the venue's account equity at genesis.
@@ -1505,7 +1508,7 @@ environment proof and a cap tying `margin_budget` to the subaccount's read equit
 | Preset `stopLoss` behaviour when a position grows; whether one-way mode needs `posSide` on strategy orders | Plumbing test |
 | `feeDetail.fee` sign convention | First Demo fill fixture |
 | UTA `clientOid` maximum length | 32 characters is used, below every documented limit |
-| Whether Demo accounts are credited funding | `equity_venue` vs `equity_book` gap, logged hourly |
+| Whether Demo accounts are credited funding | `funding` events from the account's financial records (run2-d6), and the `equity_venue` vs `equity_book` gap, logged hourly |
 | `sentiment_market_fear_greed` scale and field names | M2 fixtures from live keyless calls |
 | twitter-cli and rdt-cli surviving an unattended window | Health is logged; they are an optional layer |
 | How Bitget scores the quantitative half | Not knowable from the handbook; the filing reports n, CI and the envelope |
@@ -1569,6 +1572,7 @@ pre-registration itself says what differs and why:
 | `run2-d2` | observability | Feed-health alarms and a named cause for every blind trigger kind (§6.2) | Run 1 recorded, and nothing surfaced: `sentiment_index.current` hollow in 226 of 226 snapshots; bitget-mcp-server `do_query` answering 503 on every call from 2026-09-25 10:14 UTC (and a session-expiry 404 at 08:33); an equity calendar with no upcoming report date |
 | `run2-d3` | code fix | When both Bitget data services leave a reading empty, the upstream they wrap is read directly on its own labelled surface (`upstream_direct`): Binance USD-M futures for positioning, open interest and funding, alternative.me for Fear & Greed, four publishers' RSS for news (`sources/upstream.py`) | From bitget-mcp-server's first failure (2026-09-25 08:33 UTC) to seq 546 it answered 144 of 1,356 calls, and bitget-signal answered 0 of 939 over the whole run; crypto Fear & Greed and BTCUSDT positioning were missing from 146 of 164 snapshots (`validation/run2/run1_feed_outage.json`, `scripts/feed_outage.py`) |
 | `run2-d4` | prompt fix | The prompt's fact legend names Binance USD-M as the market of the long/short, top-trader, taker and open-interest-change figures; funding and the open interest level keep their Bitget label | Run 1's legend called the top-trader ratio "Bitget's top traders" and the rest "live" with no market; all four come from Binance, which bitget-mcp-server and bitget-signal read (`sources/bitget_data.py` `EXCHANGE`, `sources/upstream.py`). Only `decision/prompt.py` changes, and its two hashes are in the declaration |
+| `run2-d6` | code fix | Funding the venue books on the account is read from its financial records (`funds_records --action financial`) on every reconciliation, logged as a `funding` event, and counted in the book's equity, each trade's net P&L, `trades.csv` and `scripts/recompute.py` | The run is scored on the book's equity, and a funding-extreme strategy holds the side the funding pays or charges; the book counted fills alone, so any funding Demo books would have been missing from the scored record |
 | `run2-d5` | code fix | A declared invalidation must name a fact the request showed (`decision/contract.py`), which `output_schema_v1.md` already asks for; otherwise the answer goes back to the model | The declaration is the only thing that lifts G6's 24-hour hold, and run 1's contract accepted any non-empty sentence |
 | `run2-a1` | policy amendment | `funding_zscore` for every universe instrument, same ±2 threshold, 90-settlement lookback, 240-minute cooldown, daily cap of 8 and weekend refusal | Equity and index funding z beyond ±2 in 436 instrument-snapshots of run 1 (HOOD 88, NVDA 84, MSTR 58, GOOGL 49, AMZN 46, SNDK 44, TSLA 30, COIN 23, NDX100 14); replayed under this step alone, 15 event decisions in 19.9 hours (7 on 2026-09-24, 8 on 2026-09-25 with the cap refusing 3 more); run 1 itself took 0 |
 | `run2-a2` | policy amendment | `funding_zscore` also needs the live rate at 7.5 bp or more in absolute value | The live rate was exactly zero in 51.1% of run 1's 3,150 instrument-snapshots (median 0, 95th percentile 4.5 bp), so a single tick off zero scored as an extreme: z beyond ±2 in 13.8%, against 4.6% for a normal series. With the level, 43 extremes (MSTR 29, SNDK 14) and 3 event decisions in 19.9 hours instead of 15; run 2's agent had acted, short, in 14 of those 15 |

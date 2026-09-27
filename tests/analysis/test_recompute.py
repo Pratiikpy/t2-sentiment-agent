@@ -814,3 +814,52 @@ def test_the_script_and_the_package_agree_on_a_mostly_flat_book() -> None:
         assert script_bands[name][0] == pytest.approx(lo, rel=1e-9, abs=1e-12)
         assert script_bands[name][1] == pytest.approx(hi, rel=1e-9, abs=1e-12)
     assert script_shares == pytest.approx(shares)
+
+
+# --- funding (run 2, run2-d6) ---------------------------------------------------------------------
+
+
+def _funding_event(record_id: str, amount: str, at: datetime) -> dict[str, Any]:
+    return {
+        "kind": "funding",
+        "payload": {
+            "record_id": record_id,
+            "symbol": NVDA,
+            "amount": amount,
+            "record_type": "CONTRACT_MAIN_SETTLE_FEE_USER_IN",
+            "settled_at": at.isoformat(),
+        },
+    }
+
+
+def test_funding_events_are_read_once_and_a_changed_repeat_fails() -> None:
+    events = [
+        _funding_event("f-1", "0.5", START + HOUR),
+        _funding_event("f-1", "0.5", START + HOUR),
+        _funding_event("f-2", "-0.2", START + 2 * HOUR),
+    ]
+    rows = recompute.funding_of(events)
+    assert [(r.record_id, r.amount, r.ledger_index) for r in rows] == [
+        ("f-1", Decimal("0.5"), 0),
+        ("f-2", Decimal("-0.2"), 2),
+    ]
+    events.append(_funding_event("f-1", "0.9", START + HOUR))
+    with pytest.raises(recompute.MismatchError, match="twice with different content"):
+        recompute.funding_of(events)
+
+
+def test_a_trades_funding_is_what_settled_while_it_was_open(generated: Record) -> None:
+    events = recompute.read_ledger(generated.public / "ledger.jsonl")
+    fills, _ = recompute.fills_of(events)
+    trades = recompute.rebuild_trades(fills)
+    assert trades, "the generated record closes trades"
+    first = trades[0]
+    inside = first["opened_at"] + (first["closed_at"] - first["opened_at"]) / 2
+    rows = [
+        recompute.FundingRow("in", first["symbol"], Decimal("0.7"), inside, 0),
+        recompute.FundingRow("after", first["symbol"], Decimal("5"), first["closed_at"] + HOUR, 0),
+        recompute.FundingRow("other", "SOMEUSDT", Decimal("9"), inside, 0),
+    ]
+    again = recompute.rebuild_trades(fills, rows)
+    assert again[0]["funding"] == Decimal("0.7")
+    assert again[0]["net_pnl"] == first["net_pnl"] + Decimal("0.7")

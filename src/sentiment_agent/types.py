@@ -456,6 +456,8 @@ class EventKind(enum.StrEnum):
     NOTE = "note"
     FEED_HEALTH = "feed_health"
     """Contract 1.1.0: a source started or stopped failing, or a trigger kind went blind."""
+    FUNDING = "funding"
+    """Contract 1.1.0: a funding payment the venue booked on the account (run2-d6)."""
 
 
 # ================================================================================================
@@ -925,12 +927,17 @@ class BookState(Model):
     last_loss_at: UtcDatetime | None = None
     """Contract 1.1.0: when the most recent losing trade closed. Omitted when there is none, so a
     book state written before it existed serialises as it did."""
+    funding_total: Decimal = Decimal(0)
+    """Contract 1.1.0 (run2-d6): funding booked on the account since genesis, positive when
+    received; already inside ``equity``. Omitted when zero."""
 
     @model_serializer(mode="wrap")
     def _omit_unset_loss(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         data: dict[str, Any] = handler(self)
         if self.last_loss_at is None:
             data.pop("last_loss_at", None)
+        if self.funding_total == 0:
+            data.pop("funding_total", None)
         return data
 
     @model_validator(mode="after")
@@ -1645,6 +1652,21 @@ class Fill(Model):
     blob: BlobRef | None = None
 
 
+class FundingSettlement(Model):
+    """One funding payment the venue booked on the account: a row of
+    ``/api/v3/account/financial-records`` whose ``type`` is a funding fee (contract 1.1.0,
+    run2-d6). ``amount`` is signed from the account's side, positive when received, and the sign is
+    taken from the type's ``_IN`` or ``_OUT`` suffix rather than from the row's amount, whose sign
+    convention the documentation does not state."""
+
+    record_id: str = Field(min_length=1)
+    symbol: str = Field(min_length=1)
+    amount: Decimal
+    record_type: str = Field(min_length=1)
+    settled_at: UtcDatetime
+    blob: BlobRef | None = None
+
+
 class VenuePosition(Model):
     """Current position as the venue reports it. Only the fields pinned by fixture are parsed."""
 
@@ -1767,6 +1789,20 @@ class ReconciliationReport(Model):
     fills_read: bool = True
     """Whether the venue's fills were read. Only a sweep that read them moves the fills window on,
     so a failed read can never leave a fill behind the window."""
+    new_funding_ids: tuple[str, ...] = ()
+    """Contract 1.1.0 (run2-d6): funding records this sweep wrote as ``funding`` events. Omitted
+    when empty, so a report written before it existed serialises as it did."""
+    funding_read: bool = True
+    """Contract 1.1.0: whether the account's funding records were read. Omitted when true."""
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_funding(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if not self.new_funding_ids:
+            data.pop("new_funding_ids", None)
+        if self.funding_read:
+            data.pop("funding_read", None)
+        return data
 
     @property
     def clean(self) -> bool:
@@ -2037,8 +2073,12 @@ class ClosedTrade(Model):
     gross_pnl: Decimal
     fees: Decimal
     net_pnl: Decimal
+    """Gross minus fees plus funding: what the trade left in the account."""
     decision_ids: tuple[str, ...]
     exit_reason: str
+    funding: Decimal = Decimal(0)
+    """Funding booked on the symbol while the trade was open, positive when received (run2-d6).
+    A derived view, never logged, so it is always written (``trades.csv`` has the column)."""
 
 
 class ArmSpec(Model):
@@ -2514,6 +2554,7 @@ EVENT_PAYLOADS: Final[Mapping[EventKind, type[Model]]] = MappingProxyType(
         EventKind.HEALTH: HealthBeat,
         EventKind.NOTE: Note,
         EventKind.FEED_HEALTH: FeedHealthReport,
+        EventKind.FUNDING: FundingSettlement,
     }
 )
 """Read-only: the payload model each ledger event kind must carry."""
@@ -2650,6 +2691,8 @@ class VenueTransport(Protocol):
 
     def account(self) -> AccountSnapshot: ...
 
+    def funding(self, *, since: datetime, until: datetime) -> list[FundingSettlement]: ...
+
 
 __all__ = [
     "ALL_GUARDS",
@@ -2715,6 +2758,7 @@ __all__ = [
     "Fill",
     "FillVenue",
     "FundingPoint",
+    "FundingSettlement",
     "Genesis",
     "GroundingFigure",
     "GroundingReport",

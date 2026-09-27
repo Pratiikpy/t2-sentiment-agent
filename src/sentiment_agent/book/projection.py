@@ -72,6 +72,7 @@ from sentiment_agent.types import (
     FeedHealthReport,
     Fill,
     FillVenue,
+    FundingSettlement,
     Genesis,
     HealthBeat,
     KernelRuling,
@@ -142,11 +143,13 @@ class _FillInput:
     preset_stop: StopSync | None
 
 
-_BookInput = _FillInput | StopSync | MarkPoint
+_BookInput = _FillInput | StopSync | MarkPoint | FundingSettlement
 
 
 def _feed(builder: BookBuilder, item: _BookInput) -> None:
-    if isinstance(item, _FillInput):
+    if isinstance(item, FundingSettlement):
+        builder.apply_funding(item)
+    elif isinstance(item, _FillInput):
         builder.apply_fill(
             item.fill, decision_id=item.decision_id, purpose=item.purpose, cause=item.cause
         )
@@ -161,6 +164,8 @@ def _feed(builder: BookBuilder, item: _BookInput) -> None:
 def _input_time(item: _BookInput) -> datetime:
     if isinstance(item, _FillInput):
         return item.fill.executed_at
+    if isinstance(item, FundingSettlement):
+        return item.settled_at
     return item.at
 
 
@@ -260,6 +265,8 @@ class Projection:
             self._add_input(cast(MarkPoint, payload))
         elif kind is EventKind.FILL:
             self._on_fill(event.mode, cast(Fill, payload))
+        elif kind is EventKind.FUNDING:
+            self._add_input(cast(FundingSettlement, payload))
 
     def _on_genesis(self, genesis: Genesis) -> None:
         if self._genesis is None:
@@ -554,6 +561,14 @@ class Projection:
     @property
     def fills(self) -> tuple[Fill, ...]:
         return self._typed(EventKind.FILL, Fill)
+
+    @property
+    def funding(self) -> tuple[FundingSettlement, ...]:
+        """Every funding payment the reconciler wrote (run2-d6; none in a 1.0.0 ledger)."""
+        return self._typed(EventKind.FUNDING, FundingSettlement)
+
+    def funding_ids(self) -> frozenset[str]:
+        return frozenset(s.record_id for s in self.funding)
 
     @property
     def stop_syncs(self) -> tuple[StopSync, ...]:

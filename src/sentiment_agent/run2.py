@@ -26,6 +26,9 @@ itself, and not from a README, what differs and why:
 ``run2-d5`` (code fix)
     A declared invalidation, the one thing that lifts G6's 24-hour hold, must name a fact the
     request showed (``decision/contract.py``); in run 1 any non-empty string was accepted.
+``run2-d6`` (code fix)
+    Funding the venue books on the account is read on every reconciliation, logged as a
+    ``funding`` event and counted in the book's equity and each trade's net P&L.
 ``run2-a1`` to ``run2-a7`` (policy amendments, v1 to v2, ``policy.RUN2_AMENDMENTS``)
     a1: ``funding_zscore`` is evaluated for every universe instrument, not BTCUSDT alone.
     a2: it also needs the live rate at 7.5 bp or more, since half of run 1's live rates were zero.
@@ -399,6 +402,39 @@ DECLARED_CHANGES: Final[tuple[DeclaredChange, ...]] = (
             "rule_already_written": "output_schema_v1.md: invalidation_triggered is true only "
             "with invalidation_evidence naming the fact that shows it",
             "test": "tests/decision/test_decision_contract.py::TestADeclaredInvalidationNamesAFact",
+        },
+    ),
+    DeclaredChange(
+        change_id="run2-d6",
+        kind="code_fix",
+        title="Funding the venue books is in the scored equity",
+        detail="The run is scored on the book's equity, and the book counted fills alone: "
+        "starting equity plus realized minus fees plus unrealized. A funding-extreme strategy "
+        "holds the side the funding pays or charges, so any funding Demo books would have been "
+        "missing from the record. From run 2 each reconciliation reads the account's financial "
+        "records (funds_records --action financial) over the last four days, writes every "
+        "funding payment not yet in the ledger as a funding event, and the book adds it to "
+        "equity and to the net P&L of the trade open on its symbol when it settled; trades.csv "
+        "carries a funding column and scripts/recompute.py rebuilds both. Whether Demo books "
+        "funding at all is NOT VERIFIED; if it does not, nothing is read and nothing changes. A "
+        "failed read is recorded on the reconciliation, never a discrepancy. " + _UNCHANGED,
+        files=(
+            "src/sentiment_agent/types.py",
+            "src/sentiment_agent/execution/bgc.py",
+            "src/sentiment_agent/execution/reconcile.py",
+            "src/sentiment_agent/execution/simulated.py",
+            "src/sentiment_agent/book/book.py",
+            "src/sentiment_agent/book/projection.py",
+            "src/sentiment_agent/runtime/loop.py",
+            "src/sentiment_agent/site/export.py",
+            "scripts/recompute.py",
+        ),
+        evidence={
+            "funding_types": "CONTRACT_MAIN_SETTLE_FEE_USER_IN/OUT, MARGIN_SETTLE_FEE_USER_IN/OUT "
+            "and the RWA user variants, from bitget.com/docs/uta/enum (type-financial-records), "
+            "read 2026-09-27",
+            "run1_funding": "run 1 held no position across a settlement, so its record cannot "
+            "say whether Demo books funding",
         },
     ),
     *(
