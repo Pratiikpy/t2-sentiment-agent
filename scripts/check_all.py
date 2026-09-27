@@ -2,6 +2,7 @@
 
     python scripts/check_all.py            # offline: no network, no credentials, no Qwen
     python scripts/check_all.py --live-public   # also runs keyless public Bitget market tests
+    python scripts/check_all.py --coverage      # also measures line and branch coverage
 
 Exits non-zero on the first failing step and names it.
 """
@@ -17,6 +18,13 @@ def main(argv: list[str]) -> int:
     pytest_args = ["-q"]
     if "--live-public" in argv:
         pytest_args.append("--run-live-public")
+    if "--coverage" in argv:
+        pytest_args += [
+            "--cov=sentiment_agent",
+            "--cov-branch",
+            "--cov-report=term:skip-covered",
+            "--cov-report=xml",
+        ]
     steps: list[tuple[str, list[str]]] = [
         ("ruff check", [sys.executable, "-m", "ruff", "check", "."]),
         ("ruff format", [sys.executable, "-m", "ruff", "format", "--check", "."]),

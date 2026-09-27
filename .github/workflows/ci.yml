@@ -30,8 +30,16 @@ jobs:
           enable-cache: true
       - name: Install
         run: uv sync --frozen --extra dev
+      # Line and branch coverage on every run, kept as an artefact (audit finding 145).
       - name: Gate
-        run: uv run --frozen python scripts/check_all.py
+        run: uv run --frozen python scripts/check_all.py --coverage
+      - name: Coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage.xml
+          if-no-files-found: warn
 
   live-public:
     # Bitget's keyless public market endpoints, read for real: the 14 tests the offline gate
