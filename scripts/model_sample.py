@@ -199,13 +199,18 @@ def main(argv: list[str]) -> int:
 
     def summary(name: str) -> dict[str, Any]:
         mine = [r for r in rows if r["prompt"] == name]
-        scored = [r["score"] for r in mine if r["score"]]
+        # A flat book (no approved weight) has nothing to score: counting it as a 0 bp book that
+        # "beats" no coin flip would drag the means down for a decision that took no risk.
+        scored = [
+            r["score"]
+            for r in mine
+            if r["score"] and any(abs(w) > 0 for w in (r.get("approved_weights") or {}).values())
+        ]
+        shorts = [s["short_share"] for s in scored if s["short_share"] is not None]
         return {
             "decisions": len(mine),
             "acted": sum(1 for r in mine if r["stance"] == "act"),
-            "median_short_share": statistics.median(
-                [s["short_share"] for s in scored if s["short_share"] is not None]
-            ) if scored else None,
+            "median_short_share": statistics.median(shorts) if shorts else None,
             "mean_forward_24h_bps": round(statistics.fmean(s["forward_24h_bps"] for s in scored), 3)
             if scored else None,
             "mean_reversed_bps": round(statistics.fmean(s["reversed_bps"] for s in scored), 3)

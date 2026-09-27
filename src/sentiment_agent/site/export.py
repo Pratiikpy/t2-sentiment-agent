@@ -88,6 +88,7 @@ from sentiment_agent.analysis.metrics import (
 )
 from sentiment_agent.analysis.simcheck import SimulatorCheck
 from sentiment_agent.book.projection import Projection, ProjectionError
+from sentiment_agent.crowd.quarantine import SPOTLIGHT_CLOSE, SPOTLIGHT_OPEN
 from sentiment_agent.hashing import ZERO_HASH, canonical_json
 from sentiment_agent.kernel.guards import Leg, g1_venue_integrity
 from sentiment_agent.ledger.blobs import FileBlobStore
@@ -314,11 +315,92 @@ def scan_bytes(name: str, data: bytes, literals: Sequence[tuple[str, str]]) -> l
         if index >= 0:
             findings.append(Finding(name, label, index))
     if text is not None:
+        quoted_out = _mask_third_party(_mask_untrusted(text))
         for label, pattern in _TEXT_RULES:
-            match = pattern.search(text)
+            # A path shape in third-party text is somebody else's path quoted in a post the agent
+            # read (2026-09-27: a Reddit help request carrying a stranger's
+            # "C:/Users/<name>/Downloads/..." ended run 1's final export), not this machine
+            # leaking. Path rules skip third-party text (spotlit spans and the fields that hold a
+            # post, a story or a calendar title); secret rules and this machine's own literal
+            # paths still scan every byte.
+            haystack_text = quoted_out if label in _PATH_RULES else text
+            match = pattern.search(haystack_text)
             if match is not None:
                 findings.append(Finding(name, label, match.start()))
     return findings
+
+
+_PATH_RULES: Final = frozenset({"a Windows drive path", "a /Users or /home path", "a file: URL"})
+"""The text rules that describe a path's shape rather than a secret."""
+
+
+def _third_party_strings(value: Any, out: set[str]) -> None:
+    """Every string in ``value`` that somebody else wrote: a crowd item's ``text`` and ``url``
+    (``TextItem``), its spotlit ``prompt_text`` (``ScreenedItem``), a story's ``representative``
+    (``StoryCluster``) and a calendar item's ``title`` (``CalendarItem``)."""
+    if isinstance(value, dict):
+        if "item_id" in value and "channel" in value:
+            for key in ("text", "url"):
+                if isinstance(value.get(key), str):
+                    out.add(value[key])
+        if isinstance(value.get("prompt_text"), str):
+            out.add(value["prompt_text"])
+        if "cluster_id" in value and isinstance(value.get("representative"), str):
+            out.add(value["representative"])
+        if {"kind", "title", "source"} <= value.keys() and isinstance(value.get("title"), str):
+            out.add(value["title"])
+        for child in value.values():
+            _third_party_strings(child, out)
+    elif isinstance(value, list):
+        for child in value:
+            _third_party_strings(child, out)
+
+
+def _mask_third_party(text: str) -> str:
+    """``text`` with every third-party string blanked in place, found by parsing the text as JSON
+    (one document, or one per line for the ledger) and blanking each such string's JSON-escaped
+    form, so offsets hold. Text that is not JSON is returned unchanged."""
+    documents: list[Any] = []
+    try:
+        documents.append(json.loads(text))
+    except ValueError:
+        # Split on "\n" only: str.splitlines also breaks on U+2028 and its kin, which a post's
+        # text may carry inside one ledger line.
+        for line in text.split("\n"):
+            if line.strip():
+                try:
+                    documents.append(json.loads(line))
+                except ValueError:
+                    return text
+    strings: set[str] = set()
+    for document in documents:
+        _third_party_strings(document, strings)
+    masked = text
+    for value in sorted(strings, key=len, reverse=True):
+        for form in {json.dumps(value, ensure_ascii=False)[1:-1], json.dumps(value)[1:-1]}:
+            if form and form in masked:
+                masked = masked.replace(form, " " * len(form))
+    return masked
+
+
+def _mask_untrusted(text: str) -> str:
+    """``text`` with every quarantined span (``crowd/quarantine.py`` spotlight markers, which the
+    quarantine never lets a post forge) blanked to spaces of the same length, so offsets hold."""
+    out: list[str] = []
+    at = 0
+    while True:
+        start = text.find(SPOTLIGHT_OPEN, at)
+        if start < 0:
+            out.append(text[at:])
+            return "".join(out)
+        end = text.find(SPOTLIGHT_CLOSE, start + len(SPOTLIGHT_OPEN))
+        if end < 0:
+            out.append(text[at:])
+            return "".join(out)
+        end += len(SPOTLIGHT_CLOSE)
+        out.append(text[at:start])
+        out.append(" " * (end - start))
+        at = end
 
 
 def scan_for_secrets(

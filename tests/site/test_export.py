@@ -603,3 +603,48 @@ def test_crowd_text_with_colons_and_escapes_is_not_a_drive_path(text: str) -> No
 def test_a_real_drive_path_is_still_found(text: str) -> None:
     findings = scan_bytes("ledger.jsonl", text.encode("utf-8"), ())
     assert [f.rule for f in findings] == ["a Windows drive path"]
+
+
+def test_a_strangers_path_quoted_in_crowd_text_is_not_a_local_path() -> None:
+    """2026-09-27: run 1's final export was refused for "C:/Users/<name>/Downloads/..." inside a
+    Reddit help request the agent had read. Path rules skip quarantined spans; the same path in
+    our own text, and this machine's own path anywhere, are still refused."""
+    quoted = '{"text": "<<UNTRUSTED Using IPA file: C:/Users/crist/Downloads/x.ipa UNTRUSTED>>"}'
+    assert scan_bytes("t.json", quoted.encode(), []) == []
+    bare = '{"text": "Using IPA file: C:/Users/crist/Downloads/x.ipa"}'
+    assert [f.rule for f in scan_bytes("t.json", bare.encode(), [])] == [
+        "a Windows drive path",
+        "a /Users or /home path",
+    ]
+    ours = '{"text": "<<UNTRUSTED see C:/Users/owner-name/secret UNTRUSTED>>"}'
+    literal = [("this machine's home folder", "C:/Users/owner-name")]
+    assert [f.rule for f in scan_bytes("t.json", ours.encode(), literal)] == [
+        "this machine's home folder"
+    ]
+    key = '{"text": "<<UNTRUSTED api_key=AAAABBBBCCCCDDDD UNTRUSTED>>"}'
+    assert [f.rule for f in scan_bytes("t.json", key.encode(), [])] == [
+        "a key or password assignment"
+    ]
+
+
+def test_a_strangers_path_in_a_raw_crowd_item_is_not_a_local_path() -> None:
+    """The case run 1 met: the post's raw ``text`` carries no spotlight markers (only its
+    ``prompt_text`` does). Recognised structurally, as a TextItem; our own fields still scan."""
+    item = {
+        "item": {"item_id": "reddit:1", "channel": "reddit", "source": "r/x", "url": None,
+                 "text": "Using IPA file: C:/Users/crist/Downloads/x.ipa"},
+        "prompt_text": "<<UNTRUSTED Using IPA file: C:/Users/crist/Downloads/x.ipa UNTRUSTED>>",
+        "our_note": "fine",
+    }  # fmt: skip
+    line = json.dumps(item)
+    assert scan_bytes("ledger.jsonl", (line + "\n" + line + "\n").encode(), []) == []
+    item["our_note"] = "wrote C:/Users/crist/Downloads/x.ipa"
+    rules = [f.rule for f in scan_bytes("ledger.jsonl", json.dumps(item).encode(), [])]
+    assert "a Windows drive path" in rules
+
+
+def test_a_post_carrying_a_unicode_line_separator_is_still_one_ledger_line() -> None:
+    item = {"item": {"item_id": "x:1", "channel": "x", "source": "@a", "url": None,
+                     "text": "Entry is in.\u2028C:/Users/crist/Downloads/x.ipa"}}  # fmt: skip
+    line = json.dumps(item, ensure_ascii=False)
+    assert scan_bytes("ledger.jsonl", (line + "\n").encode(), []) == []

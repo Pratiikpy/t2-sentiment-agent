@@ -1,0 +1,469 @@
+{
+ "label": "SIMULATED \u2014 the live model on run 1's recorded moments; no order, no ledger",
+ "note": "Rebuilt from the run log (scripts/model_sample.py crashed in its summary step on a prompt with no short-weighted book; every decision line and every attempt record was written before the crash). Flat books are excluded from the P&L means. Tokens are summed from the 38 attempt records (36 decisions, 2 retries).",
+ "summary": {
+  "v2": {
+   "decisions": 18,
+   "acted": 5,
+   "books_with_exposure": 4,
+   "median_short_share": 1.0,
+   "forward_24h_bps": [
+    6.787,
+    4.224,
+    20.563,
+    6.741
+   ],
+   "mean_forward_24h_bps": 9.579,
+   "mean_reversed_bps": -11.079,
+   "mean_beats_coin_flip_share": 0.753
+  },
+  "v3": {
+   "decisions": 18,
+   "acted": 0,
+   "books_with_exposure": 0,
+   "median_short_share": null,
+   "forward_24h_bps": [],
+   "mean_forward_24h_bps": null,
+   "mean_reversed_bps": null,
+   "mean_beats_coin_flip_share": null
+  }
+ },
+ "decisions": [
+  {
+   "at": "2026-09-25T00:00:49.731649+00:00",
+   "kind": "heartbeat",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T00:00:49.731649+00:00",
+   "kind": "heartbeat",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T00:18:33.437508+00:00",
+   "kind": "event",
+   "prompt": "v2",
+   "stance": "act",
+   "approved_weights": {
+    "HOODUSDT": -0.025,
+    "MSTRUSDT": -0.025
+   },
+   "score": {
+    "forward_24h_bps": 6.787,
+    "reversed_bps": -7.987,
+    "coin_flip_mean_bps": -0.903,
+    "beats_coin_flip_share": 0.767,
+    "net": -0.05,
+    "short_share": 1.0
+   }
+  },
+  {
+   "at": "2026-09-25T00:18:33.437508+00:00",
+   "kind": "event",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T01:28:09.724188+00:00",
+   "kind": "event",
+   "prompt": "v2",
+   "stance": "act",
+   "approved_weights": {
+    "MSTRUSDT": -0.025,
+    "SNDKUSDT": 0.0
+   },
+   "score": {
+    "forward_24h_bps": 4.224,
+    "reversed_bps": -4.824,
+    "coin_flip_mean_bps": -0.409,
+    "beats_coin_flip_share": 0.512,
+    "net": -0.025,
+    "short_share": 1.0
+   }
+  },
+  {
+   "at": "2026-09-25T01:28:09.724188+00:00",
+   "kind": "event",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T08:00:00.471219+00:00",
+   "kind": "heartbeat",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T08:00:00.471219+00:00",
+   "kind": "heartbeat",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T12:31:28.795224+00:00",
+   "kind": "event",
+   "prompt": "v2",
+   "stance": "act",
+   "approved_weights": {
+    "HOODUSDT": -0.025,
+    "MSTRUSDT": -0.025,
+    "TSLAUSDT": -0.025
+   },
+   "score": {
+    "forward_24h_bps": 20.563,
+    "reversed_bps": -22.363,
+    "coin_flip_mean_bps": -0.498,
+    "beats_coin_flip_share": 0.858,
+    "net": -0.075,
+    "short_share": 1.0
+   }
+  },
+  {
+   "at": "2026-09-25T12:31:28.795224+00:00",
+   "kind": "event",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T13:30:48.570389+00:00",
+   "kind": "heartbeat",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {
+    "AAPLUSDT": 0.0,
+    "AMZNUSDT": 0.0,
+    "BTCUSDT": 0.0,
+    "COINUSDT": 0.0,
+    "CRCLUSDT": 0.0,
+    "GOOGLUSDT": 0.0,
+    "HOODUSDT": 0.0,
+    "METAUSDT": 0.0,
+    "MSTRUSDT": 0.0,
+    "NDX100USDT": 0.0,
+    "NVDAUSDT": 0.0,
+    "SNDKUSDT": 0.0,
+    "SP500USDT": 0.0,
+    "TSLAUSDT": 0.0
+   },
+   "score": {
+    "forward_24h_bps": 0.0,
+    "reversed_bps": 0.0,
+    "coin_flip_mean_bps": 0.0,
+    "beats_coin_flip_share": 0.0,
+    "net": 0.0,
+    "short_share": null
+   }
+  },
+  {
+   "at": "2026-09-25T13:30:48.570389+00:00",
+   "kind": "heartbeat",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {
+    "AAPLUSDT": 0.0,
+    "AMZNUSDT": 0.0,
+    "BTCUSDT": 0.0,
+    "COINUSDT": 0.0,
+    "CRCLUSDT": 0.0,
+    "GOOGLUSDT": 0.0,
+    "HOODUSDT": 0.0,
+    "METAUSDT": 0.0,
+    "MSTRUSDT": 0.0,
+    "NDX100USDT": 0.0,
+    "NVDAUSDT": 0.0,
+    "SNDKUSDT": 0.0,
+    "SP500USDT": 0.0,
+    "TSLAUSDT": 0.0
+   },
+   "score": {
+    "forward_24h_bps": 0.0,
+    "reversed_bps": 0.0,
+    "coin_flip_mean_bps": 0.0,
+    "beats_coin_flip_share": 0.0,
+    "net": 0.0,
+    "short_share": null
+   }
+  },
+  {
+   "at": "2026-09-25T14:02:30.220074+00:00",
+   "kind": "event",
+   "prompt": "v2",
+   "stance": "act",
+   "approved_weights": {
+    "CRCLUSDT": -0.025,
+    "HOODUSDT": -0.025,
+    "MSTRUSDT": -0.025,
+    "TSLAUSDT": -0.025
+   },
+   "score": {
+    "forward_24h_bps": 6.741,
+    "reversed_bps": -9.141,
+    "coin_flip_mean_bps": -1.255,
+    "beats_coin_flip_share": 0.876,
+    "net": -0.1,
+    "short_share": 1.0
+   }
+  },
+  {
+   "at": "2026-09-25T14:02:30.220074+00:00",
+   "kind": "event",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T14:23:30.864434+00:00",
+   "kind": "event",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T14:23:30.864434+00:00",
+   "kind": "event",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T15:00:09.114006+00:00",
+   "kind": "event",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T15:00:09.114006+00:00",
+   "kind": "event",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T16:00:35.678573+00:00",
+   "kind": "heartbeat",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T16:00:35.678573+00:00",
+   "kind": "heartbeat",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T16:36:31.594508+00:00",
+   "kind": "event",
+   "prompt": "v2",
+   "stance": "act",
+   "approved_weights": {
+    "HOODUSDT": 0.0,
+    "MSTRUSDT": 0.0,
+    "TSLAUSDT": 0.0
+   },
+   "score": {
+    "forward_24h_bps": 0.0,
+    "reversed_bps": 0.0,
+    "coin_flip_mean_bps": 0.0,
+    "beats_coin_flip_share": 0.0,
+    "net": 0.0,
+    "short_share": null
+   }
+  },
+  {
+   "at": "2026-09-25T16:36:31.594508+00:00",
+   "kind": "event",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T19:04:17.653804+00:00",
+   "kind": "event",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-25T19:04:17.653804+00:00",
+   "kind": "event",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-26T00:01:17.239188+00:00",
+   "kind": "heartbeat",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-26T00:01:17.239188+00:00",
+   "kind": "heartbeat",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {
+    "AAPLUSDT": 0.0,
+    "AMZNUSDT": 0.0,
+    "BTCUSDT": 0.0,
+    "COINUSDT": 0.0,
+    "CRCLUSDT": 0.0,
+    "GOOGLUSDT": 0.0,
+    "HOODUSDT": 0.0,
+    "METAUSDT": 0.0,
+    "MSTRUSDT": 0.0,
+    "NDX100USDT": 0.0,
+    "NVDAUSDT": 0.0,
+    "SNDKUSDT": 0.0,
+    "SP500USDT": 0.0,
+    "TSLAUSDT": 0.0
+   },
+   "score": {
+    "forward_24h_bps": 0.0,
+    "reversed_bps": 0.0,
+    "coin_flip_mean_bps": 0.0,
+    "beats_coin_flip_share": 0.0,
+    "net": 0.0,
+    "short_share": null
+   }
+  },
+  {
+   "at": "2026-09-26T08:00:15.120774+00:00",
+   "kind": "heartbeat",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {
+    "AAPLUSDT": 0.0,
+    "AMZNUSDT": 0.0,
+    "BTCUSDT": 0.0,
+    "COINUSDT": 0.0,
+    "CRCLUSDT": 0.0,
+    "GOOGLUSDT": 0.0,
+    "HOODUSDT": 0.0,
+    "METAUSDT": 0.0,
+    "MSTRUSDT": 0.0,
+    "NDX100USDT": 0.0,
+    "NVDAUSDT": 0.0,
+    "SNDKUSDT": 0.0,
+    "SP500USDT": 0.0,
+    "TSLAUSDT": 0.0
+   },
+   "score": {
+    "forward_24h_bps": 0.0,
+    "reversed_bps": 0.0,
+    "coin_flip_mean_bps": 0.0,
+    "beats_coin_flip_share": 0.0,
+    "net": 0.0,
+    "short_share": null
+   }
+  },
+  {
+   "at": "2026-09-26T08:00:15.120774+00:00",
+   "kind": "heartbeat",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-26T16:00:23.823055+00:00",
+   "kind": "heartbeat",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-26T16:00:23.823055+00:00",
+   "kind": "heartbeat",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-27T00:00:16.743884+00:00",
+   "kind": "heartbeat",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-27T00:00:16.743884+00:00",
+   "kind": "heartbeat",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-27T08:01:31.564315+00:00",
+   "kind": "heartbeat",
+   "prompt": "v2",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-27T08:01:31.564315+00:00",
+   "kind": "heartbeat",
+   "prompt": "v3",
+   "stance": "flat_with_reasons",
+   "approved_weights": {},
+   "score": null
+  },
+  {
+   "at": "2026-09-27T14:46:24.966373+00:00",
+   "kind": "event",
+   "prompt": "v2",
+   "stance": "hold",
+   "approved_weights": {
+    "BTCUSDT": 0.04979438686039832
+   },
+   "score": null
+  },
+  {
+   "at": "2026-09-27T14:46:24.966373+00:00",
+   "kind": "event",
+   "prompt": "v3",
+   "stance": "hold",
+   "approved_weights": {
+    "BTCUSDT": 0.04979438686039832
+   },
+   "score": null
+  }
+ ],
+ "tokens_spent": 749526,
+ "attempts": 38
+}
