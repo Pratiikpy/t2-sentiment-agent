@@ -108,7 +108,7 @@
     "heartbeat_decisions": 2,
     "hours": 19.86,
     "last_snapshot": "2026-09-25T12:57:58.772329Z",
-    "policy_hash": "bdafcdfc077ecc72a42d7f8d8f55ec61c37c320e9fd91862283184817a28b713",
+    "policy_hash": "730a1db0e5af6a50c6a398fefe9c9364d892929f0b506cc530edbf1ecec8ecbb",
     "policy_version": "policy-v2",
     "refused_by_kind_and_reason": {
       "coordinated_cluster:cooldown": 1

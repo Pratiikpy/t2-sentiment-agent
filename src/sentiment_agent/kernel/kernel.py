@@ -276,7 +276,7 @@ class RiskKernel:
                 c for g in first[leg.symbol].values() if (c := _effective_ceiling(g)) is not None
             ]
             if GuardId.G3_SIZE in applied:
-                ceilings.append(policy.per_name_max)
+                ceilings.append(policy.name_cap(leg.symbol))
             candidates[leg.symbol] = min([abs(leg.reference), *ceilings])
         allocation: GrossAllocation | None = None
         if GuardId.G3_SIZE in applied:

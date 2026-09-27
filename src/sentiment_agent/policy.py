@@ -522,6 +522,42 @@ def _run2_a6(policy: Policy) -> Policy:
     )
 
 
+STOP_GAP_MULTIPLE: Final = 2.0
+"""run2-a7: a name's stop sits at least twice its measured Demo-live p99 gap from the entry."""
+
+
+def _run2_a7(policy: Policy) -> Policy:
+    g4 = next(g for g in policy.guard_bases if g.guard is GuardId.G4_STOP)
+    stops = policy.model_copy(
+        update={
+            "stop_gap_multiple": STOP_GAP_MULTIPLE,
+            "guard_bases": _guard(
+                policy,
+                GuardId.G4_STOP,
+                g4.rule + " Under run2-a7 a name's stop is the wider of 4% and twice its measured "
+                "Demo-live p99 gap: HOOD 7.66%, SNDK 6.96%, MSTR 6.32%, CRCL 6.17%, SP500 5.33%.",
+                "; policy v2 (run2-a7): the stop is placed and triggered on the Demo mark, and the "
+                "Demo price of HOOD, SNDK, MSTR, CRCL and SP500 departs from live by 267 to 383 "
+                "bps at the 99th percentile (validation/demo_venue), so a 4% stop could be taken "
+                "out by the venue's own drift rather than by the market",
+            ),
+        }
+    )
+    g3 = next(g for g in stops.guard_bases if g.guard is GuardId.G3_SIZE)
+    return stops.model_copy(
+        update={
+            "guard_bases": _guard(
+                stops,
+                GuardId.G3_SIZE,
+                g3.rule + " A name with a wider stop has a smaller cap, 5% x 4% / its stop, so "
+                "every name loses at most 0.2% of equity at its stop.",
+                "; policy v2 (run2-a7): widening a stop without shrinking the size would raise "
+                "the loss a stop-out takes, so the cap shrinks in proportion",
+            ),
+        }
+    )
+
+
 RUN2_AMENDMENTS: Final[tuple[tuple[str, Callable[[Policy], Policy]], ...]] = (
     ("run2-a1", _run2_a1),
     ("run2-a2", _run2_a2),
@@ -529,8 +565,9 @@ RUN2_AMENDMENTS: Final[tuple[tuple[str, Callable[[Policy], Policy]], ...]] = (
     ("run2-a4", _run2_a4),
     ("run2-a5", _run2_a5),
     ("run2-a6", _run2_a6),
+    ("run2-a7", _run2_a7),
 )
-"""Policy v1 to v2 as six amendments applied in order, each one a hashed policy of its own, so run
+"""Policy v1 to v2 as seven amendments applied in order, each one a hashed policy of its own, so run
 2's genesis can declare them as a chain (``Genesis`` requires each amendment to replace the last).
 The policies between v1 and v2 are never run; they exist so each change carries its own hash."""
 
@@ -547,11 +584,13 @@ RUN2_STEPS: Final[tuple[tuple[str, Policy], ...]] = _steps()
 """Each run-2 amendment's id and the policy in force after it; the last is :data:`POLICY_V2`."""
 
 POLICY_V2: Final[Policy] = RUN2_STEPS[-1][1]
-"""Policy v1 amended for run 2 (run2-a1..a6): the funding z-score trigger covers the whole universe
+"""Policy v1 amended for run 2 (run2-a1..a7): the funding z-score trigger covers the whole universe
 and needs a funding level; G3 caps the book's net weight at 10% and the crypto-beta names at 7.5%;
 the record is scored over a pre-registered window that G2 closes; the losing-streak trip lapses
-after 24 hours; and a model outage flattens the book on its third failed decision, not its first.
-Every other guard, limit, fee and edge bar, the mandate and the decision rule are v1's."""
+after 24 hours; a model outage flattens the book on its third failed decision, not its first; and
+a name whose Demo price drifts from live gets a stop twice that drift, at a size that keeps its
+loss at the stop to 0.2% of equity. Every other guard, limit, fee and edge bar, the mandate and the
+decision rule are v1's."""
 
 ACTIVE_POLICY: Final[Policy] = POLICY_V2
 """The policy the runtime loads by default: run 2's. Run 1's record was pre-registered under

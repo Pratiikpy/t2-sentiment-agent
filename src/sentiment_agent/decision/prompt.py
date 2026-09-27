@@ -119,11 +119,14 @@ A test fails if a numeric field is added to the contract and not listed here."""
 
 INSTRUMENT_FACTS: Final[tuple[str, ...]] = (
     "demo_live_gap_limit_bps",
+    "stop_pct",
+    "per_name_max_pct",
     "model_orders_today",
     "model_orders_left_today",
 )
 """Per-instrument facts after the features, each keyed ``SYMBOL.name``. The order counters are
-shown only for a name traded today; the message says that an absent counter means none."""
+shown only for a name traded today; the message says that an absent counter means none. A stop and
+a size cap are shown only for a name whose differ from ``kernel.*`` (run2-a7)."""
 
 POSITION_FACTS: Final[tuple[str, ...]] = (
     "position_qty",
@@ -214,6 +217,13 @@ FACT_LEGEND: Final[tuple[tuple[str, str], ...]] = (
     ("demo_mark_index_gap_bps", "gap between the Demo mark and the Demo index, bps"),
     ("demo_live_gap_bps", "gap between the Demo price and the live price, bps"),
     ("demo_live_gap_limit_bps", "the measured limit for that gap; above it the kernel exits"),
+    (
+        "stop_pct / per_name_max_pct",
+        "shown only where they differ from kernel.stop_loss_pct and kernel.per_name_max_pct: this "
+        "name's venue stop, set at twice its measured Demo-live gap so a Demo-only drift cannot "
+        "trigger it, and its size cap, smaller in proportion so its loss at the stop equals any "
+        "other name's; the kernel trims a larger target to this cap",
+    ),
     ("demo_spread_bps", "Demo bid-ask spread, bps"),
     (
         "demo_index_move_bps_3h",
@@ -537,6 +547,10 @@ def _cycle_facts(
 
     for entry in policy.universe:
         out[f"{entry.symbol}.demo_live_gap_limit_bps"] = entry.demo_live_gap_p99_bps
+        if policy.stop_for(entry.symbol) != policy.stop_loss_pct:
+            # run2-a7: this name's stop and size cap differ from the kernel.* defaults
+            out[f"{entry.symbol}.stop_pct"] = _clean(policy.stop_for(entry.symbol) * 100)
+            out[f"{entry.symbol}.per_name_max_pct"] = _clean(policy.name_cap(entry.symbol) * 100)
     for symbol, used in book.rebalances_today.items():
         out[f"{symbol}.model_orders_today"] = float(used)
         out[f"{symbol}.model_orders_left_today"] = float(

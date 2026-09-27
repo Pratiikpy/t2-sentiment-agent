@@ -566,10 +566,18 @@ def g3_size(
     gross_note: str = "",
     book_cap: tuple[float, str] | None = None,
 ) -> GuardRuling:
-    """At most ``per_name_max`` per name, and this name's share of the ``gross_max`` headroom
+    """At most the name's cap (``policy.name_cap``: ``per_name_max``, smaller for a name with a
+    wider stop under run2-a7) per name, and this name's share of the ``gross_max`` headroom
     (``gross_ceiling``, from :func:`allocate_gross`; ``None`` when the gross cap does not bind)."""
-    per_name = policy.per_name_max
-    ceiling, which = per_name, f"the {per_name:.0%} per-name cap"
+    per_name = policy.name_cap(leg.symbol)
+    ceiling, which = (
+        per_name,
+        (
+            f"the {per_name:.0%} per-name cap"
+            if per_name == policy.per_name_max
+            else f"the {per_name:.2%} cap for a name with a {policy.stop_for(leg.symbol):.2%} stop"
+        ),
+    )
     if gross_ceiling is not None and gross_ceiling < per_name:
         ceiling, which = (
             max(0.0, gross_ceiling),
@@ -611,10 +619,10 @@ def g3_size(
 def g4_stop(
     leg: Leg, *, spec: InstrumentSpec | None, demo: Quote | None, policy: Policy
 ) -> GuardRuling:
-    """An exposure-adding order must be able to carry its venue stop ``stop_loss_pct`` from the
-    expected entry, on the price grid, triggered on mark. No placeable stop, no increase."""
+    """An exposure-adding order must be able to carry its venue stop (``policy.stop_for``) from
+    the expected entry, on the price grid, triggered on mark. No placeable stop, no increase."""
     inputs: dict[str, InputValue] = {
-        "stop_loss_pct": policy.stop_loss_pct,
+        "stop_loss_pct": policy.stop_for(leg.symbol),
         "trigger": policy.stop_trigger,
     }
     if not leg.adds_exposure:
@@ -636,7 +644,7 @@ def g4_stop(
     entry = entry_price(side, demo, demo.mark)
     inputs.update(side=side.value, entry=str(entry))
     try:
-        stop = stop_price(entry, side, policy, spec)
+        stop = stop_price(entry, side, policy, spec, leg.symbol)
     except ValueError as exc:
         return _conclude(
             GuardId.G4_STOP, leg, policy, inputs=inputs, refusals=(f"no valid stop: {exc}",), ok=""

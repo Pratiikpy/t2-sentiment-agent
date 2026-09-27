@@ -88,18 +88,22 @@ def round_qty(qty: Decimal, spec: InstrumentSpec) -> Decimal:
     return _to_grid(qty, spec.qty_step, ROUND_DOWN)
 
 
-def stop_price(entry: Decimal, side: Side, policy: Policy, spec: InstrumentSpec) -> Decimal:
+def stop_price(
+    entry: Decimal, side: Side, policy: Policy, spec: InstrumentSpec, symbol: str | None = None
+) -> Decimal:
     """The preset venue stop for an order entering at ``entry`` on ``side`` (G4).
 
-    A buy opens or grows a long, so its stop sits ``stop_loss_pct`` below the entry; a sell opens
-    or grows a short, so its stop sits above. The price is rounded onto ``priceMultiplier``
-    **toward the entry**: up for a long, down for a short. The stop can therefore only be tighter
-    than 4%, never looser, so the loss it allows never exceeds the policy. Raises ``ValueError``
+    A buy opens or grows a long, so its stop sits ``policy.stop_for(symbol)`` below the entry (the
+    policy's ``stop_loss_pct``, wider for a name whose Demo price drifts from live under
+    run2-a7); a sell opens or grows a short, so its stop sits above. The price is rounded onto
+    ``priceMultiplier`` **toward the entry**: up for a long, down for a short. The stop can
+    therefore only be tighter than the name's stop distance, never looser, so the loss it allows
+    never exceeds the policy. Raises ``ValueError``
     when the grid is too coarse to place any stop strictly on the losing side of the entry.
     """
     if entry <= 0:
         raise ValueError(f"entry price must be positive, got {entry}")
-    pct = Decimal(repr(policy.stop_loss_pct))
+    pct = Decimal(repr(policy.stop_for(symbol)))
     if side is Side.BUY:
         stop = _to_grid(entry * (1 - pct), spec.price_step, ROUND_CEILING)
         if not _ZERO < stop < entry:
@@ -409,7 +413,7 @@ class _Planner:
             return
         entry = entry_price(side, self.inputs.demo_quotes.get(symbol), price)
         try:
-            stop = stop_price(entry, side, self.policy, spec)
+            stop = stop_price(entry, side, self.policy, spec, symbol)
         except ValueError as exc:
             self.skip(ir, f"increase skipped: {exc}")
             return

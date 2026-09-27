@@ -746,7 +746,7 @@ def _minimum_open(symbol: str, quote: Any, spec: Any, policy: Any, *, tag: str) 
         reference_price=entry,
         notional=notional,
         expected_fee=notional * fee_rate(spec),
-        stop_loss_price=stop_price(entry, Side.BUY, policy, spec),
+        stop_loss_price=stop_price(entry, Side.BUY, policy, spec, symbol),
         client_oid=client_oid(core),
     )
 

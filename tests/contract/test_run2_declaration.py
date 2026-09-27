@@ -26,6 +26,7 @@ from sentiment_agent.run2 import (
     RUN1_CODE_COMMIT,
     RUN1_GENESIS_HASH,
     RUN1_PROMPT_HASHES,
+    RUN2_D4_PROMPT_PY_HASH,
     RUN2_PROMPT_PY_HASH,
     declaration_for,
 )
@@ -91,7 +92,12 @@ def test_the_prompts_are_run_1s_but_for_the_declared_legend_fix() -> None:
     assert fix.kind == "prompt_fix"
     assert fix.files == ("src/sentiment_agent/decision/prompt.py",)
     assert RUN1_PROMPT_HASHES["decision/prompt.py"] in fix.evidence["decision/prompt.py"]
-    assert RUN2_PROMPT_PY_HASH in fix.evidence["decision/prompt.py"]
+    assert RUN2_D4_PROMPT_PY_HASH in fix.evidence["decision/prompt.py"]
+    # run2-a7 touched prompt.py again (two per-name facts), and declares the transition
+    stops = next(c for c in DECLARED_CHANGES if c.change_id == "run2-a7")
+    assert "src/sentiment_agent/decision/prompt.py" in stops.files
+    assert RUN2_D4_PROMPT_PY_HASH in stops.evidence["decision/prompt.py"]
+    assert RUN2_PROMPT_PY_HASH in stops.evidence["decision/prompt.py"]
 
 
 def test_the_legend_names_the_market_of_every_positioning_figure() -> None:
@@ -120,6 +126,7 @@ AMENDED: dict[str, dict[str, set[str]]] = {
         "guard_bases": {"G10_BREAKER"},
     },
     "run2-a6": {"decision": {"outage_flatten_after", "basis"}, "guard_bases": {"G10_BREAKER"}},
+    "run2-a7": {"stop_gap_multiple": set(), "guard_bases": {"G3_SIZE", "G4_STOP"}},
 }
 """What each amendment may touch: top-level policy keys, and inside them the keys (or, for
 ``guard_bases``, the guards) it changes. Anything else changing is an undeclared change."""
@@ -388,7 +395,7 @@ def test_policy_v2s_kernel_cuts_the_books_the_v1_kernel_let_through() -> None:
     assert doc["input"]["answers_policy_step"] == "run2-a1"
     assert doc["input"]["answers_policy_hash"] == dict(RUN2_STEPS)["run2-a1"].content_hash()
     assert doc["input"]["kernel_policy_hash"] == POLICY_V2.content_hash()
-    assert (doc["event_decisions"], doc["acted"], doc["cut_by_kernel"]) == (15, 14, 7)
+    assert (doc["event_decisions"], doc["acted"], doc["cut_by_kernel"]) == (15, 14, 9)
     assert (doc["max_net_proposed"], doc["max_net_approved"]) == (-0.2, -0.1)
     assert doc["max_crypto_beta_proposed"] == pytest.approx(0.15)
     assert doc["max_crypto_beta_approved"] == pytest.approx(0.075)
@@ -398,7 +405,7 @@ def test_policy_v2s_kernel_cuts_the_books_the_v1_kernel_let_through() -> None:
         if row.get("kernel_changed"):
             assert "G3_size" in row["binding_guards"]
     quoted = _declared("run2-a3").evidence["ruled_by_policy_v2"]
-    assert "7 of the 14 books cut" in quoted
+    assert f"{doc['cut_by_kernel']} of the 14 books cut" in quoted
     assert "from 20% to 10%" in quoted
     assert "from 15% to 7.5%" in quoted
 

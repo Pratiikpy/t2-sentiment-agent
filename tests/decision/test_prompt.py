@@ -576,3 +576,18 @@ def test_system_and_user_are_the_two_messages_in_order() -> None:
     book = held_book()
     messages = render_messages(build_snapshot(book=book), book, TRIGGERS, POLICY_V1, now=NOW)
     assert [m.role for m in messages] == ["system", "user"]
+
+
+def test_a_wide_stop_name_shows_its_stop_and_cap_as_facts() -> None:
+    """run2-a7: the per-name stop and size cap reach the model where they differ from kernel.*."""
+    from sentiment_agent.policy import POLICY_V2
+
+    _, _, snap = _render()
+    facts = decision_facts(snap, held_book(), TRIGGERS, POLICY_V2, now=NOW)
+    assert facts["HOODUSDT.stop_pct"] == pytest.approx(7.66)
+    assert facts["HOODUSDT.per_name_max_pct"] == pytest.approx(0.05 * 0.04 / 0.0766 * 100)
+    assert "NVDAUSDT.stop_pct" not in facts
+    assert "NVDAUSDT.per_name_max_pct" not in facts
+    v1 = decision_facts(snap, held_book(), TRIGGERS, POLICY_V1, now=NOW)
+    per_name = [k for k in v1 if not k.startswith("kernel.")]
+    assert not any(k.endswith((".stop_pct", ".per_name_max_pct")) for k in per_name)

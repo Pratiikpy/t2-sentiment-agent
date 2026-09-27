@@ -571,10 +571,10 @@ class _ArmRun:
         spec = self.specs.get(symbol)
         if spec is not None:
             try:
-                return stop_price(position.avg_entry, side, self.policy, spec)
+                return stop_price(position.avg_entry, side, self.policy, spec, symbol)
             except ValueError:
                 pass
-        pct = Decimal(repr(self.policy.stop_loss_pct))
+        pct = Decimal(repr(self.policy.stop_for(symbol)))
         return position.avg_entry * (_ONE - pct if side is Side.BUY else _ONE + pct)
 
     def _taker_price(self, symbol: str, reference: Decimal, side: Side) -> Decimal:

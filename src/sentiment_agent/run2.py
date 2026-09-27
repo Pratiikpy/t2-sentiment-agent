@@ -23,13 +23,15 @@ itself, and not from a README, what differs and why:
     The fact legend in ``decision/prompt.py`` names the market each positioning figure comes from:
     the long/short, top-trader, taker and open-interest-change figures are Binance USD-M's, which
     Bitget's data services read. Run 1 told the model the top-trader ratio was Bitget's.
-``run2-a1`` to ``run2-a6`` (policy amendments, v1 to v2, ``policy.RUN2_AMENDMENTS``)
+``run2-a1`` to ``run2-a7`` (policy amendments, v1 to v2, ``policy.RUN2_AMENDMENTS``)
     a1: ``funding_zscore`` is evaluated for every universe instrument, not BTCUSDT alone.
     a2: it also needs the live rate at 7.5 bp or more, since half of run 1's live rates were zero.
     a3: G3 caps the book's net weight at 10% and the crypto-beta names at 7.5% together.
     a4: the record is scored over a pre-registered window, and at its end G2 closes every leg.
     a5: the losing-streak trip lapses 24 hours after the last losing close.
     a6: a model outage flattens the book on the third failed decision in a row, not the first.
+    a7: a name's stop is the wider of 4% and twice its measured Demo-live gap, and its size cap
+    shrinks in proportion; the prompt shows each such name's stop and cap as facts.
     Each is its own hashed policy, and the genesis declares them as a chain from v1 to v2.
 
 Nothing else changes: every other guard limit, the fee and edge bar, the mandate, the system prompt
@@ -60,8 +62,12 @@ RUN1_PROMPT_HASHES: Final[dict[str, str]] = {
 """Run 1's genesis ``prompt_hashes``; run 2 pre-registers the same files, ``decision/prompt.py``
 changed by ``run2-d4`` alone."""
 
-RUN2_PROMPT_PY_HASH: Final = "1ce5b81a4368a3ba0d56a0640b861831473ac20c8f5b980137f5a073e35e85fd"
-"""``decision/prompt.py``'s hash after ``run2-d4``; a test holds it to the file."""
+RUN2_D4_PROMPT_PY_HASH: Final = "1ce5b81a4368a3ba0d56a0640b861831473ac20c8f5b980137f5a073e35e85fd"
+"""``decision/prompt.py``'s hash after ``run2-d4`` alone."""
+
+RUN2_PROMPT_PY_HASH: Final = "df7f36967adf2e26f454851a5d9e02bc26a0540e1e46cf7e0413cc475a74bd36"
+"""``decision/prompt.py``'s hash after ``run2-d4`` and ``run2-a7``'s two per-name facts; a test
+holds it to the file."""
 
 REPLAY_EVIDENCE: Final = "validation/run2/run1_trigger_replay.json"
 OUTAGE_EVIDENCE: Final = "validation/run2/run1_feed_outage.json"
@@ -158,8 +164,9 @@ _AMENDMENTS: Final[tuple[tuple[str, str, str, tuple[str, ...], dict[str, str]], 
             "crypto_beta": "COIN, HOOD and MSTR 5% short each at once (15%), 2026-09-25 00:13 "
             "UTC; MSTR moved 1.85x BTC over 30 days of hourly candles (correlation +0.83)",
             "ruled_by_policy_v2": "the same 15 recorded answers, parsed again and ruled by policy "
-            "v2's kernel with no model call: 7 of the 14 books cut, the largest net short from "
-            "20% to 10% and the crypto-beta names from 15% to 7.5%",
+            "v2's kernel with no model call: 9 of the 14 books cut (7 by these caps; 2 more by "
+            "run2-a7's smaller caps on the wide-stop names), the largest net short from 20% to "
+            "10% and the crypto-beta names from 15% to 7.5%",
             "source": ACT_RATE_EVIDENCE
             + ", by "
             + ACT_RATE_COMMAND
@@ -226,6 +233,35 @@ _AMENDMENTS: Final[tuple[tuple[str, str, str, tuple[str, ...], dict[str, str]], 
             "cost": "a flatten is a taker trade on every open leg at 6 bp each (Demo "
             "takerFeeRate 0.0006, universe_probe.json), paid on a gateway timeout that says "
             "nothing about the thesis",
+        },
+    ),
+    (
+        "run2-a7",
+        "A name's stop clears its Demo-live drift, at the same loss per name",
+        "G4 places every stop on the Demo mark, and the Demo price of HOOD, SNDK, MSTR, CRCL and "
+        "SP500 departs from live by 267 to 383 bps at the 99th percentile, so a 4% stop could be "
+        "taken out by the venue's drift rather than by the market. From run2-a7 a name's stop is "
+        "the wider of 4% and twice its measured p99 gap (HOOD 7.66%, SNDK 6.96%, MSTR 6.32%, "
+        "CRCL 6.17%, SP500 5.33%; every other name keeps 4%), and G3 caps its weight at "
+        "5% x 4% / its stop, so any name loses at most 0.2% of equity at its stop. The prompt "
+        "shows each such name's stop and cap as facts (decision/prompt.py); the system prompt "
+        "and the output schema are unchanged.",
+        (
+            "src/sentiment_agent/policy.py",
+            "src/sentiment_agent/types.py",
+            "src/sentiment_agent/kernel/planner.py",
+            "src/sentiment_agent/kernel/guards.py",
+            "src/sentiment_agent/kernel/kernel.py",
+            "src/sentiment_agent/execution/stops.py",
+            "src/sentiment_agent/decision/prompt.py",
+        ),
+        {
+            "demo_live_gap_p99_bps": "HOOD 383.0, SNDK 348.2, MSTR 316.2, CRCL 308.7, SP500 "
+            "266.5 (policy.UNIVERSE, from validation/demo_venue)",
+            "decision/prompt.py": RUN2_D4_PROMPT_PY_HASH
+            + " after run2-d4, "
+            + RUN2_PROMPT_PY_HASH
+            + " after this change",
         },
     ),
 )
@@ -335,7 +371,7 @@ DECLARED_CHANGES: Final[tuple[DeclaredChange, ...]] = (
         evidence={
             "decision/prompt.py": RUN1_PROMPT_HASHES["decision/prompt.py"]
             + " in run 1's genesis, "
-            + RUN2_PROMPT_PY_HASH
+            + RUN2_D4_PROMPT_PY_HASH
             + " after this change",
             "source": "sources/bitget_data.py derivatives(); sources/upstream.py module docstring",
         },
@@ -376,6 +412,7 @@ __all__ = [
     "RUN1_CODE_COMMIT",
     "RUN1_GENESIS_HASH",
     "RUN1_PROMPT_HASHES",
+    "RUN2_D4_PROMPT_PY_HASH",
     "RUN2_PROMPT_PY_HASH",
     "declaration_for",
 ]

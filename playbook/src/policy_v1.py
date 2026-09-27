@@ -59,6 +59,7 @@ GROUNDING_TOLERANCE = 0.02
 NET_MAX = 1.0
 CLUSTER_CAPS = ()
 SCORING_WINDOW = None
+STOP_GAP_MULTIPLE = None
 GUARD_IDS = (
     'G1_venue_integrity',
     'G2_weekend_freeze',

@@ -228,6 +228,8 @@ def policy_constants(policy: Policy = POLICY_V1) -> dict[str, object]:
             if policy.scoring_window is None
             else (policy.scoring_window.start.isoformat(), policy.scoring_window.end.isoformat())
         ),
+        # run2-a7: unset in v1, so every name keeps the policy's single stop and cap
+        "STOP_GAP_MULTIPLE": policy.stop_gap_multiple,
         "WEEKEND_FREEZE_WEEKDAY": w.freeze_weekday,
         "WEEKEND_FREEZE_HOUR": w.freeze_hour,
         "WEEKEND_REOPEN_WEEKDAY": w.reopen_weekday,
@@ -326,6 +328,7 @@ _SECTIONS: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
             "NET_MAX",
             "CLUSTER_CAPS",
             "SCORING_WINDOW",
+            "STOP_GAP_MULTIPLE",
             "GUARD_IDS",
         ),
     ),

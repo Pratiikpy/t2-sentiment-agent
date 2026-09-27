@@ -270,7 +270,7 @@ class StopManager:
                 continue
             desired = desired_stop_price(
                 position,
-                stop_loss_pct=self._policy.stop_loss_pct,
+                stop_loss_pct=self._policy.stop_for(symbol),
                 spec=self._specs.get(symbol),
             )
             existing = by_symbol.pop(symbol, [])

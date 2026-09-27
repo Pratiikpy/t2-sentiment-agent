@@ -2389,6 +2389,10 @@ class Policy(Model):
     scoring_window: ScoringWindow | None = None
     """When set, the record is scored over this window, and at its end G2 closes every leg and
     refuses new exposure (run2-a4). Unset in v1, and omitted from the hash when unset."""
+    stop_gap_multiple: float | None = Field(default=None, gt=0)
+    """When set, a name's stop sits at least this many times its measured Demo-live p99 gap from
+    the entry, and its size cap shrinks in proportion, so the loss at the stop is the same for
+    every name (run2-a7). Unset in v1, and omitted from the hash when unset."""
 
     @model_serializer(mode="wrap")
     def _omit_unset_caps(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -2399,6 +2403,8 @@ class Policy(Model):
             data.pop("cluster_caps", None)
         if self.scoring_window is None:
             data.pop("scoring_window", None)
+        if self.stop_gap_multiple is None:
+            data.pop("stop_gap_multiple", None)
         return data
 
     @model_validator(mode="after")
@@ -2438,6 +2444,25 @@ class Policy(Model):
             if u.symbol == symbol:
                 return u
         return None
+
+    def stop_for(self, symbol: str | None) -> float:
+        """The stop distance for ``symbol``: ``stop_loss_pct``, widened under run2-a7 to
+        ``stop_gap_multiple`` times the name's measured Demo-live p99 gap when that is wider. A
+        stop inside the gap can be triggered by the Demo price drifting from live rather than by
+        the market moving; the p99 gaps of HOOD, SNDK, MSTR and CRCL (308-383 bps) sit within
+        a 4% stop."""
+        entry = self.entry(symbol) if symbol is not None else None
+        if self.stop_gap_multiple is None or entry is None:
+            return self.stop_loss_pct
+        return max(
+            self.stop_loss_pct, self.stop_gap_multiple * entry.demo_live_gap_p99_bps / 10_000
+        )
+
+    def name_cap(self, symbol: str | None) -> float:
+        """The per-name weight cap for ``symbol``: ``per_name_max`` scaled down by how much wider
+        its stop is than ``stop_loss_pct``, so the equity lost at the stop never exceeds
+        ``per_name_max * stop_loss_pct`` (0.2% under policy v2) whatever the name."""
+        return self.per_name_max * self.stop_loss_pct / self.stop_for(symbol)
 
     @property
     def symbols(self) -> tuple[str, ...]:
