@@ -88,6 +88,36 @@ def round_qty(qty: Decimal, spec: InstrumentSpec) -> Decimal:
     return _to_grid(qty, spec.qty_step, ROUND_DOWN)
 
 
+def take_profit_price(
+    entry: Decimal, side: Side, policy: Policy, spec: InstrumentSpec
+) -> Decimal | None:
+    """The preset venue take-profit for an order entering at ``entry`` on ``side``, or ``None`` when
+    the policy sets none (``Policy.take_profit_pct``).
+
+    A long's sits above the entry and a short's below, rounded onto ``priceMultiplier`` **toward
+    the entry** (down for a long, up for a short), so it can only be nearer than the policy's
+    distance: a take-profit that fills a tick early, never one that asks for more than registered.
+    Raises ``ValueError`` when the grid is too coarse to place it strictly on the winning side."""
+    if policy.take_profit_pct is None:
+        return None
+    if entry <= 0:
+        raise ValueError(f"entry price must be positive, got {entry}")
+    pct = Decimal(repr(policy.take_profit_pct))
+    if side is Side.BUY:
+        target = _to_grid(entry * (1 + pct), spec.price_step, ROUND_FLOOR)
+        if target <= entry:
+            raise ValueError(
+                f"no long take-profit fits above the entry {entry} on a {spec.price_step} grid"
+            )
+    else:
+        target = _to_grid(entry * (1 - pct), spec.price_step, ROUND_CEILING)
+        if not _ZERO < target < entry:
+            raise ValueError(
+                f"no short take-profit fits below the entry {entry} on a {spec.price_step} grid"
+            )
+    return target
+
+
 def stop_price(
     entry: Decimal, side: Side, policy: Policy, spec: InstrumentSpec, symbol: str | None = None
 ) -> Decimal:

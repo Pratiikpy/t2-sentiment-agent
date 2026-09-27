@@ -361,9 +361,11 @@ CRYPTO_BETA: Final = ClusterCap(
 
 RUN2_WINDOW: Final = ScoringWindow(
     start=datetime(2026, 9, 28, 0, 0, tzinfo=UTC),
-    end=datetime(2026, 10, 1, 0, 0, tzinfo=UTC),
-    basis="Run 2's 72 hours, from the end of the weekend freeze on Monday 2026-09-28 00:00 UTC to "
-    "Thursday 2026-10-01 00:00 UTC, after the US close (RUNBOOK section 3). Pre-registered here so "
+    end=datetime(2026, 10, 7, 0, 0, tzinfo=UTC),
+    basis="Run 2's nine days, from the end of the weekend freeze on Monday 2026-09-28 00:00 UTC to "
+    "Wednesday 2026-10-07 00:00 UTC, after Tuesday's US close (RUNBOOK section 3), the day before "
+    "the submission deadline Bitget moved to 8 October (@Bitget_AI, 2026-09-24); the handbook "
+    "recommends a paper log of two weeks or more. Pre-registered here so "
     "the scored span is in the hashed policy and not only in prose, and so every trade closes and "
     "counts: at the end G2 closes every leg (run2-a4). Run 1 had no window in its record and its "
     "win rate stayed undefined with positions open.",
@@ -455,7 +457,7 @@ def _run2_a4(policy: Policy) -> Policy:
             "guard_bases": _guard(
                 policy,
                 GuardId.G2_WEEKEND_FREEZE,
-                g2.rule + " From the scoring window's end, 2026-10-01 00:00 UTC, every leg of "
+                g2.rule + " From the scoring window's end, 2026-10-07 00:00 UTC, every leg of "
                 "every class is closed and nothing opens.",
                 "; policy v2 (run2-a4): a trade still open when the record is scored has no "
                 "result, so the window closes them all",

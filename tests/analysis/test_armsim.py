@@ -22,6 +22,7 @@ from analysis.abuild import (
     kernel,
     simulator,
     snapshot,
+    specs,
 )
 from sentiment_agent.analysis.armsim import ArmSimulator
 from sentiment_agent.clock import ManualClock
@@ -34,9 +35,11 @@ from sentiment_agent.types import (
     ArmResult,
     ArmSpec,
     GuardId,
+    Policy,
     PriceSource,
     ProtectiveReason,
     RulingContext,
+    ScoringWindow,
 )
 
 ONE_BP = Decimal("0.0001")
@@ -373,3 +376,83 @@ def test_the_kernel_passed_in_is_not_mutated_or_used_for_time() -> None:
     at = FRI
     result = sim.run(VENUE, [(at, {BTC: 0.05}, inputs({BTC: "80000"}, at=at))], ci_resamples=0)
     assert result.marks[-1].gross_weight > 0  # ruled at Friday's instant, not the kernel's clock
+
+
+# ------------------------------------------------------------------------------------------------
+# The scoring window's end (run2-a4)
+# ------------------------------------------------------------------------------------------------
+
+
+def _window_end_scenario(audit: bool = False) -> ArmResult:
+    """BTC held from Wednesday 13:00 under a policy whose scoring window ends at 16:00: G2 closes
+    it at the end, as it closes every leg of the real book."""
+    end = WED + 3 * HOUR
+    policy = Policy.model_validate(
+        POLICY_V1.model_copy(
+            update={"scoring_window": ScoringWindow(start=WED, end=end, basis="test window")}
+        ).model_dump()
+    )
+    marks = {BTC: flat_candles(BTC, WED, 8, "80000")}
+    sim = ArmSimulator(
+        kernel=RiskKernel(policy, ManualClock(WED)),
+        policy=policy,
+        demo_marks=marks,
+        spreads_bps={BTC: 2.0},
+        starting_equity=EQUITY,
+        specs=specs(marks),
+        audit_protective=audit,
+    )
+    schedule = [(WED, {BTC: 0.05}, inputs({BTC: "80000"}, at=WED))]
+    return sim.run(VENUE, schedule, until=WED + 5 * HOUR, ci_resamples=0)
+
+
+def test_the_window_end_closes_every_leg_without_the_audit_flag() -> None:
+    result = _window_end_scenario()
+    (trade,) = result.trades
+    assert trade.symbol == BTC
+    assert trade.exit_reason == "protective_exit:window_end"
+    assert trade.closed_at == WED + 3 * HOUR
+    assert result == _window_end_scenario(audit=True)
+
+
+# ------------------------------------------------------------------------------------------------
+# The take-profit (Policy.take_profit_pct)
+# ------------------------------------------------------------------------------------------------
+
+
+def _tp_run(closes: list[str], *, highs: dict[int, str] | None = None,
+            lows: dict[int, str] | None = None) -> ArmResult:  # fmt: skip
+    policy = Policy.model_validate(
+        POLICY_V1.model_copy(update={"take_profit_pct": 0.01}).model_dump()
+    )
+    marks = {BTC: candles(BTC, WED, closes, highs=highs, lows=lows)}
+    sim = ArmSimulator(
+        kernel=RiskKernel(policy, ManualClock(WED)),
+        policy=policy,
+        demo_marks=marks,
+        spreads_bps={BTC: 2.0},
+        starting_equity=EQUITY,
+        specs=specs(marks),
+    )
+    return sim.run(VENUE, [(WED, {BTC: 0.05}, inputs({BTC: "80000"}, at=WED))], ci_resamples=0)
+
+
+def test_take_profit_fills_when_the_candle_reaches_it() -> None:
+    result = _tp_run(["80000", "80500", "80500"], highs={1: "81500"})
+    (trade,) = result.trades
+    assert trade.exit_reason == "take_profit_filled"
+    assert trade.closed_at == WED + 2 * HOUR
+    # 1% above the 80,008 entry, rounded down onto the 0.1 grid, filled half the spread lower
+    assert trade.exit_avg == Decimal("80808.0") * (1 - ONE_BP)
+    assert trade.net_pnl > 0
+
+
+def test_a_candle_reaching_both_is_booked_as_the_stop() -> None:
+    result = _tp_run(["80000", "80000", "80000"], highs={1: "81500"}, lows={1: "76000"})
+    (trade,) = result.trades
+    assert trade.exit_reason == "stop_filled"
+
+
+def test_no_take_profit_under_a_policy_without_one() -> None:
+    result = _stop_run(["80000", "80500", "80500"])
+    assert result.trades == ()

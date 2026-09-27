@@ -17,7 +17,9 @@ the runtime does, and rules the proposal with the kernel of ``--policy``.
 A check makes the replay honest: every re-parsed proposal must equal the one ``act_rate.py``
 recorded for the same moment, or the script stops. What it does not model: each decision is
 ruled against the book run 1 actually held, which was flat, as in ``act_rate.py``; in a live run
-the earlier decisions' positions would be held and count against the caps. It sends no order and
+the earlier decisions' positions would be held and count against the caps. An answer the current
+decision contract sends back (for example under run2-d8, added after these answers were recorded)
+is counted as returned: no second answer exists, so no ruling is invented. It sends no order and
 writes no ledger, and it is labelled SIMULATED wherever it is published.
 """
 
@@ -39,7 +41,7 @@ from sentiment_agent.clock import ManualClock  # noqa: E402
 from sentiment_agent.decision.agent import DecisionAgent  # noqa: E402
 from sentiment_agent.kernel.kernel import RiskKernel  # noqa: E402
 from sentiment_agent.ledger.blobs import FileBlobStore  # noqa: E402
-from sentiment_agent.llm.fakes import ScriptedChatModel  # noqa: E402
+from sentiment_agent.llm.fakes import ScriptedChatModel, ScriptExhausted  # noqa: E402
 from sentiment_agent.policy import POLICY_V2, RUN2_STEPS  # noqa: E402
 from sentiment_agent.types import Completion  # noqa: E402
 
@@ -128,9 +130,29 @@ def main(argv: list[str]) -> int:
             blobs=FileBlobStore(ROOT / "var" / "rerule" / "blobs"),
             clock=clock,
         )
-        row = decide_and_rule(
-            agent, RiskKernel(kernel_policy, clock), clock, record, batch, decided_under
-        )
+        try:
+            row = decide_and_rule(
+                agent, RiskKernel(kernel_policy, clock), clock, record, batch, decided_under
+            )
+        except ScriptExhausted:
+            # The answer was valid under the contract it was recorded under, and the current
+            # contract sends it back for a second attempt (run2-d8: nothing opens at a stated
+            # confidence of 0.5 or below). No second answer was recorded, so the kernel never
+            # sees this proposal today: recorded as returned, never ruled on a guess.
+            rows.append(
+                {
+                    "at": at,
+                    "outcome": "returned_by_current_contract",
+                    "stance": None,
+                    "proposed_weights": {},
+                    "recorded_proposed_weights": before["proposed_weights"],
+                    "approved_weights_before": before.get("approved_weights"),
+                    "exposure_proposed": _exposure({}),
+                    "exposure_approved": _exposure({}),
+                }
+            )
+            print(f"{at} returned by the current contract before any ruling", flush=True)
+            continue
         if row["proposed_weights"] != before["proposed_weights"]:
             raise SystemExit(
                 f"{at}: the recorded answer re-parses to {row['proposed_weights']}, but "
@@ -147,6 +169,7 @@ def main(argv: list[str]) -> int:
         )
 
     acted = [r for r in rows if r["stance"] == "act"]
+    returned = [r for r in rows if r["outcome"] == "returned_by_current_contract"]
     cut = [r for r in acted if r.get("kernel_changed")]
     doc = {
         "label": LABEL,
@@ -166,6 +189,7 @@ def main(argv: list[str]) -> int:
         "event_decisions": len(rows),
         "acted": len(acted),
         "cut_by_kernel": len(cut),
+        "returned_by_current_contract": len(returned),
         "max_net_proposed": min((r["exposure_proposed"]["net"] for r in acted), default=None),
         "max_net_approved": min((r["exposure_approved"]["net"] for r in acted), default=None),
         "max_crypto_beta_proposed": max(

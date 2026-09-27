@@ -39,7 +39,7 @@ from sentiment_agent.types import (
 WINDOW = POLICY_V2.scoring_window
 assert WINDOW is not None
 END = WINDOW.end
-"""Thursday 2026-10-01 00:00 UTC: after the US close, before the Friday freeze."""
+"""Wednesday 2026-10-07 00:00 UTC: after Tuesday's US close, before the Friday freeze."""
 
 
 def _held(at: datetime) -> BookState:
@@ -76,7 +76,7 @@ def test_the_window_end_closes_every_leg_of_every_class() -> None:
         assert instrument.binding_guard is GuardId.G2_WEEKEND_FREEZE
         (g2,) = [g for g in instrument.rulings if g.guard is GuardId.G2_WEEKEND_FREEZE]
         assert g2.inputs["scoring_window_end"] == END.isoformat()
-        assert "scoring window ended at 2026-10-01 00:00 UTC" in g2.reason
+        assert "scoring window ended at 2026-10-07 00:00 UTC" in g2.reason
 
 
 def test_nothing_is_closed_before_the_window_ends() -> None:

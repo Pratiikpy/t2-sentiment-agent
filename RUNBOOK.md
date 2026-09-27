@@ -186,7 +186,7 @@ at its end G2 closes every leg (`run2-a4`); the losing-streak trip lapses after 
 
 **Timing.** Run 1's window ends **2026-09-27 17:06 UTC** (a Sunday; its US-equity and index legs
 have been flat since Friday 20:00 UTC under G2). Run 2 starts **Monday 2026-09-28 00:00 UTC**, when
-the weekend freeze ends. Its 72-hour window runs to Thursday 2026-10-01 00:00 UTC. Started at
+the weekend freeze ends. Its nine-day window runs to Wednesday 2026-10-07 00:00 UTC, crossing one weekend freeze (Friday 2 October 20:00 UTC to Monday 5 October 00:00 UTC). Started at
 00:00, the loop's first scheduled decision is the 08:00 UTC funding heartbeat (the 00:00 one falls
 before the start); an event trigger can wake it earlier.
 

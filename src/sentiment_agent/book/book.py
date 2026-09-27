@@ -46,7 +46,9 @@ entry and exit (``policy.METRICS`` ``win_rate``).
 * ``stop_filled``: the closing order's Bitget ``delegateType`` is a stop-loss type
   (:data:`STOP_LOSS_DELEGATE_TYPES`), or the caller identified it as the venue stop
   (``cause=ProtectiveReason.STOP_FILLED``);
-* ``take_profit_filled`` / ``liquidation``: the other venue-originated types this agent can meet;
+* ``take_profit_filled``: a take-profit ``delegateType``, or the caller identified the venue
+  take-profit (``cause=ProtectiveReason.TAKE_PROFIT_FILLED``);
+* ``liquidation``: the other venue-originated type this agent can meet;
 * ``venue_order:<delegateType>`` for any other venue-originated order, ``venue_initiated`` when the
   closing order is not one this agent planned and its type is unknown (a manual order in the Demo
   UI would land here, and is never passed off as a stop);
@@ -212,7 +214,7 @@ def exit_reason(
     kind = (delegate_type or "").strip().lower() or None
     if kind in STOP_LOSS_DELEGATE_TYPES or cause is ProtectiveReason.STOP_FILLED:
         return EXIT_STOP
-    if kind in TAKE_PROFIT_DELEGATE_TYPES:
+    if kind in TAKE_PROFIT_DELEGATE_TYPES or cause is ProtectiveReason.TAKE_PROFIT_FILLED:
         return EXIT_TAKE_PROFIT
     if kind in LIQUIDATION_DELEGATE_TYPES:
         return EXIT_LIQUIDATION

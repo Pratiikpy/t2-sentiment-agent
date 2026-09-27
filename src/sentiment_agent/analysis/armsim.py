@@ -40,13 +40,16 @@ quote in its kernel inputs.
   range reaches it fills at the stop. In the hour a position was opened or changed, only the close
   is used, because an hourly candle cannot say whether its low came before or after the fill. A
   stop fill is stamped at the candle's open for a gap and at the candle's end otherwise.
+* **Take-profit (G4, when ``Policy.take_profit_pct`` is set).** Preset beside the stop and checked
+  by the same rules mirrored, after the stop in each hour: a candle whose range reaches both is
+  booked as the stop, the conservative reading of an hour that cannot say which came first.
 * **Protective checks (G1, G2, G5, G10)**, at every hour, through the kernel exactly as the
   60-second loop runs them (a ruling on the held book with no proposal, DESIGN.md §10.5), with the
   hour's mark as the only price. The kernel is consulted whenever one of its exit conditions can
-  hold (a US leg held in the weekend pre-flatten or freeze, the day's loss at the kill, a halted
-  breaker); G1 cannot exit without a Demo quote and there is none between snapshots. Pass
-  ``audit_protective=True`` to consult the kernel at every hour regardless: the result is
-  identical (tested), only slower.
+  hold (a US leg held in the weekend pre-flatten or freeze, the scoring window's end, the day's
+  loss at the kill, a halted breaker); G1 cannot exit without a Demo quote and there is none
+  between snapshots. Pass ``audit_protective=True`` to consult the kernel at every hour
+  regardless: the result is identical (tested), only slower.
 
 What hourly data cannot show is stated rather than guessed: an intra-hour dip that recovers by the
 close does not trip the daily kill here, while the real loop, checking every minute, could.
@@ -73,7 +76,12 @@ from sentiment_agent.clock import ManualClock
 from sentiment_agent.kernel.breaker import Breaker, book_conditions, most_severe
 from sentiment_agent.kernel.guards import weekend_phase
 from sentiment_agent.kernel.kernel import PROTECTIVE_GUARDS, RiskKernel
-from sentiment_agent.kernel.planner import MEASURED_DEMO_TAKER_FEE, plan_orders, stop_price
+from sentiment_agent.kernel.planner import (
+    MEASURED_DEMO_TAKER_FEE,
+    plan_orders,
+    stop_price,
+    take_profit_price,
+)
 from sentiment_agent.types import (
     Activation,
     ArmMark,
@@ -423,6 +431,7 @@ class _ArmRun:
         self.specs: dict[str, InstrumentSpec] = dict(sim.specs)
         self.last_price: dict[str, Decimal] = {}
         self.stops: dict[str, Decimal] = {}
+        self.take_profits: dict[str, Decimal] = {}
         self.changed_at: dict[str, datetime] = {}
         self.marks: list[ArmMark] = []
         self.notional = _ZERO
@@ -455,6 +464,11 @@ class _ArmRun:
                 )
             if GuardId.G4_STOP in self.guards:
                 self._check_stop(symbol, position, candle, h)
+                # The stop is checked first: an hourly candle cannot say which of the two its range
+                # reached first, and assuming the loss is the conservative reading.
+                still = self.book.positions().get(symbol)
+                if still is not None:
+                    self._check_take_profit(symbol, still, candle, h)
             self.last_price[symbol] = candle.close
         self.clock.set(h)
         self._protective(h)
@@ -561,8 +575,71 @@ class _ArmRun:
         position = self.book.positions().get(symbol)
         if position is None:
             self.stops.pop(symbol, None)
+            self.take_profits.pop(symbol, None)
         elif GuardId.G4_STOP in self.guards:
             self.stops[symbol] = self._stop_for(symbol, position)
+            target = self._take_profit_for(symbol, position)
+            if target is None:
+                self.take_profits.pop(symbol, None)
+            else:
+                self.take_profits[symbol] = target
+
+    def _take_profit_for(self, symbol: str, position: Position) -> Decimal | None:
+        """The venue take-profit preset beside the stop (``Policy.take_profit_pct``), from the
+        average entry, on the price grid toward the entry; ``None`` when the policy sets none."""
+        if self.policy.take_profit_pct is None:
+            return None
+        side = Side.BUY if position.qty > 0 else Side.SELL
+        spec = self.specs.get(symbol)
+        if spec is not None:
+            try:
+                return take_profit_price(position.avg_entry, side, self.policy, spec)
+            except ValueError:
+                pass
+        pct = Decimal(repr(self.policy.take_profit_pct))
+        return position.avg_entry * (_ONE + pct if side is Side.BUY else _ONE - pct)
+
+    def _check_take_profit(
+        self, symbol: str, position: Position, candle: Candle, h: datetime
+    ) -> None:
+        """The take-profit against the hour's mark candle, by the stop's rules mirrored: a candle
+        opening beyond it fills at the open (a gap in our favour), one whose range reaches it fills
+        at it, and in the hour a position was opened or changed only the close is used."""
+        target = self.take_profits.get(symbol)
+        if target is None:
+            return
+        long = position.qty > 0
+        candle_start = candle.open_time
+        changed = self.changed_at.get(symbol, candle_start)
+        gap_at = candle_start if changed < candle_start else h
+        trigger: Decimal | None = None
+        at = h
+        if changed > candle_start:
+            if (long and candle.close >= target) or (not long and candle.close <= target):
+                trigger = candle.close
+        elif long:
+            if candle.open >= target:
+                trigger, at = candle.open, gap_at
+            elif candle.high >= target:
+                trigger = target
+        elif candle.open <= target:
+            trigger, at = candle.open, gap_at
+        elif candle.low <= target:
+            trigger = target
+        if trigger is None:
+            return
+        side = Side.SELL if long else Side.BUY
+        self._fill(
+            symbol=symbol,
+            side=side,
+            qty=abs(position.qty),
+            price=self._taker_price(symbol, trigger, side),
+            at=at,
+            client_oid=None,
+            decision_id=None,
+            purpose=None,
+            cause=ProtectiveReason.TAKE_PROFIT_FILLED,
+        )
 
     def _stop_for(self, symbol: str, position: Position) -> Decimal:
         """The venue stop ``execution/stops.py`` keeps: ``stop_loss_pct`` from the average entry, on
@@ -727,6 +804,12 @@ class _ArmRun:
             )
             if most_severe(breaker.activation, demanded) is Activation.HALTED:
                 return ProtectiveReason.BREAKER
+        window = self.policy.scoring_window
+        if GuardId.G2_WEEKEND_FREEZE in guards and window is not None and h >= window.end:
+            # run2-a4: from the scoring window's end G2 closes every leg of every class. Without
+            # this branch an arm kept its legs past the end the real book closes at, so its last
+            # trades never closed and its win rate counted fewer trades than the governed book's.
+            return ProtectiveReason.WINDOW_END
         if GuardId.G2_WEEKEND_FREEZE in guards and weekend_phase(h, self.policy.weekend) in (
             "preflatten",
             "frozen",
@@ -746,6 +829,14 @@ def _exit_cause(
     ``cause`` ``book/book.py`` records either way)."""
     guard = inst.binding_guard if inst is not None else None
     if ruling.protective_reason is not None:
+        if (
+            guard is GuardId.G2_WEEKEND_FREEZE
+            and inst is not None
+            and any(g.guard is guard and "scoring_window_end" in g.inputs for g in inst.rulings)
+        ):
+            # G2 closes a leg for two reasons; the kernel files the scoring window's end apart
+            # from the weekend (`kernel._protective_reason`), and so does this.
+            return ProtectiveReason.WINDOW_END
         if guard is not None and guard in GUARD_CAUSE:
             return GUARD_CAUSE[guard]
         return ruling.protective_reason

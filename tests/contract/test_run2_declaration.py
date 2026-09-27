@@ -190,7 +190,7 @@ def test_policy_v2_is_the_declared_rules() -> None:
     assert window is not None
     assert (window.start.isoformat(), window.end.isoformat()) == (
         "2026-09-28T00:00:00+00:00",
-        "2026-10-01T00:00:00+00:00",
+        "2026-10-07T00:00:00+00:00",
     )
     assert POLICY_V2.breaker.losing_streak_cooloff_hours == 24
     assert POLICY_V2.decision.outage_flatten_after == 3
@@ -198,7 +198,7 @@ def test_policy_v2_is_the_declared_rules() -> None:
     rules = {g.guard: g.rule for g in POLICY_V2.guard_bases}
     assert "10% net" in rules[GuardId.G3_SIZE]
     assert "7.5%" in rules[GuardId.G3_SIZE]
-    assert "2026-10-01 00:00 UTC" in rules[GuardId.G2_WEEKEND_FREEZE]
+    assert "2026-10-07 00:00 UTC" in rules[GuardId.G2_WEEKEND_FREEZE]
     assert "until 24h after the last loss" in rules[GuardId.G10_BREAKER]
     assert "three failed decisions in a row flatten" in rules[GuardId.G10_BREAKER]
     assert "a model outage flattens the book" not in rules[GuardId.G10_BREAKER]
@@ -419,7 +419,8 @@ def test_policy_v2s_kernel_cuts_the_books_the_v1_kernel_let_through() -> None:
     assert doc["input"]["answers_policy_step"] == "run2-a1"
     assert doc["input"]["answers_policy_hash"] == dict(RUN2_STEPS)["run2-a1"].content_hash()
     assert doc["input"]["kernel_policy_hash"] == POLICY_V2.content_hash()
-    assert (doc["event_decisions"], doc["acted"], doc["cut_by_kernel"]) == (15, 14, 9)
+    assert (doc["event_decisions"], doc["acted"], doc["cut_by_kernel"]) == (15, 12, 7)
+    assert doc["returned_by_current_contract"] == 2
     assert (doc["max_net_proposed"], doc["max_net_approved"]) == (-0.2, -0.1)
     assert doc["max_crypto_beta_proposed"] == pytest.approx(0.15)
     assert doc["max_crypto_beta_approved"] == pytest.approx(0.075)
@@ -429,7 +430,8 @@ def test_policy_v2s_kernel_cuts_the_books_the_v1_kernel_let_through() -> None:
         if row.get("kernel_changed"):
             assert "G3_size" in row["binding_guards"]
     quoted = _declared("run2-a3").evidence["ruled_by_policy_v2"]
-    assert f"{doc['cut_by_kernel']} of the 14 books cut" in quoted
+    assert f"{doc['cut_by_kernel']} of the {doc['acted']} books ruled were cut" in quoted
+    assert f"sends {doc['returned_by_current_contract']} more back" in quoted
     assert "from 20% to 10%" in quoted
     assert "from 15% to 7.5%" in quoted
 

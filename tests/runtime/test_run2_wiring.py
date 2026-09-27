@@ -33,7 +33,7 @@ from sentiment_agent.types import (
     TriggerKind,
 )
 
-# A weekday inside run 2's scoring window (2026-09-28 to 2026-10-01 00:00 UTC).
+# A weekday inside run 2's scoring window (2026-09-28 to 2026-10-07 00:00 UTC).
 WEDNESDAY = datetime(2026, 9, 30, tzinfo=UTC)
 
 
@@ -234,11 +234,11 @@ def test_the_feed_report_is_published(rig: Rig, tmp_path: Path) -> None:
 def test_no_decision_is_spent_after_the_scoring_window(workdir: Path) -> None:
     """run2-a4: from the window's end G2 refuses every opening, so a trigger due then is recorded
     as seen and no model call is made on it."""
-    thursday = datetime(2026, 10, 1, 13, 29, tzinfo=UTC)
-    rig = Rig(workdir, thursday, script=[flat("never asked")])
+    after_end = datetime(2026, 10, 7, 13, 29, tzinfo=UTC)
+    rig = Rig(workdir, after_end, script=[flat("never asked")])
     try:
         rig.loop.tick()
-        rig.clock.set(thursday.replace(minute=30))
+        rig.clock.set(after_end.replace(minute=30))
         report = rig.loop.tick()
         assert "window_closed" in report.did
         assert "decision_cycle" not in report.did

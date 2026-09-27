@@ -190,9 +190,10 @@ _AMENDMENTS: Final[tuple[tuple[str, str, str, tuple[str, ...], dict[str, str]], 
             "crypto_beta": "COIN, HOOD and MSTR 5% short each at once (15%), 2026-09-25 00:13 "
             "UTC; MSTR moved 1.85x BTC over 30 days of hourly candles (correlation +0.83)",
             "ruled_by_policy_v2": "the same 15 recorded answers, parsed again and ruled by policy "
-            "v2's kernel with no model call: 9 of the 14 books cut (7 by these caps; 2 more by "
-            "run2-a7's smaller caps on the wide-stop names), the largest net short from 20% to "
-            "10% and the crypto-beta names from 15% to 7.5%",
+            "v2's kernel with no model call: 7 of the 12 books ruled were cut, and the current "
+            "contract sends 2 more back before any ruling (run2-d8, added after the answers were "
+            "recorded); the largest net short from 20% to 10% and the crypto-beta names from "
+            "15% to 7.5%",
             "source": ACT_RATE_EVIDENCE
             + ", by "
             + ACT_RATE_COMMAND
@@ -205,7 +206,7 @@ _AMENDMENTS: Final[tuple[tuple[str, str, str, tuple[str, ...], dict[str, str]], 
     (
         "run2-a4",
         "A pre-registered scoring window, closed by G2 at its end",
-        "Run 2 is scored from 2026-09-28 00:00 UTC to 2026-10-01 00:00 UTC, and the window is in "
+        "Run 2 is scored from 2026-09-28 00:00 UTC to 2026-10-07 00:00 UTC, and the window is in "
         "the hashed policy. At its end G2 closes every leg of every asset class and refuses new "
         "exposure, the loop stops deciding, and the published metrics count only marks, fills and "
         "trades inside it.",

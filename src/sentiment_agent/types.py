@@ -244,6 +244,8 @@ class ProtectiveReason(enum.StrEnum):
     WINDOW_END = "window_end"
     """Contract 1.1.0: the pre-registered scoring window ended; every leg is closed so every trade
     counts (run2-a4)."""
+    TAKE_PROFIT_FILLED = "take_profit_filled"
+    """The venue take-profit preset with the position filled (``Policy.take_profit_pct``)."""
 
 
 class Stance(enum.StrEnum):
@@ -2433,6 +2435,10 @@ class Policy(Model):
     """When set, a name's stop sits at least this many times its measured Demo-live p99 gap from
     the entry, and its size cap shrinks in proportion, so the loss at the stop is the same for
     every name (run2-a7). Unset in v1, and omitted from the hash when unset."""
+    take_profit_pct: float | None = Field(default=None, gt=0, lt=1)
+    """When set, every opening order carries a venue take-profit this fraction from the entry, on
+    the mark, beside its stop: a reduce-only exit the kernel's invariant allows. Unset in v1 and v2,
+    and omitted from the hash when unset."""
 
     @model_serializer(mode="wrap")
     def _omit_unset_caps(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -2445,6 +2451,8 @@ class Policy(Model):
             data.pop("scoring_window", None)
         if self.stop_gap_multiple is None:
             data.pop("stop_gap_multiple", None)
+        if self.take_profit_pct is None:
+            data.pop("take_profit_pct", None)
         return data
 
     @model_validator(mode="after")

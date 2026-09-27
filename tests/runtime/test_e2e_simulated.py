@@ -460,7 +460,7 @@ def test_the_export_is_complete_and_recompute_passes(exported: Path) -> None:
     assert "marks from fills" in done.stdout
     # Policy v2 scores the record over its pre-registered window (run2-a4): Friday is outside it,
     # and both the export and the independent recompute count Monday's hour alone.
-    assert "scored over the pre-registered window 2026-09-28 00:00 to 2026-10-01 00:00 UTC" in (
+    assert "scored over the pre-registered window 2026-09-28 00:00 to 2026-10-07 00:00 UTC" in (
         done.stdout
     )
     metrics = json.loads((exported / "metrics.json").read_text(encoding="utf-8"))
@@ -469,7 +469,7 @@ def test_the_export_is_complete_and_recompute_passes(exported: Path) -> None:
     trades = (exported / "trades.csv").read_text(encoding="utf-8").strip().splitlines()
     assert len(trades) - 1 == 16  # the full record is still published
     page = (exported / "index.html").read_text(encoding="utf-8")
-    assert "scored over the pre-registered window 2026-09-28 00:00 to 2026-10-01 00:00 UTC" in page
+    assert "scored over the pre-registered window 2026-09-28 00:00 to 2026-10-07 00:00 UTC" in page
 
 
 def test_the_baselines_rank_the_replica_and_the_live_gap_is_published(exported: Path) -> None:

@@ -1,6 +1,6 @@
 {
-  "acted": 14,
-  "cut_by_kernel": 9,
+  "acted": 12,
+  "cut_by_kernel": 7,
   "decisions": [
     {
       "approved_weights": {
@@ -12,7 +12,7 @@
       "at": "2026-09-24T17:27:27.256213+00:00",
       "binding_guards": [],
       "book_rulings": [],
-      "decision_id": "dec-5018e665d2f432ea24a8597b6cc05129",
+      "decision_id": "dec-9fa25352a3e886dda8c37271b35ae782",
       "exposure_approved": {
         "crypto_beta_gross": 0,
         "gross": 0.05,
@@ -45,7 +45,7 @@
       "at": "2026-09-24T20:38:21.910312+00:00",
       "binding_guards": [],
       "book_rulings": [],
-      "decision_id": "dec-a3fb1b548e23f5b3ad14457c5b26321f",
+      "decision_id": "dec-801ffcf6e0ade3cf88a569d756fdbe2e",
       "exposure_approved": {
         "crypto_beta_gross": 0,
         "gross": 0.1,
@@ -70,7 +70,7 @@
     {
       "approved_weights_before": null,
       "at": "2026-09-24T21:15:23.639702+00:00",
-      "decision_id": "dec-cdebb4c30b5b5f483cb1b857a0c8c7c5",
+      "decision_id": "dec-9a36794bf7454fdf734c30d5ffc8e97e",
       "exposure_approved": {
         "crypto_beta_gross": 0,
         "gross": 0,
@@ -98,7 +98,7 @@
       "at": "2026-09-24T21:25:58.202170+00:00",
       "binding_guards": [],
       "book_rulings": [],
-      "decision_id": "dec-c6a38214310d06e0dd62b1fa5b1025a9",
+      "decision_id": "dec-b971c10b75e05cd1be5ce51b111fd8ab",
       "exposure_approved": {
         "crypto_beta_gross": 0,
         "gross": 0.05,
@@ -137,7 +137,7 @@
       "book_rulings": [
         "the 10% net cap: side 12.6110% over the 10% cap: held 0.0000% kept, new exposure 12.6110% scaled by 0.7930"
       ],
-      "decision_id": "dec-95f71959223a11de79c77e42c7d304b2",
+      "decision_id": "dec-91c274d9bcb6018a795e6ff13244e1bf",
       "exposure_approved": {
         "crypto_beta_gross": 0.020704,
         "gross": 0.1,
@@ -174,7 +174,7 @@
         "G3_size"
       ],
       "book_rulings": [],
-      "decision_id": "dec-34886b7144914ec5639155a72bf2c662",
+      "decision_id": "dec-1bc186873c88306fd5582aacd4ba2e86",
       "exposure_approved": {
         "crypto_beta_gross": 0.057735,
         "gross": 0.057735,
@@ -206,7 +206,7 @@
       "at": "2026-09-24T23:38:27.667372+00:00",
       "binding_guards": [],
       "book_rulings": [],
-      "decision_id": "dec-9d3a86f77ef2c032307b5176d465b351",
+      "decision_id": "dec-5c01055473a67839c80bfcf6022811f4",
       "exposure_approved": {
         "crypto_beta_gross": 0,
         "gross": 0.025,
@@ -246,7 +246,7 @@
         "the 10% net cap: side 10.7735% over the 10% cap: held 0.0000% kept, new exposure 10.7735% scaled by 0.9282",
         "the 7.5% crypto-beta cluster cap: cluster gross 10.7735% over the 8% cap: held 0.0000% kept, new exposure 10.7735% scaled by 0.6962"
       ],
-      "decision_id": "dec-d5d9fb8692add8ad6adb33725d8b1374",
+      "decision_id": "dec-baa49b8adb0b2038d4b53b0ed24ba5d6",
       "exposure_approved": {
         "crypto_beta_gross": 0.075,
         "gross": 0.075,
@@ -270,79 +270,54 @@
       ]
     },
     {
-      "approved_weights": {
-        "HOODUSDT": -0.02610966057441253,
-        "MSTRUSDT": -0.031625553447185324,
-        "SNDKUSDT": -0.028719126938541072
-      },
       "approved_weights_before": {
         "HOODUSDT": -0.05,
         "MSTRUSDT": -0.05,
         "SNDKUSDT": -0.05
       },
-      "at": "2026-09-25T00:29:07.712906+00:00",
-      "binding_guards": [
-        "G3_size"
-      ],
-      "book_rulings": [],
-      "decision_id": "dec-597c6a997237606401a0fa465635a9f3",
+      "at": "2026-09-25T00:29:07Z",
       "exposure_approved": {
-        "crypto_beta_gross": 0.057735,
-        "gross": 0.086454,
-        "net": -0.086454
+        "crypto_beta_gross": 0,
+        "gross": 0,
+        "net": 0
       },
       "exposure_proposed": {
-        "crypto_beta_gross": 0.1,
-        "gross": 0.15,
-        "net": -0.15
+        "crypto_beta_gross": 0,
+        "gross": 0,
+        "net": 0
       },
-      "kernel_changed": true,
-      "outcome": "decided",
-      "proposed_weights": {
+      "outcome": "returned_by_current_contract",
+      "proposed_weights": {},
+      "recorded_proposed_weights": {
         "HOODUSDT": -0.05,
         "MSTRUSDT": -0.05,
         "SNDKUSDT": -0.05
       },
-      "stance": "act",
-      "triggers": [
-        "funding_zscore:SNDKUSDT"
-      ]
+      "stance": null
     },
     {
-      "approved_weights": {
-        "AMZNUSDT": -0.05,
-        "MSTRUSDT": -0.031625553447185324
-      },
       "approved_weights_before": {
         "AMZNUSDT": -0.05,
         "MSTRUSDT": -0.05
       },
-      "at": "2026-09-25T00:40:03.988757+00:00",
-      "binding_guards": [
-        "G3_size"
-      ],
-      "book_rulings": [],
-      "decision_id": "dec-567c8a4d10fcd5fbe9623b271fabb97c",
+      "at": "2026-09-25T00:40:03Z",
       "exposure_approved": {
-        "crypto_beta_gross": 0.031626,
-        "gross": 0.081626,
-        "net": -0.081626
+        "crypto_beta_gross": 0,
+        "gross": 0,
+        "net": 0
       },
       "exposure_proposed": {
-        "crypto_beta_gross": 0.05,
-        "gross": 0.1,
-        "net": -0.1
+        "crypto_beta_gross": 0,
+        "gross": 0,
+        "net": 0
       },
-      "kernel_changed": true,
-      "outcome": "decided",
-      "proposed_weights": {
+      "outcome": "returned_by_current_contract",
+      "proposed_weights": {},
+      "recorded_proposed_weights": {
         "AMZNUSDT": -0.05,
         "MSTRUSDT": -0.05
       },
-      "stance": "act",
-      "triggers": [
-        "funding_zscore:AMZNUSDT"
-      ]
+      "stance": null
     },
     {
       "approved_weights": {
@@ -360,7 +335,7 @@
         "G3_size"
       ],
       "book_rulings": [],
-      "decision_id": "dec-3526c953e8c8ffb5da137e4ba171ac43",
+      "decision_id": "dec-e6e15cd3f045183cb4e6c4a8b305f8cf",
       "exposure_approved": {
         "crypto_beta_gross": 0.057735,
         "gross": 0.086454,
@@ -393,7 +368,7 @@
       "at": "2026-09-25T10:25:04.370629+00:00",
       "binding_guards": [],
       "book_rulings": [],
-      "decision_id": "dec-ccc9d5fc1113fcd8eabc5a1428fe8e0f",
+      "decision_id": "dec-37d7471abae0229e8989d27244199cf1",
       "exposure_approved": {
         "crypto_beta_gross": 0,
         "gross": 0.05,
@@ -428,7 +403,7 @@
         "G3_size"
       ],
       "book_rulings": [],
-      "decision_id": "dec-7ccf394424b3704412d714ed7b2bed5b",
+      "decision_id": "dec-ccd04c08fa754e84f53b21c823ae613c",
       "exposure_approved": {
         "crypto_beta_gross": 0.02611,
         "gross": 0.07611,
@@ -468,7 +443,7 @@
       "book_rulings": [
         "the 10% net cap: side 10.7735% over the 10% cap: held 0.0000% kept, new exposure 10.7735% scaled by 0.9282"
       ],
-      "decision_id": "dec-bd07c2fb261ad49d424b9355409bd3c4",
+      "decision_id": "dec-16207517816354881b6b799a8416c9c4",
       "exposure_approved": {
         "crypto_beta_gross": 0.05359,
         "gross": 0.1,
@@ -511,7 +486,7 @@
       "book_rulings": [
         "the 10% net cap: side 15.7735% over the 10% cap: held 0.0000% kept, new exposure 15.7735% scaled by 0.6340"
       ],
-      "decision_id": "dec-a255d8bf03bae9076a53750bce1f9e21",
+      "decision_id": "dec-64f417a373b1303a629f19590faf02c2",
       "exposure_approved": {
         "crypto_beta_gross": 0.036603,
         "gross": 0.1,
@@ -542,15 +517,16 @@
     "answers_policy_hash": "e83d4ab6d35064415cb0496fc9c4d920f7e485742314e73a81a1676ccadf04d0",
     "answers_policy_step": "run2-a1",
     "kernel_policy": "policy-v2",
-    "kernel_policy_hash": "730a1db0e5af6a50c6a398fefe9c9364d892929f0b506cc530edbf1ecec8ecbb",
+    "kernel_policy_hash": "d719e75950df438ce15db99f82e48d7baf6f06366ed5766be6b981012b2ac380",
     "kernel_policy_step": "policy-v2",
     "ledger_head_hash": "86bb2a29b35b31b30e24284065c622c7274ecb2e186ec4ebeedcf30953fe316c",
-    "public": "public",
+    "public": "run1view",
     "until_seq": 363
   },
   "label": "SIMULATED — run 2's recorded answers on run 1's market, ruled again by another kernel; no model call, no order, no ledger",
   "max_crypto_beta_approved": 0.075,
   "max_crypto_beta_proposed": 0.15,
   "max_net_approved": -0.1,
-  "max_net_proposed": -0.2
+  "max_net_proposed": -0.2,
+  "returned_by_current_contract": 2
 }

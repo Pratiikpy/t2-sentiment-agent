@@ -56,7 +56,7 @@ def test_a_record_before_the_scoring_window_has_no_arms_and_says_why(tmp_path: P
     assert metrics["n_hours"] == 0
     assert _published(root, "summary.json")["scoring_window"] == {
         "start": "2026-09-28T00:00:00Z",
-        "end": "2026-10-01T00:00:00Z",
+        "end": "2026-10-07T00:00:00Z",
     }
 
 

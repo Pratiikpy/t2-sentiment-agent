@@ -34,6 +34,7 @@ from sentiment_agent.kernel.planner import (
     round_qty,
     split_quantity,
     stop_price,
+    take_profit_price,
     target_quantity,
     weight_of,
 )
@@ -47,6 +48,7 @@ from sentiment_agent.types import (
     OrderIntent,
     OrderPlan,
     OrderPurpose,
+    Policy,
     Position,
     ProtectiveReason,
     Quote,
@@ -482,3 +484,45 @@ def test_positions_are_read_from_the_book_not_the_ruling() -> None:
     # The book already reached the approved weight: nothing more to add.
     assert plan.intents == ()
     assert "rounds to nothing" in plan.skipped[0].reason
+
+
+# --- take-profit (Policy.take_profit_pct) ---------------------------------------------------------
+
+TP = Policy.model_validate(P.model_copy(update={"take_profit_pct": 0.01}).model_dump())
+
+
+def test_no_take_profit_when_the_policy_sets_none() -> None:
+    assert P.take_profit_pct is None
+    assert take_profit_price(Decimal("100"), Side.BUY, P, spec(NVDA)) is None
+
+
+@pytest.mark.parametrize(
+    ("entry", "side", "step", "expected"),
+    [
+        # long: 1% above, rounded down (toward the entry)
+        ("100", Side.BUY, "0.01", "101.00"),
+        ("83169.7", Side.BUY, "0.1", "84001.3"),
+        # short: 1% below, rounded up (toward the entry)
+        ("100", Side.SELL, "0.01", "99.00"),
+        ("83168.5", Side.SELL, "0.1", "82336.9"),
+    ],
+)
+def test_take_profit_rounds_toward_the_entry(
+    entry: str, side: Side, step: str, expected: str
+) -> None:
+    target = take_profit_price(Decimal(entry), side, TP, spec(NVDA, price_step=step))
+    assert str(target) == expected
+    assert abs(target - Decimal(entry)) / Decimal(entry) <= Decimal("0.01")
+
+
+def test_take_profit_refuses_what_it_cannot_place() -> None:
+    with pytest.raises(ValueError, match="positive"):
+        take_profit_price(Decimal(0), Side.BUY, TP, spec(NVDA))
+    with pytest.raises(ValueError, match="no long take-profit"):
+        take_profit_price(Decimal(12), Side.BUY, TP, spec(NVDA, price_step="10"))
+
+
+def test_an_unset_take_profit_leaves_the_policy_hash_unchanged() -> None:
+    assert "take_profit_pct" not in P.model_dump()
+    assert "take_profit_pct" in TP.model_dump()
+    assert TP.content_hash() != P.content_hash()
