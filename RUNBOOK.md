@@ -261,10 +261,11 @@ t2sa go-live
 It proves the environment, writes run 2's genesis and prints, beside the policy hash
 (`policy-v2`), the run it follows (run 1's genesis hash) and the declared changes
 `run2-d1 (code_fix), run2-d2 (observability), run2-d3 (code_fix), run2-d4 (prompt_fix),
-run2-a1 (policy_amendment),
-run2-a2 (policy_amendment), run2-a3 (policy_amendment), run2-a4 (policy_amendment),
-run2-a5 (policy_amendment), run2-a6 (policy_amendment)`;
-then it prints the X post
+run2-d5 (code_fix), run2-d7 (prompt_fix), run2-d8 (code_fix), run2-d9 (code_fix),
+run2-d6 (code_fix), run2-a1 (policy_amendment), run2-a2 (policy_amendment),
+run2-a3 (policy_amendment), run2-a4 (policy_amendment), run2-a5 (policy_amendment),
+run2-a6 (policy_amendment), run2-a7 (policy_amendment), run2-a8 (policy_amendment)` (the order of
+`run2.DECLARED_CHANGES`, which is what it prints); then it prints the X post
 with run 2's genesis hash. **Post it before the first decision.** Then record it, from any
 window, while the agent runs (no restart):
 
@@ -307,7 +308,7 @@ where it closed. Everything in §3-§5 applies unchanged. In addition:
 
 | What | How |
 |---|---|
-| The genesis declares run 1 and the three changes | `public/genesis.json` (`genesis.predecessor`, `genesis.declared_changes`); the Proof section of the page |
+| The genesis declares run 1 and every declared change | `public/genesis.json` (`genesis.predecessor`, `genesis.declared_changes`); the Proof section of the page |
 | The policy in force is v2 | `t2sa status --mode paper`: the genesis line says it matches the loaded policy |
 | Failing sources, now and since when | `t2sa status --mode paper` (the "feeds as of" line); `var/health/paper.json` `detail`; `public/feeds.json`; the page's Feed health section |
 | Why a trigger kind could not fire | the same report's blind kinds, and each decision card's "Feed health on this snapshot" |
