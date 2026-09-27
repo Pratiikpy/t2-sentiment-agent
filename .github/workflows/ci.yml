@@ -9,6 +9,8 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
 
 jobs:
   check:
@@ -20,11 +22,31 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      # The committed uv.lock, exactly: an unconstrained pip install tested whatever the index
+      # served that day, not the dependency set the paper run's genesis pins.
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: "3.11"
-          cache: pip
+          enable-cache: true
       - name: Install
-        run: pip install -e ".[dev]"
+        run: uv sync --frozen --extra dev
       - name: Gate
-        run: python scripts/check_all.py
+        run: uv run --frozen python scripts/check_all.py
+
+  live-public:
+    # Bitget's keyless public market endpoints, read for real: the 14 tests the offline gate
+    # skips. Scheduled as well as on push, so a venue change surfaces without anyone committing.
+    # Advisory: a Bitget outage is not a defect in this repository.
+    name: live public market API (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.11"
+          enable-cache: true
+      - name: Install
+        run: uv sync --frozen --extra dev
+      - name: Live public tests
+        run: uv run --frozen python -m pytest --run-live-public -m live_public
