@@ -94,6 +94,7 @@ class DecisionAgent:
         now = self._clock.now()
         messages = render_messages(snapshot, book, triggers, policy, now=now)
         thinking = self.thinking_for(triggers)
+        shown = decision_facts(snapshot, book, triggers, policy, now=now)
         decision, call = obtain_decision(
             self._model,
             messages,
@@ -102,12 +103,13 @@ class DecisionAgent:
             book=book,
             snapshot=snapshot,
             blobs=self._blobs,
+            facts=shown,
         )
         weights: dict[str, float] = {}
         grounding: dict[str, GroundingReport] = {}
         if decision is not None:
             weights = proposed_weights(decision, policy, book)
-            facts = decision_facts(snapshot, book, triggers, policy, now=now)
+            facts = dict(shown)
             for symbol, weight in weights.items():
                 # The model's own requested size is citable: "a 3% short" quotes its answer.
                 facts[f"{symbol}.proposed_weight_pct"] = float(f"{weight * 100:.12g}")

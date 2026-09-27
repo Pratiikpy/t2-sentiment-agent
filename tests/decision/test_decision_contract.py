@@ -8,7 +8,7 @@ import json
 from collections.abc import Sequence
 from datetime import timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -583,3 +583,68 @@ def test_a_declared_invalidation_may_cut_the_same_side() -> None:
         ],
     )
     _parse(body, book)
+
+
+class TestADeclaredInvalidationNamesAFact:
+    """run2-d5: the declaration lifts G6's 24-hour hold, so it must point at a fact the request
+    showed. In run 1 any non-empty string was accepted."""
+
+    FACTS: ClassVar[dict[str, float]] = {"NVDAUSDT.funding_z_live": -0.4, "reference.zero": 0.0}
+
+    def _parse_with_facts(self, evidence: str) -> None:
+        body = decision(
+            "act",
+            [
+                target(
+                    "NVDAUSDT", 0.4, invalidation_triggered=True, invalidation_evidence=evidence
+                ),
+                target("BTCUSDT", 0.99),
+            ],
+        )
+        book = held_book()
+        parse_decision(
+            json.dumps(body),
+            book=book,
+            snapshot=build_snapshot(book=book),
+            policy=POLICY_V1,
+            facts=self.FACTS,
+        )
+
+    def test_evidence_naming_a_shown_fact_is_accepted(self) -> None:
+        self._parse_with_facts("NVDAUSDT.funding_z_live is back below reference.zero")
+
+    @pytest.mark.parametrize(
+        "evidence",
+        [
+            "the crowd flipped bullish overnight",
+            "NVDAUSDT.made_up_fact crossed",
+            "funding_z_live turned",
+        ],
+    )
+    def test_evidence_naming_no_shown_fact_is_sent_back(self, evidence: str) -> None:
+        with pytest.raises(DecisionInvalid) as caught:
+            self._parse_with_facts(evidence)
+        assert any("must name the fact that fired" in c for c in caught.value.complaints)
+
+    def test_without_the_facts_the_check_does_not_run(self) -> None:
+        """A recorded answer parsed again offline (scripts/rerule.py) has no request facts."""
+        body = decision(
+            "act",
+            [
+                target(
+                    "NVDAUSDT",
+                    0.4,
+                    invalidation_triggered=True,
+                    invalidation_evidence="the crowd flipped",
+                ),
+                target("BTCUSDT", 0.99),
+            ],
+        )
+        _parse(body, held_book())
+
+    def test_cited_facts_reads_keys_in_order_without_repeats(self) -> None:
+        from sentiment_agent.decision.contract import cited_facts
+
+        text = "reference.zero then NVDAUSDT.funding_z_live, and reference.zero again."
+        assert cited_facts(text, self.FACTS) == ("reference.zero", "NVDAUSDT.funding_z_live")
+        assert cited_facts(None, self.FACTS) == ()

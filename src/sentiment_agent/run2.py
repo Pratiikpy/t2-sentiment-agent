@@ -23,6 +23,9 @@ itself, and not from a README, what differs and why:
     The fact legend in ``decision/prompt.py`` names the market each positioning figure comes from:
     the long/short, top-trader, taker and open-interest-change figures are Binance USD-M's, which
     Bitget's data services read. Run 1 told the model the top-trader ratio was Bitget's.
+``run2-d5`` (code fix)
+    A declared invalidation, the one thing that lifts G6's 24-hour hold, must name a fact the
+    request showed (``decision/contract.py``); in run 1 any non-empty string was accepted.
 ``run2-a1`` to ``run2-a7`` (policy amendments, v1 to v2, ``policy.RUN2_AMENDMENTS``)
     a1: ``funding_zscore`` is evaluated for every universe instrument, not BTCUSDT alone.
     a2: it also needs the live rate at 7.5 bp or more, since half of run 1's live rates were zero.
@@ -374,6 +377,28 @@ DECLARED_CHANGES: Final[tuple[DeclaredChange, ...]] = (
             + RUN2_D4_PROMPT_PY_HASH
             + " after this change",
             "source": "sources/bitget_data.py derivatives(); sources/upstream.py module docstring",
+        },
+    ),
+    DeclaredChange(
+        change_id="run2-d5",
+        kind="code_fix",
+        title="A declared invalidation must name a fact the request showed",
+        detail="The model may declare that a held position's stated invalidation has fired, and "
+        "that declaration is the only thing that lets G6 permit an increase or a flip inside "
+        "the 24 hours after the last increase. Run 1's contract accepted any non-empty "
+        "invalidation_evidence, so a sentence with no fact behind it lifted the hold. From "
+        "run 2 the contract returns such an answer to the model unless its evidence names at "
+        "least one key the request showed as `key = value` (for example "
+        "NVDAUSDT.funding_z_live), which is what output_schema_v1.md already asks for. "
+        + _UNCHANGED,
+        files=(
+            "src/sentiment_agent/decision/contract.py",
+            "src/sentiment_agent/decision/agent.py",
+        ),
+        evidence={
+            "rule_already_written": "output_schema_v1.md: invalidation_triggered is true only "
+            "with invalidation_evidence naming the fact that shows it",
+            "test": "tests/decision/test_decision_contract.py::TestADeclaredInvalidationNamesAFact",
         },
     ),
     *(

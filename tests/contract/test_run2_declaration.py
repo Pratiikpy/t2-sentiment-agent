@@ -212,6 +212,7 @@ def test_run_2s_genesis_declares_its_predecessor_and_every_change() -> None:
         "run2-d2",
         "run2-d3",
         "run2-d4",
+        "run2-d5",
         *AMENDED,
     ]
     amendments = [c for c in genesis.declared_changes if c.kind == "policy_amendment"]
@@ -273,7 +274,13 @@ def test_code_changes_leave_the_policy_and_prompts_alone() -> None:
         if change.kind in ("code_fix", "observability"):
             assert "policy, the prompt files and every guard limit are unchanged" in change.detail
             assert "src/sentiment_agent/policy.py" not in change.files
-            assert not any(f.startswith("src/sentiment_agent/decision/") for f in change.files)
+            # the prompt files; the contract and the agent may change (run2-d5), and the prompt
+            # files' hashes are held to run 1's by test_the_prompts_are_run_1s_...
+            prompt_files = (
+                "src/sentiment_agent/decision/prompt.py",
+                "src/sentiment_agent/decision/prompts/",
+            )
+            assert not any(f.startswith(prompt_files) for f in change.files)
         for path in change.files:
             assert (ROOT / path).is_file(), path
 

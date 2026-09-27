@@ -33,6 +33,7 @@ every attempt is logged as a blob.
 """
 
 import json
+import re
 import time
 from collections.abc import Mapping, Sequence
 from types import MappingProxyType
@@ -220,10 +221,28 @@ def _schema_complaints(error: ValidationError, parsed: Mapping[str, Any]) -> lis
 # ================================================================================================
 
 
+_FACT_KEY = re.compile(r"\b[A-Za-z][A-Za-z0-9_]*\.[A-Za-z0-9_.]*[A-Za-z0-9_]")
+"""A fact key as the request writes it: ``NVDAUSDT.funding_z_live``, ``reference.zero``."""
+
+
+def cited_facts(evidence: str | None, facts: Mapping[str, float]) -> tuple[str, ...]:
+    """The keys of ``facts`` that ``evidence`` names, in the order it names them."""
+    return tuple(dict.fromkeys(k for k in _FACT_KEY.findall(evidence or "") if k in facts))
+
+
 def contract_complaints(
-    decision: LlmDecision, *, book: BookState, snapshot: PerceptionSnapshot, policy: Policy
+    decision: LlmDecision,
+    *,
+    book: BookState,
+    snapshot: PerceptionSnapshot,
+    policy: Policy,
+    facts: Mapping[str, float] | None = None,
 ) -> list[str]:
-    """Everything wrong with a schema-valid decision, given the book and the policy."""
+    """Everything wrong with a schema-valid decision, given the book and the policy.
+
+    ``facts`` are the ``key = value`` pairs the request showed. When given, a declared
+    invalidation must name at least one of them (run2-d5): the declaration is the one thing that
+    lifts G6's 24-hour hold, and in run 1 nothing checked that it pointed at anything."""
     complaints: list[str] = []
     universe = set(policy.symbols)
     excluded = set(policy.excluded)
@@ -289,6 +308,13 @@ def contract_complaints(
                 "and you hold none; set it to false"
             )
             continue
+        if facts is not None and not cited_facts(target.invalidation_evidence, facts):
+            complaints.append(
+                f"{target.symbol}: invalidation_evidence must name the fact that fired as the "
+                "request shows it (for example NVDAUSDT.funding_z_live); it names none, so set "
+                "invalidation_triggered to false or cite the fact"
+            )
+            continue
         same_side = target.target != 0 and (target.target > 0) == (position.qty > 0)
         current = abs(book.weight(target.symbol)) if target.symbol in book.marks else None
         proposed = abs(target.target) * policy.mandate.per_name_max
@@ -301,7 +327,12 @@ def contract_complaints(
 
 
 def parse_decision(
-    content: str, *, book: BookState, snapshot: PerceptionSnapshot, policy: Policy
+    content: str,
+    *,
+    book: BookState,
+    snapshot: PerceptionSnapshot,
+    policy: Policy,
+    facts: Mapping[str, float] | None = None,
 ) -> LlmDecision:
     """A validated decision, or :class:`DecisionInvalid` carrying every complaint found."""
     text, parsed = _load_object(content)
@@ -309,7 +340,9 @@ def parse_decision(
         decision = LlmDecision.model_validate_json(text, strict=True)
     except ValidationError as error:
         raise DecisionInvalid(_schema_complaints(error, parsed)) from None
-    complaints = contract_complaints(decision, book=book, snapshot=snapshot, policy=policy)
+    complaints = contract_complaints(
+        decision, book=book, snapshot=snapshot, policy=policy, facts=facts
+    )
     if complaints:
         raise DecisionInvalid(complaints)
     return decision
@@ -389,8 +422,11 @@ def obtain_decision(
     book: BookState,
     snapshot: PerceptionSnapshot,
     blobs: BlobStore,
+    facts: Mapping[str, float] | None = None,
 ) -> tuple[LlmDecision | None, LlmCallRecord]:
-    """One decision call with complaint-fed retries. Never raises for a model-service failure."""
+    """One decision call with complaint-fed retries. Never raises for a model-service failure.
+    ``facts``, the request's ``key = value`` pairs, let the contract check what a declared
+    invalidation cites."""
     initial = tuple(messages)
     rule = policy.decision
     ceiling = rule.max_completion_tokens
@@ -482,7 +518,7 @@ def obtain_decision(
 
         try:
             decision = parse_decision(
-                completion.content, book=book, snapshot=snapshot, policy=policy
+                completion.content, book=book, snapshot=snapshot, policy=policy, facts=facts
             )
         except DecisionInvalid as invalid:
             outcome = LlmOutcome.INVALID_RESPONSE
