@@ -547,3 +547,32 @@ def test_replay_of_an_outage_cycle_reproduces_it(day: Day, exported: Path, index
     )
     assert code == 0, out.getvalue()
     assert "IDENTICAL" in out.getvalue()
+
+
+def test_an_export_reads_the_record_under_its_own_registered_policy(day: Day) -> None:
+    """2026-09-27: run 1's record exported with run 2's code was analysed under the loaded policy
+    (v2) instead of its own genesis policy. Loading a different policy must not change which
+    policy the record is read under."""
+    import dataclasses
+
+    from sentiment_agent.policy import POLICY_V1
+
+    day.app.close()
+    out = io.StringIO()
+    parts = dataclasses.replace(day.parts, policy=POLICY_V1)
+    code = run_cli(
+        ["export", "--mode", "simulated", "--out", "public-v1-loaded", "--coin-flips", "10"],
+        root=day.root,
+        clock=day.clock,
+        parts=parts,
+        out=out,
+    )
+    assert code == 0, out.getvalue()
+
+    def arm_hours(folder: str) -> dict[str, int]:
+        arms = json.loads((day.root / folder / "arms.json").read_text("utf-8"))
+        return {a["spec"]["arm_id"]: a["metrics"]["n_hours"] for a in arms}
+
+    registered = arm_hours("public-sim")
+    assert registered  # the registered export computed its arms
+    assert arm_hours("public-v1-loaded") == registered

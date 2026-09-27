@@ -2242,6 +2242,13 @@ def export_record(
     lock.acquire(wait_s=EXPORT_LOCK_WAIT_S)
     try:
         ledger = HashChainLedger(ledger_path(root, mode), mode=mode, clock=clock)
+        # The record is analysed under the policy it was registered under (its genesis, then any
+        # amendment), not the one this checkout loads: run 1's record exported with run 2's code
+        # was otherwise read against policy v2's scoring window, which starts after run 1 ended,
+        # and every comparison arm came out "not computed" (2026-09-27).
+        policy = _policy_at(
+            list(ledger.events(frozenset({EventKind.GENESIS, EventKind.AMENDMENT}))), policy
+        )
         blobs = FileBlobStore(root / "var" / "blobs")
         notes: list[str] = []
         arms: list[ArmResult] = []
