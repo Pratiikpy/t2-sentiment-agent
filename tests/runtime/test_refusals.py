@@ -173,7 +173,7 @@ def test_40099_on_a_send_exits_3_after_logging_the_rejection(
 ) -> None:
     _paper_genesis(root, paper_clock)
     bgc = FakeBgc(send="loopback_place_40099")
-    script = [decision("act", [target("NVDAUSDT", 1.0), target("AAPLUSDT", 1.0)])]
+    script = [decision("act", [target("NVDAUSDT", 1.0), target("AAPLUSDT", 1.0)])] * 3
     paper_clock.set(GENESIS_AT + timedelta(minutes=11))
     parts = dataclasses.replace(
         _paper_parts(paper_clock, bgc, script=script),
@@ -248,7 +248,7 @@ def test_a_crash_after_the_send_resolves_from_the_ledger_and_never_sends_again(
     clock = ManualClock(datetime(2026, 9, 25, 13, 29, tzinfo=UTC))
     world = FakeWorld(clock)
     venue = DropsTheFirstAnswer(market=world, clock=clock, starting_equity=Decimal("10000"))
-    script = [decision("act", [target("NVDAUSDT", 1.0), target("AAPLUSDT", 1.0)])]
+    script = [decision("act", [target("NVDAUSDT", 1.0), target("AAPLUSDT", 1.0)])] * 3
     parts = make_parts(clock, world=world, script=script, venue=venue)
     app = build_app(workdir, RunMode.SIMULATED, llm="scripted", clock=clock, parts=parts)
     loop = RunLoop(app)

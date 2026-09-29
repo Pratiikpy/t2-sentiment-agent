@@ -59,6 +59,7 @@ from sentiment_agent.types import (
     ChatMessage,
     ChatModel,
     Completion,
+    DecisionRecord,
     LlmCallRecord,
     LlmDecision,
     LlmOutcome,
@@ -623,6 +624,18 @@ def replay_calls(call: LlmCallRecord, blobs: BlobStore) -> tuple[RecordedCall, .
     return tuple(recorded)
 
 
+def decision_calls(record: DecisionRecord) -> tuple[LlmCallRecord, ...]:
+    """Every call ``record``'s cycle made, in the order it made them: just ``record.call`` alone,
+    or -- when :attr:`~sentiment_agent.types.DecisionRecord.majority` is set (run3-d2) -- every
+    majority-vote observation's own call, original first then each repeat. A repeat's request is
+    byte-identical to the original's, so replaying them (:func:`replay_calls` per call, fed to a
+    :class:`~sentiment_agent.llm.fakes.RecordedChatModel`) relies on that model's FIFO-per-prompt-
+    hash order to keep the three in sequence, one call's worth at a time."""
+    if record.majority is None:
+        return (record.call,)
+    return tuple(o.call for o in record.majority.observations)
+
+
 __all__ = [
     "ATTEMPT_MEDIA_TYPE",
     "DECISION_SEED",
@@ -633,6 +646,7 @@ __all__ = [
     "classify_failure",
     "complaint_message",
     "contract_complaints",
+    "decision_calls",
     "extract_json_object",
     "is_truncated",
     "obtain_decision",

@@ -321,7 +321,9 @@ def test_the_owner_paper_path_plumbing_genesis_decision_status_verify_replay(
     assert "#BitgetHackathon" in text
 
     friday.set(FRIDAY_1320 + timedelta(minutes=11))
-    model = ScriptedChatModel([decision("act", [target("NVDAUSDT", 1.0), target("BTCUSDT", -1.0)])])
+    model = ScriptedChatModel(
+        [decision("act", [target("NVDAUSDT", 1.0), target("BTCUSDT", -1.0)])] * 3
+    )
     run_parts = dataclasses.replace(base, chat_model=model)
     code, text = cli(root, friday, run_parts, "once", "--mode", "paper")
     assert code == EXIT_OK, text
@@ -382,7 +384,7 @@ def _small_simulated_record(
     root.mkdir()
     world = FakeWorld(clock)
     venue = SimulatedVenue(market=world, clock=clock, starting_equity=Decimal("10000"))
-    script = [decision("act", [target("NVDAUSDT", 1.0), target("BTCUSDT", 1.0)])]
+    script = [decision("act", [target("NVDAUSDT", 1.0), target("BTCUSDT", 1.0)])] * 3
     parts = make_parts(
         clock, world=world, script=script, venue=venue, oi_thresholds={"BTCUSDT": 5.0}
     )

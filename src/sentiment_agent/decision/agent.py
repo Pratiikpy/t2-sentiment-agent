@@ -17,6 +17,11 @@ from typing import Final
 
 from sentiment_agent.decision.contract import obtain_decision
 from sentiment_agent.decision.grounding import ground_decision
+from sentiment_agent.decision.majority import (
+    MAJORITY_REPEATS,
+    build_majority_vote,
+    majority_weights,
+)
 from sentiment_agent.decision.prompt import (
     HEARTBEAT_KINDS,
     decision_facts,
@@ -31,7 +36,10 @@ from sentiment_agent.types import (
     Clock,
     DecisionRecord,
     GroundingReport,
+    LlmCallRecord,
     LlmDecision,
+    LlmOutcome,
+    MajorityVote,
     PerceptionSnapshot,
     Policy,
     Stance,
@@ -105,15 +113,54 @@ class DecisionAgent:
             blobs=self._blobs,
             facts=shown,
         )
+
+        observations: list[tuple[LlmDecision | None, LlmCallRecord]] = [(decision, call)]
+        majority: MajorityVote | None = None
+        if decision is not None and decision.stance is Stance.ACT:
+            # run3-d2: an act-stance first answer is cross-checked with up to 2 more identical
+            # requests before it is trusted (decision/majority.py; G7,
+            # argus/data/t2_llm_variance.json). A hold or flat_with_reasons first answer is never
+            # re-asked: G7 measured no economically meaningful variance on those.
+            for _ in range(MAJORITY_REPEATS):
+                if observations[-1][1].outcome is LlmOutcome.BUDGET_EXHAUSTED:
+                    break  # the day's cap is spent; asking again would only be refused again
+                observations.append(
+                    obtain_decision(
+                        self._model,
+                        messages,
+                        thinking=thinking,
+                        policy=policy,
+                        book=book,
+                        snapshot=snapshot,
+                        blobs=self._blobs,
+                        facts=shown,
+                    )
+                )
+            majority = build_majority_vote(observations)
+            decision = observations[0][0] if majority.agreed else None
+            call = observations[0][1]
+
         weights: dict[str, float] = {}
         grounding: dict[str, GroundingReport] = {}
         if decision is not None:
-            weights = proposed_weights(decision, policy, book)
+            if majority is not None:
+                agreeing = [d for d, _ in observations if d is not None and d.stance is Stance.ACT]
+                weights = majority_weights(decision, agreeing, policy, book)
+            else:
+                weights = proposed_weights(decision, policy, book)
             facts = dict(shown)
             for symbol, weight in weights.items():
                 # The model's own requested size is citable: "a 3% short" quotes its answer.
                 facts[f"{symbol}.proposed_weight_pct"] = float(f"{weight * 100:.12g}")
             grounding = ground_decision(decision, facts, policy.grounding_tolerance)
+
+        if majority is None:
+            outcome = call.outcome
+        elif majority.agreed:
+            outcome = LlmOutcome.DECIDED
+        else:
+            outcome = LlmOutcome.DISAGREED
+
         trigger_ids = tuple(t.trigger_id for t in triggers)
         decision_id = (
             DECISION_ID_PREFIX
@@ -124,8 +171,9 @@ class DecisionAgent:
                     "trigger_ids": trigger_ids,
                     "policy_version": policy.version,
                     "prompt_hash": call.prompt_hash,
-                    "outcome": call.outcome,
+                    "outcome": outcome,
                     "decision": decision,
+                    "majority": majority,
                 }
             )[:DECISION_ID_HEX]
         )
@@ -138,10 +186,11 @@ class DecisionAgent:
             mandate=policy.mandate,
             policy_version=policy.version,
             call=call,
-            outcome=call.outcome,
+            outcome=outcome,
             decision=decision,
             grounding=grounding,
             proposed_weights=weights,
+            majority=majority,
         )
 
 

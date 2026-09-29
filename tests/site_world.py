@@ -379,17 +379,16 @@ def build_world(root: Path) -> World:
     clock.set(at(10, 32))
     first = (heartbeat(at(10, 32)), funding_event(at(10, 32)))
     day.triggers(first)
-    opened = ScriptedChatModel(
-        [
-            completion(
-                decision(
-                    "act",
-                    [target(NVDA, -0.6), target(BTC, 0.8)],
-                    summary="Fade the crowded long in NVDA; buy BTC into extreme fear.",
-                )
-            )
-        ]
+    opened_answer = completion(
+        decision(
+            "act",
+            [target(NVDA, -0.6), target(BTC, 0.8)],
+            summary="Fade the crowded long in NVDA; buy BTC into extreme fear.",
+        )
     )
+    # A stance 'act' first answer is cross-checked with 2 more identical requests (run3-d2);
+    # scripted 3 times so all three agree and the book opens exactly as before.
+    opened = ScriptedChatModel([opened_answer] * 3)
     day.decide(opened, snap, first)
 
     clock.set(at(11, 0, 20))
@@ -420,17 +419,14 @@ def build_world(root: Path) -> World:
         snapshot_id=snap.snapshot_id,
     )
     day.triggers((cluster,))
-    kept = ScriptedChatModel(
-        [
-            completion(
-                decision(
-                    "act",
-                    [target(NVDA, -0.62)],
-                    summary="The pump is coordinated; keep the NVDA fade at size.",
-                )
-            )
-        ]
+    kept_answer = completion(
+        decision(
+            "act",
+            [target(NVDA, -0.62)],
+            summary="The pump is coordinated; keep the NVDA fade at size.",
+        )
     )
+    kept = ScriptedChatModel([kept_answer] * 3)
     day.decide(kept, snap, (cluster,))
 
     clock.set(at(13, 0, 10))

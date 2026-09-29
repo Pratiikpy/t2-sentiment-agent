@@ -177,7 +177,7 @@ def test_the_first_tick_anchors_the_series_at_the_starting_equity(rig: Rig) -> N
 
 
 def test_no_decision_is_admitted_before_a_mark_exists(workdir: Path) -> None:
-    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])])
+    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])] * 3)
     try:
         did: list[str] = []
         trigger = owner_trigger("review", at=_at(13, 29), symbols=("NVDAUSDT",))
@@ -390,7 +390,7 @@ def test_owner_trigger_text_is_reduced_to_plain_characters() -> None:
 
 
 def test_the_card_cites_exactly_the_events_its_cycle_logged(workdir: Path) -> None:
-    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])])
+    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])] * 3)
     try:
         rig.loop.tick()
         rig.clock.set(_at(13, 30))
@@ -427,7 +427,7 @@ def test_the_card_cites_exactly_the_events_its_cycle_logged(workdir: Path) -> No
 
 
 def test_the_kernel_rules_on_quotes_read_after_the_model_answered(workdir: Path) -> None:
-    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])])
+    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])] * 3)
     try:
         rig.loop.tick()
         rig.clock.set(_at(13, 30))
@@ -475,7 +475,7 @@ class RefusingPlanner(Planner):
 
 
 def test_a_plan_the_approval_refuses_is_denied_and_nothing_is_sent(workdir: Path) -> None:
-    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])])
+    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])] * 3)
     try:
         rig.app.planner = RefusingPlanner(rig.app.policy)
         rig.loop.tick()
@@ -493,7 +493,7 @@ def test_a_plan_the_approval_refuses_is_denied_and_nothing_is_sent(workdir: Path
 
 
 def test_a_stop_already_on_record_is_not_logged_again_each_sweep(workdir: Path) -> None:
-    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])])
+    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])] * 3)
     try:
         rig.loop.tick()
         rig.clock.set(_at(13, 30))
@@ -510,7 +510,7 @@ def test_a_stop_already_on_record_is_not_logged_again_each_sweep(workdir: Path) 
 
 
 def test_a_venue_stop_is_picked_up_on_the_next_tick(workdir: Path) -> None:
-    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])])
+    rig = _rig(workdir, _at(13, 29), script=[decision("act", [target("NVDAUSDT", 1.0)])] * 3)
     try:
         rig.loop.tick()
         rig.clock.set(_at(13, 30))
@@ -617,7 +617,7 @@ def test_a_dryrun_loop_previews_and_sends_nothing_with_no_credential(workdir: Pa
     bgc = FakeBgc()
     world = FakeWorld(clock)
     parts: Parts = make_parts(
-        clock, world=world, bgc_runner=bgc, script=[decision("act", [target("NVDAUSDT", 1.0)])]
+        clock, world=world, bgc_runner=bgc, script=[decision("act", [target("NVDAUSDT", 1.0)])] * 3
     )
     app = build_app(workdir, RunMode.DRYRUN, llm="scripted", clock=clock, parts=parts)
     try:
@@ -686,7 +686,8 @@ def test_a_missed_fill_never_breaches_the_cap_nor_strips_the_venue_stop(
     """The venue fills a buy while every fills read fails for four sweeps. The ledger shows the
     name flat, so before the fix its stop was cancelled as an orphan and a second decision bought
     it again to ~10% of equity against a 5% cap."""
-    script = [decision("act", [target("NVDAUSDT", 1.0)]) for _ in range(4)]
+    # 4 decisions' worth of margin; each act answer now costs 3 script slots (run3-d2).
+    script = [decision("act", [target("NVDAUSDT", 1.0)]) for _ in range(4 * 3)]
     rig = _rig(workdir, _at(13, 29), script=script)
     cap = Decimal(str(rig.app.policy.per_name_max))
     failing = {"on": False}

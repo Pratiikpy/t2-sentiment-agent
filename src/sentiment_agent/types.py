@@ -272,10 +272,17 @@ class LlmOutcome(enum.StrEnum):
     TIMEOUT = "timeout"
     TRANSPORT_ERROR = "transport_error"
     BUDGET_EXHAUSTED = "budget_exhausted"
+    DISAGREED = "disagreed"
+    """run3-d2: a stance='act' first answer was cross-checked twice more and the three did not
+    reach a majority (or too few repeats could be obtained to check). Deliberately not an outage:
+    the model answered at least once, in full, this cycle -- it is the signal that could not be
+    confirmed, not the service. Never counts toward run2-a6's flatten-after-three
+    (``runtime/loop.py``), and the book is held under its existing guards exactly as a genuine
+    ``hold`` decision would be."""
 
     @property
     def is_outage(self) -> bool:
-        return self is not LlmOutcome.DECIDED
+        return self not in (LlmOutcome.DECIDED, LlmOutcome.DISAGREED)
 
 
 class GuardId(enum.StrEnum):
@@ -1146,6 +1153,61 @@ class LlmCallRecord(Model):
         return self
 
 
+class MajorityObservation(Model):
+    """run3-d2: one of the up to 3 identical requests asked once the first answer is stance
+    ``act`` (``decision/majority.py``)."""
+
+    call: LlmCallRecord
+    decision: LlmDecision | None
+    """``None`` when this observation's own call did not reach a decision (a failed repeat)."""
+
+    @model_validator(mode="after")
+    def _decision_matches_outcome(self) -> "MajorityObservation":
+        if (self.call.outcome is LlmOutcome.DECIDED) != (self.decision is not None):
+            raise ValueError("an observation carries a decision exactly when its call decided")
+        return self
+
+
+class MajorityVote(Model):
+    """run3-d2: the majority-of-3 cross-check on a stance ``act`` decision
+    (``decision/majority.py``, ``argus/data/t2_llm_variance.json``,
+    ``Activity/21_T2_QUANT_SEARCH.md`` row G7).
+
+    ``observations[0]`` is always the original, decided, ``act`` answer that triggered the vote.
+    ``act_count`` counts every observation whose decision (when there is one) has stance ``act``;
+    ``agreed`` is exactly ``act_count >= 2``. When agreed, the kept :attr:`DecisionRecord.decision`
+    is ``observations[0].decision`` unchanged (for the audit trail — one real answer, not a
+    fabrication), and its per-symbol weights are majority-confirmed, not simply re-used
+    (:attr:`weight_rule` states the exact rule). When not agreed, :attr:`reason` says why: the
+    three answers disagreed, a repeat failed before three could be compared, or both."""
+
+    observations: tuple[MajorityObservation, ...]
+    act_count: int = Field(ge=0)
+    agreed: bool
+    weight_rule: str = Field(min_length=1)
+    reason: str | None = None
+
+    @model_validator(mode="after")
+    def _consistent(self) -> "MajorityVote":
+        if not 1 <= len(self.observations) <= 3:
+            raise ValueError("a majority vote carries 1 to 3 observations")
+        first = self.observations[0]
+        if first.decision is None or first.decision.stance is not Stance.ACT:
+            raise ValueError("the first observation must be a decided act answer")
+        counted = sum(
+            1
+            for o in self.observations
+            if o.decision is not None and o.decision.stance is Stance.ACT
+        )
+        if counted != self.act_count:
+            raise ValueError("act_count must equal the number of act-stance observations")
+        if self.agreed != (self.act_count >= 2):
+            raise ValueError("agreed must be exactly act_count >= 2")
+        if self.agreed == (self.reason is not None):
+            raise ValueError("reason is set exactly when the vote did not agree")
+        return self
+
+
 class DecisionRecord(Model):
     decision_id: str
     decided_at: UtcDatetime
@@ -1156,19 +1218,37 @@ class DecisionRecord(Model):
     policy_version: str
     call: LlmCallRecord
     outcome: LlmOutcome
-    """Always equal to ``call.outcome``; repeated here because every consumer filters on it."""
+    """Equal to ``call.outcome``, except on a run3-d2 majority vote (:attr:`majority` set): then it
+    is the vote's own verdict (``DECIDED`` if agreed, ``DISAGREED`` otherwise), which can differ
+    from the first call's own outcome (always ``DECIDED`` — that is what starts a vote)."""
     decision: LlmDecision | None
     grounding: dict[str, GroundingReport]
     """Per addressed symbol: the thesis, invalidation and our_view text checked against facts."""
     proposed_weights: dict[str, float]
     """One weight per addressed symbol, keyed exactly as ``decision.targets``: normally
-    ``target * per_name_max`` (``decision/agent.py`` owns the rule). Empty when there is no
-    decision."""
+    ``target * per_name_max`` (``decision/agent.py`` owns the rule); majority-confirmed
+    (``decision/majority.py``) when :attr:`majority` is set. Empty when there is no decision."""
+    majority: MajorityVote | None = None
+    """run3-d2: set exactly when the first answer was stance ``act`` and was cross-checked."""
 
     @model_validator(mode="after")
     def _outcome_matches(self) -> "DecisionRecord":
-        if self.outcome is not self.call.outcome:
-            raise ValueError("the record's outcome must be the call's outcome")
+        if self.majority is None:
+            if self.outcome is not self.call.outcome:
+                raise ValueError("the record's outcome must be the call's outcome")
+        else:
+            first = self.majority.observations[0]
+            if self.call != first.call:
+                raise ValueError("the record's call must be the majority vote's first observation")
+            if self.majority.agreed:
+                if self.outcome is not LlmOutcome.DECIDED:
+                    raise ValueError("an agreed majority vote is outcome DECIDED")
+                if self.decision != first.decision:
+                    raise ValueError(
+                        "an agreed majority vote keeps the first observation's decision"
+                    )
+            elif self.outcome is not LlmOutcome.DISAGREED:
+                raise ValueError("a majority vote with no agreement is outcome DISAGREED")
         if (self.outcome is LlmOutcome.DECIDED) != (self.decision is not None):
             raise ValueError("a decision is present exactly when the outcome is DECIDED")
         if self.decision is None:
@@ -1183,6 +1263,30 @@ class DecisionRecord(Model):
         if not set(self.grounding) <= addressed:
             raise ValueError("a grounding report names a symbol the decision did not address")
         return self
+
+    @property
+    def total_llm_tokens(self) -> int:
+        """Every token this cycle billed. ``call.usage.total_tokens`` alone is only the first (or
+        only) call: once a majority vote has run (run3-d2), the cycle made up to 3 calls, and a
+        cost report that reads ``call`` alone silently underreports by up to 2/3 -- exactly the
+        bug this property exists to make impossible to repeat at a second call site."""
+        if self.majority is None:
+            return self.call.usage.total_tokens
+        return sum(o.call.usage.total_tokens for o in self.majority.observations)
+
+    @property
+    def total_llm_attempts(self) -> int:
+        """Every model attempt this cycle made, across every majority-vote observation."""
+        if self.majority is None:
+            return self.call.attempts
+        return sum(o.call.attempts for o in self.majority.observations)
+
+    @property
+    def all_llm_usage_reported(self) -> bool:
+        """Whether every call this cycle made billed a usage block (``LlmUsage.reported``)."""
+        if self.majority is None:
+            return self.call.usage.reported
+        return all(o.call.usage.reported for o in self.majority.observations)
 
 
 # ================================================================================================
@@ -2797,6 +2901,8 @@ __all__ = [
     "LlmDecision",
     "LlmOutcome",
     "LlmUsage",
+    "MajorityObservation",
+    "MajorityVote",
     "Mandate",
     "MarkPoint",
     "MarketData",

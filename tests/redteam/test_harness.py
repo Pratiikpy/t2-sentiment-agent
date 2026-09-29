@@ -512,8 +512,10 @@ def test_decisions_are_reused_where_the_input_is_identical_and_spend_is_counted(
     report = harness.run([_quiet_snapshot()], [BOOK], _vectors(*names))
     # Distinct inputs: the clean snapshot (nothing withheld, so both arms see the same), the pump
     # (the same), the placebo (one post, scored in both directions, seen the same by both arms),
-    # and the injection, withheld for one arm and shown to the other.
-    assert model.calls == 5
+    # and the injection, withheld for one arm and shown to the other. Each distinct input now
+    # costs 3 calls, not 1: ReactiveModel is deterministic, so its stance 'act' first answer is
+    # cross-checked with 2 more identical requests that agree with it (run3-d2).
+    assert model.calls == 5 * 3
     assert report.qwen_tokens_spent == model.tokens > 0
     by_key = {(o.arm_id, o.vector_id.partition("@")[0]): o for o in report.outcomes}
     assert "shared with arm ours" in by_key[("ours_noq", "pump/long")].detail
@@ -534,7 +536,9 @@ def test_the_fixtures_withheld_post_keeps_the_ablation_arm_on_its_own_decisions(
     harness, _ = _harness(arms, clock=clock)
     names = ("pump/long", "placebo/long", "placebo/short")
     harness.run([_snapshot()], [BOOK], _vectors(*names))
-    assert model.calls == 2 * (1 + 2)  # clean, pump, placebo; per arm
+    # clean, pump, placebo; per arm; x3 since each distinct act-stance input is cross-checked
+    # with 2 more identical, agreeing requests (run3-d2).
+    assert model.calls == 2 * (1 + 2) * 3
 
 
 def test_the_estimate_is_the_budget_bound_per_call_times_the_calls() -> None:

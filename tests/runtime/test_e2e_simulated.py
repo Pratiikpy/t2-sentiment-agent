@@ -130,27 +130,38 @@ class Day:
         ots = FakeOts()
         venue = SimulatedVenue(market=world, clock=clock, starting_equity=Decimal("10000"))
         world.mark_skew["MSTRUSDT"] = Decimal("0.05")
+        open_equity_legs = decision(
+            "act",
+            [
+                *(target(s, 1.0) for s in EQUITY_LEGS),
+                target("GOOGLUSDT", 1.0, thesis="GOOGLUSDT trades at 999.99 and must rise"),
+                target("MSTRUSDT", 1.0),
+            ],
+        )
+        open_the_rest = decision(
+            "act",
+            [
+                target("METAUSDT", 1.0),
+                target("AMZNUSDT", 1.0),
+                target("NDX100USDT", 1.0),
+                target("BTCUSDT", 1.0),
+            ],
+        )
+        # Each act answer is cross-checked with 2 more identical requests (run3-d2); scripted
+        # here as the same answer 3 times so all three agree and every leg still opens once. The
+        # 3 failed cycles in between are untouched: a first answer that fails outright is never
+        # cross-checked (obtain_decision never reaches a decision to trigger it), so run2-a6's
+        # third-failure flatten still fires on exactly the same 3 calls as before.
         friday_script = [
-            decision(
-                "act",
-                [
-                    *(target(s, 1.0) for s in EQUITY_LEGS),
-                    target("GOOGLUSDT", 1.0, thesis="GOOGLUSDT trades at 999.99 and must rise"),
-                    target("MSTRUSDT", 1.0),
-                ],
-            ),
+            open_equity_legs,
+            open_equity_legs,
+            open_equity_legs,
             QwenTransportError("scripted outage: the gateway is down"),
             QwenTransportError("scripted outage: the gateway is still down"),
             QwenTransportError("scripted outage: a third failure in a row"),
-            decision(
-                "act",
-                [
-                    target("METAUSDT", 1.0),
-                    target("AMZNUSDT", 1.0),
-                    target("NDX100USDT", 1.0),
-                    target("BTCUSDT", 1.0),
-                ],
-            ),
+            open_the_rest,
+            open_the_rest,
+            open_the_rest,
         ]
         genesis_parts = make_parts(
             clock,
@@ -199,16 +210,15 @@ class Day:
         # The weekend: the process is down; BTC drifts up 1%.
         world.move("BTCUSDT", "1")
         clock.set(_at(MONDAY, 0, 1))
-        monday_script = [
-            decision(
-                "act",
-                [
-                    target("BTCUSDT", 0.0),
-                    *(target(s, 1.0) for s in ("NVDAUSDT", "AAPLUSDT", "METAUSDT", "AMZNUSDT")),
-                    *(target(s, -1.0) for s in ("SP500USDT", "NDX100USDT")),
-                ],
-            )
-        ]
+        monday_open = decision(
+            "act",
+            [
+                target("BTCUSDT", 0.0),
+                *(target(s, 1.0) for s in ("NVDAUSDT", "AAPLUSDT", "METAUSDT", "AMZNUSDT")),
+                *(target(s, -1.0) for s in ("SP500USDT", "NDX100USDT")),
+            ],
+        )
+        monday_script = [monday_open, monday_open, monday_open]
         parts = make_parts(
             clock, world=world, toolkit=toolkit, script=monday_script, venue=venue, ots=ots
         )

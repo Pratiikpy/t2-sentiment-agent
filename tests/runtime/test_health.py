@@ -72,7 +72,7 @@ def _traded_app(root: Path) -> tuple[ManualClock, App]:
             clock,
             world=world,
             venue=venue,
-            script=[decision("act", [target("NVDAUSDT", 1.0)])],
+            script=[decision("act", [target("NVDAUSDT", 1.0)])] * 3,
         ),
     )
     loop = RunLoop(app)

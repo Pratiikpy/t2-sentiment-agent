@@ -668,6 +668,39 @@ class RunLoop:
                 proposed=record.proposed_weights,
                 llm_outage=False,
             )
+        elif record.outcome is LlmOutcome.DISAGREED:
+            # run3-d2: the first answer was stance 'act', but the majority-of-3 cross-check
+            # (decision/majority.py) did not confirm it -- either the three answers genuinely
+            # disagreed, or a repeat call failed before three could be compared. This is never a
+            # model-service outage (the primary call decided in full this cycle, which is what
+            # proves the service is up), so it never counts toward run2-a6's flatten-after-three;
+            # self._outages is reset exactly as a normal decided cycle resets it. The book rules
+            # under a real decision id (G6's turnover lock and every guard still apply in full),
+            # proposing nothing new -- the same shape a genuine 'hold' decision would take.
+            self._outages = 0
+            state = self._assess(
+                fresh_book, inputs, llm_outage=False, decision_id=record.decision_id
+            )
+            reason = record.majority.reason if record.majority is not None else "no majority"
+            app.note(f"no-act on decision {record.decision_id}: {reason}")
+            context = RulingContext(
+                decision_id=record.decision_id,
+                protective_reason=None,
+                grounding={},
+                invalidation_fired={},
+            )
+            ruling = app.kernel.rule(
+                proposed=None, book=fresh_book, inputs=inputs, context=context, breaker=state
+            )
+            acted = self._act(
+                ruling,
+                fresh_book,
+                inputs,
+                breaker=state,
+                context=context,
+                proposed=None,
+                llm_outage=False,
+            )
         elif self._outage_is_held():
             # run2-a6: a single failed call is not a reason to trade. The legs stay under the
             # venue stops G4 placed with them, and nothing new is opened without a decision.

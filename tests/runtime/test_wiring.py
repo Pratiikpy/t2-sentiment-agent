@@ -90,7 +90,7 @@ def test_state_is_rebuilt_from_the_ledger_on_restart(workdir: Path) -> None:
     clock = ManualClock(FRIDAY_1329)
     world = FakeWorld(clock)
     venue = SimulatedVenue(market=world, clock=clock, starting_equity=Decimal("10000"))
-    script = [decision("act", [target("NVDAUSDT", 1.0), target("BTCUSDT", -1.0)])]
+    script = [decision("act", [target("NVDAUSDT", 1.0), target("BTCUSDT", -1.0)])] * 3
     first = build_app(
         workdir,
         RunMode.SIMULATED,
@@ -211,7 +211,7 @@ def test_a_simulated_book_is_not_resumed_on_a_fresh_venue_and_can_be_archived(
         llm="scripted",
         clock=clock,
         parts=make_parts(
-            clock, world=world, venue=venue, script=[decision("act", [target("NVDAUSDT", 1.0)])]
+            clock, world=world, venue=venue, script=[decision("act", [target("NVDAUSDT", 1.0)])] * 3
         ),
     )
     loop = RunLoop(app)
@@ -259,7 +259,7 @@ def test_a_held_symbol_without_a_quote_is_valued_at_the_newest_logged_mark(
             clock,
             world=world,
             venue=venue,
-            script=[decision("act", [target("NVDAUSDT", 1.0)]), flat()],
+            script=[decision("act", [target("NVDAUSDT", 1.0)])] * 3 + [flat()],
         ),
     )
     try:

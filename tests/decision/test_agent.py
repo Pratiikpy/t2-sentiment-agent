@@ -26,9 +26,13 @@ from decision.support import (
 )
 from sentiment_agent.clock import ManualClock
 from sentiment_agent.decision.agent import DecisionAgent, proposed_weights
-from sentiment_agent.decision.contract import replay_calls
-from sentiment_agent.decision.prompt import format_number
-from sentiment_agent.llm.budget import DailyTokenBudget
+from sentiment_agent.decision.contract import (
+    INITIAL_COMPLETION_TOKENS,
+    decision_calls,
+    replay_calls,
+)
+from sentiment_agent.decision.prompt import format_number, render_messages
+from sentiment_agent.llm.budget import DailyTokenBudget, projected_tokens
 from sentiment_agent.llm.client import QwenTimeout, QwenTransportError
 from sentiment_agent.llm.fakes import RecordedChatModel, ScriptedChatModel
 from sentiment_agent.policy import POLICY_V1
@@ -129,7 +133,9 @@ class TestDecided:
                 )
             ],
         )
-        model = ScriptedChatModel([completion(body)])
+        # A stance 'act' first answer is cross-checked twice more (run3-d2); all three agreeing
+        # on the same answer reproduces the pre-run3-d2 single-call record exactly.
+        model = ScriptedChatModel([completion(body), completion(body), completion(body)])
         record = _decide(model, book=book, snapshot=snapshot)
         assert record.outcome is LlmOutcome.DECIDED
         assert record.decision is not None
@@ -153,14 +159,16 @@ class TestDecided:
 
     def test_the_record_is_deterministic(self) -> None:
         body = decision("act", [target("NVDAUSDT", -0.6)])
-        first = _decide(ScriptedChatModel([completion(body)]))
-        second = _decide(ScriptedChatModel([completion(body)]))
+        first = _decide(ScriptedChatModel([completion(body)] * 3))
+        second = _decide(ScriptedChatModel([completion(body)] * 3))
         assert first == second
         assert first.decision_id == second.decision_id
 
     def test_a_different_answer_gets_a_different_id(self) -> None:
-        a = _decide(ScriptedChatModel([completion(decision("act", [target("NVDAUSDT", -0.6)]))]))
-        b = _decide(ScriptedChatModel([completion(decision("act", [target("NVDAUSDT", -0.5)]))]))
+        body_a = decision("act", [target("NVDAUSDT", -0.6)])
+        body_b = decision("act", [target("NVDAUSDT", -0.5)])
+        a = _decide(ScriptedChatModel([completion(body_a)] * 3))
+        b = _decide(ScriptedChatModel([completion(body_b)] * 3))
         assert a.decision_id != b.decision_id
 
     def test_flat_with_reasons_on_an_empty_book(self) -> None:
@@ -188,8 +196,12 @@ class TestDecided:
 
     def test_an_invalid_answer_then_a_valid_one(self) -> None:
         wrong = decision("act", [target("NVDAUSDT", -0.6, horizon=6)])
+        right = decision("act", [target("NVDAUSDT", -0.6)])
+        # The first call takes 2 attempts (invalid, then valid); its valid answer is stance act,
+        # so 2 more identical requests follow (run3-d2) -- scripted here as the same right answer,
+        # so all three agree and the record matches what the single-call version would produce.
         model = ScriptedChatModel(
-            [completion(wrong), completion(decision("act", [target("NVDAUSDT", -0.6)]))]
+            [completion(wrong), completion(right), completion(right), completion(right)]
         )
         record = _decide(model)
         assert record.outcome is LlmOutcome.DECIDED
@@ -198,25 +210,203 @@ class TestDecided:
 
     def test_a_truncated_answer_then_a_larger_cap(self) -> None:
         body = decision("act", [target("NVDAUSDT", -0.6)])
-        model = ScriptedChatModel([completion("{", finish_reason="length"), completion(body)])
+        model = ScriptedChatModel(
+            [
+                completion("{", finish_reason="length"),
+                completion(body),
+                completion(body),
+                completion(body),
+            ]
+        )
         record = _decide(model, triggers=(funding_event(),))
         assert record.outcome is LlmOutcome.DECIDED
-        assert [r.max_tokens for r in model.requests] == [4096, 8192]
+        # The truncated attempt, its retry at a grown cap, then 2 fresh-cap repeats (run3-d2):
+        # each repeat is its own obtain_decision call, starting from the tier's initial cap again.
+        assert [r.max_tokens for r in model.requests] == [4096, 8192, 4096, 4096]
 
 
 class TestReasoningTier:
     def test_a_heartbeat_reasons_fully(self) -> None:
-        model = ScriptedChatModel([completion(decision("act", [target("NVDAUSDT", -0.6)]))])
+        body = decision("act", [target("NVDAUSDT", -0.6)])
+        model = ScriptedChatModel([completion(body)] * 3)
         record = _decide(model, triggers=(heartbeat(), funding_event()))
         assert record.call.thinking is Thinking.FULL
         assert model.requests[0].thinking is Thinking.FULL
         assert model.requests[0].max_tokens == POLICY_V1.decision.max_completion_tokens
 
     def test_an_event_reasons_low(self) -> None:
-        model = ScriptedChatModel([completion(decision("act", [target("NVDAUSDT", -0.6)]))])
+        body = decision("act", [target("NVDAUSDT", -0.6)])
+        model = ScriptedChatModel([completion(body)] * 3)
         record = _decide(model, triggers=(funding_event(),))
         assert record.call.thinking is Thinking.LOW
         assert model.requests[0].thinking is Thinking.LOW
+
+
+# ================================================================================================
+# decide: the majority vote on a stance 'act' first answer (run3-d2)
+#
+# G7 (argus/data/t2_llm_variance.json, Activity/21_T2_QUANT_SEARCH.md row G7): the same accepted
+# request, resent through a fresh Qwen client, reproduced exactly for run 2's two no-act cycles but
+# not for its one act cycle. dec-189d8234's own shape (closing METAUSDT and MSTRUSDT) is
+# reproduced in test_two_of_three_reproduces_run2s_own_g7_scenario below, symbol-for-symbol.
+# ================================================================================================
+
+
+class TestMajorityVote:
+    def test_a_no_act_first_answer_is_never_re_asked(self) -> None:
+        body = decision("flat_with_reasons", flat_reasons=["Nothing crowded enough to fade."])
+        model = ScriptedChatModel([completion(body)])
+        record = _decide(model)
+        assert len(model.requests) == 1
+        assert record.majority is None
+        assert record.outcome is LlmOutcome.DECIDED
+        assert record.decision is not None
+        assert record.decision.stance.value == "flat_with_reasons"
+        # No vote ran: the cost total is just the one call, same as before run3-d2.
+        assert record.total_llm_tokens == record.call.usage.total_tokens
+        assert record.total_llm_attempts == record.call.attempts
+        assert record.all_llm_usage_reported == record.call.usage.reported
+
+    def test_three_agreeing_answers_confirm_the_decision(self) -> None:
+        body = decision("act", [target("NVDAUSDT", -0.6)])
+        model = ScriptedChatModel([completion(body)] * 3)
+        record = _decide(model)
+        assert len(model.requests) == 3
+        assert record.outcome is LlmOutcome.DECIDED
+        assert record.majority is not None
+        assert record.majority.act_count == 3
+        assert record.majority.agreed
+        assert record.majority.reason is None
+        assert len(record.majority.observations) == 3
+        assert all(o.decision is not None for o in record.majority.observations)
+        assert record.decision == LlmDecision.model_validate(body)
+        assert record.proposed_weights == {"NVDAUSDT": -0.03}
+        assert "median" in record.majority.weight_rule
+        # The real cost is 3 calls' worth, not 1: reading record.call.usage alone (as every cost
+        # report did before run3-d2) would silently underreport by 2/3.
+        per_call = record.majority.observations[0].call.usage.total_tokens
+        assert per_call > 0
+        assert record.total_llm_tokens == per_call * 3
+        assert record.total_llm_attempts == sum(
+            o.call.attempts for o in record.majority.observations
+        )
+        assert record.all_llm_usage_reported
+
+    def test_two_of_three_reproduces_run2s_own_g7_scenario(self) -> None:
+        """The exact shape run 2's ledger recorded (dec-189d8234): the original closes two held
+        names; one repeat flips to hold and keeps them open; the other repeat agrees on stance
+        act and on closing the same two names, but also opens two more (TSLAUSDT, AAPLUSDT) that
+        neither other answer addressed at all. The majority acts on the 2-of-3 agreement to close
+        both held names, and never opens the two extras: only what the kept (original) decision
+        addressed is ever in play."""
+        book = held_book()
+        original = decision("act", [target("NVDAUSDT", 0.0), target("BTCUSDT", 0.0)])
+        dissents_and_holds = decision(
+            "hold", [target("NVDAUSDT", -0.44568), target("BTCUSDT", 0.998118)]
+        )
+        agrees_but_also_opens = decision(
+            "act",
+            [
+                target("NVDAUSDT", 0.0),
+                target("BTCUSDT", 0.0),
+                target("TSLAUSDT", -0.5),
+                target("AAPLUSDT", -0.5),
+            ],
+        )
+        model = ScriptedChatModel(
+            [
+                completion(original),
+                completion(dissents_and_holds),
+                completion(agrees_but_also_opens),
+            ]
+        )
+        record = _decide(model, book=book)
+        assert record.outcome is LlmOutcome.DECIDED
+        assert record.majority is not None
+        assert record.majority.act_count == 2
+        assert record.majority.agreed
+        assert record.decision == LlmDecision.model_validate(original), (
+            "the kept decision is the original, unchanged -- one real answer, not a fabrication"
+        )
+        assert set(record.proposed_weights) == {"NVDAUSDT", "BTCUSDT"}
+        assert record.proposed_weights == {"NVDAUSDT": 0.0, "BTCUSDT": 0.0}
+
+    def test_full_disagreement_is_recorded_as_a_no_act(self) -> None:
+        book = held_book()
+        act = decision("act", [target("NVDAUSDT", 0.0), target("BTCUSDT", 0.0)])
+        hold = decision("hold", [target("NVDAUSDT", -0.44568), target("BTCUSDT", 0.998118)])
+        flat = decision(
+            "flat_with_reasons",
+            [target("NVDAUSDT", 0.0), target("BTCUSDT", 0.0)],
+            flat_reasons=["Changed our mind."],
+        )
+        model = ScriptedChatModel([completion(act), completion(hold), completion(flat)])
+        record = _decide(model, book=book)
+        assert len(model.requests) == 3
+        assert record.outcome is LlmOutcome.DISAGREED
+        assert not record.outcome.is_outage, "3 real answers is not a model-service outage"
+        assert record.decision is None
+        assert record.proposed_weights == {}
+        assert record.grounding == {}
+        assert record.majority is not None
+        assert not record.majority.agreed
+        assert record.majority.act_count == 1
+        assert len(record.majority.observations) == 3
+        assert all(o.decision is not None for o in record.majority.observations)
+        assert record.majority.reason is not None
+        assert "did not agree with itself" in record.majority.reason
+
+    def test_a_failed_repeat_can_still_leave_a_majority(self) -> None:
+        body = decision("act", [target("NVDAUSDT", -0.6)])
+        model = ScriptedChatModel([completion(body), QwenTimeout("no answer"), completion(body)])
+        record = _decide(model)
+        assert record.outcome is LlmOutcome.DECIDED
+        assert record.majority is not None
+        assert record.majority.act_count == 2
+        assert record.majority.agreed
+        obs = record.majority.observations
+        assert len(obs) == 3
+        assert obs[1].decision is None
+        assert obs[1].call.outcome is LlmOutcome.TIMEOUT
+
+    def test_a_failed_repeat_that_leaves_no_majority_is_a_no_act_not_an_outage(self) -> None:
+        body = decision("act", [target("NVDAUSDT", -0.6)])
+        model = ScriptedChatModel(
+            [completion(body), QwenTimeout("no answer"), QwenTransportError("HTTP 502")]
+        )
+        record = _decide(model)
+        assert record.outcome is LlmOutcome.DISAGREED
+        assert not record.outcome.is_outage
+        assert record.majority is not None
+        assert record.majority.act_count == 1
+        assert not record.majority.agreed
+        assert "failed" in (record.majority.reason or "")
+        obs = record.majority.observations
+        assert obs[1].call.outcome is LlmOutcome.TIMEOUT
+        assert obs[2].call.outcome is LlmOutcome.TRANSPORT_ERROR
+
+    def test_a_repeat_stops_asking_once_the_days_budget_is_exhausted(self) -> None:
+        """The budget is refused, not silently skipped or overspent (module docstring,
+        decision/majority.py): a repeat that would cross the cap is never sent, and the one after
+        it is never attempted either -- asking again would only be refused again."""
+        body = decision("act", [target("NVDAUSDT", -0.6)])
+        book = book_state()
+        snapshot = build_snapshot(book=book)
+        triggers = (funding_event(),)
+        messages = render_messages(snapshot, book, triggers, POLICY_V1, now=NOW)
+        cap = min(INITIAL_COMPLETION_TOKENS[Thinking.LOW], POLICY_V1.decision.max_completion_tokens)
+        budget = DailyTokenBudget(projected_tokens(messages, cap), ManualClock(NOW))
+        model = ScriptedChatModel([completion(body)] * 3, budget=budget)
+        record = _decide(model, book=book, snapshot=snapshot, triggers=triggers)
+        assert len(model.requests) == 2, "the first call, then one refused repeat -- never a third"
+        assert record.outcome is LlmOutcome.DISAGREED
+        assert not record.outcome.is_outage
+        assert record.majority is not None
+        assert record.majority.act_count == 1
+        obs = record.majority.observations
+        assert len(obs) == 2
+        assert obs[1].decision is None
+        assert obs[1].call.outcome is LlmOutcome.BUDGET_EXHAUSTED
 
 
 # ================================================================================================
@@ -299,7 +489,7 @@ class TestGroundingInTheRecord:
                 target("BTCUSDT", 0.4, thesis=f"Funding z at {format_number(funding_z)}, crowded."),
             ],
         )
-        record = _decide(ScriptedChatModel([completion(body)]), snapshot=snapshot)
+        record = _decide(ScriptedChatModel([completion(body)] * 3), snapshot=snapshot)
         nvda = record.grounding["NVDAUSDT"]
         assert not nvda.grounded
         assert [f.raw for f in nvda.unresolved] == ["187.5"]
@@ -320,7 +510,7 @@ class TestGroundingInTheRecord:
         assert len(targets) == 8
         for symbol, thesis in targets:
             body = decision("act", [target(symbol, -0.4, thesis=thesis)])
-            record = _decide(ScriptedChatModel([completion(body)]))
+            record = _decide(ScriptedChatModel([completion(body)] * 3))
             assert not record.grounding[symbol].grounded, thesis
 
     def test_a_real_price_grounds_in_a_real_decision(self) -> None:
@@ -328,7 +518,7 @@ class TestGroundingInTheRecord:
         price = snapshot.features["AAPLUSDT"].demo_last
         assert price is not None
         body = decision("act", [target("AAPLUSDT", 0.4, thesis=f"Entry near {price} on AAPLUSDT.")])
-        record = _decide(ScriptedChatModel([completion(body)]), snapshot=snapshot)
+        record = _decide(ScriptedChatModel([completion(body)] * 3), snapshot=snapshot)
         assert record.grounding["AAPLUSDT"].grounded
 
 
@@ -341,12 +531,32 @@ def test_replay_reproduces_the_record() -> None:
     body = decision("act", [target("NVDAUSDT", -0.6)])
     blobs = MemoryBlobStore()
     wrong = decision("act", [target("NVDAUSDT", -0.6, horizon=6)])
-    record = _decide(ScriptedChatModel([completion(wrong), completion(body)]), blobs=blobs)
-    replayed = _decide(RecordedChatModel(replay_calls(record.call, blobs)))
+    # run3-d2: the first call's valid answer is stance act, so 2 more identical requests follow;
+    # scripted here as the same answer, so all three agree.
+    script = [completion(wrong), completion(body), completion(body), completion(body)]
+    record = _decide(ScriptedChatModel(script), blobs=blobs)
+    recordings = [rc for call in decision_calls(record) for rc in replay_calls(call, blobs)]
+    replayed = _decide(RecordedChatModel(recordings))
+    assert replayed == record
+
+
+def test_replay_reproduces_a_disagreed_record() -> None:
+    """run3-d2's own shape: the majority vote's 3 observations replay in the order they were
+    asked, even though their requests are byte-identical (RecordedChatModel serves same-hash
+    recordings FIFO, which is exactly what keeps three identical prompts in sequence)."""
+    act = decision("act", [target("NVDAUSDT", -0.6)])
+    flat = decision("flat_with_reasons", flat_reasons=["No crowding worth fading."])
+    blobs = MemoryBlobStore()
+    script = [completion(act), completion(flat), completion(flat)]
+    record = _decide(ScriptedChatModel(script), blobs=blobs)
+    assert record.outcome is LlmOutcome.DISAGREED
+    recordings = [rc for call in decision_calls(record) for rc in replay_calls(call, blobs)]
+    replayed = _decide(RecordedChatModel(recordings))
     assert replayed == record
 
 
 def test_the_record_round_trips_through_json() -> None:
-    record = _decide(ScriptedChatModel([completion(decision("act", [target("NVDAUSDT", -0.6)]))]))
+    body = decision("act", [target("NVDAUSDT", -0.6)])
+    record = _decide(ScriptedChatModel([completion(body)] * 3))
     assert DecisionRecord.model_validate_json(record.model_dump_json()) == record
     assert record.book_before.equity == Decimal("10000")

@@ -60,7 +60,7 @@ from sentiment_agent.book.projection import ORDER_EVENT_KINDS, Projection
 from sentiment_agent.clock import ManualClock, VenueClock
 from sentiment_agent.crowd.adapters import CompositeCrowd
 from sentiment_agent.decision.agent import DecisionAgent
-from sentiment_agent.decision.contract import ATTEMPT_MEDIA_TYPE, replay_calls
+from sentiment_agent.decision.contract import ATTEMPT_MEDIA_TYPE, decision_calls, replay_calls
 from sentiment_agent.decision.prompt import prompt_hashes
 from sentiment_agent.execution.bgc import BGC_PACKAGE, BgcRunner, BgcTransport
 from sentiment_agent.execution.environment import (
@@ -105,13 +105,14 @@ from sentiment_agent.ledger.genesis import (
 )
 from sentiment_agent.llm.budget import BudgetExhausted, DailyTokenBudget
 from sentiment_agent.llm.client import (
+    DEFAULT_MODEL,
     QwenChatModel,
     QwenError,
     QwenTimeout,
     QwenTransportError,
     load_qwen_env,
 )
-from sentiment_agent.llm.fakes import RecordedChatModel, completion_from_json
+from sentiment_agent.llm.fakes import RecordedChatModel, ReplayMismatch, completion_from_json
 from sentiment_agent.perception.snapshot import SnapshotBuilder
 from sentiment_agent.policy import ACTIVE_POLICY, POLICY_V1, POLICY_V2
 from sentiment_agent.redteam.corpus import load_vectors
@@ -188,7 +189,6 @@ from sentiment_agent.types import (
     KernelRuling,
     LedgerEvent,
     LlmCallRecord,
-    LlmOutcome,
     MarketData,
     Note,
     OrderIntent,
@@ -1516,30 +1516,53 @@ _REPLAYED_FAILURES: Final[Mapping[str, type[Exception]]] = {
 """The model-service failures a logged attempt can record, re-raised by a replay of the cycle."""
 
 
+def _terminal_failure(call: LlmCallRecord, blobs: BlobStore) -> tuple[type[Exception], str] | None:
+    """The model-service failure ``call`` ended in, if it did (a timeout, a transport error, the
+    daily cap): the last attempt blob that carries an error and no completion."""
+    failure: tuple[type[Exception], str] | None = None
+    for ref in call.response_blobs:
+        if ref.media_type != ATTEMPT_MEDIA_TYPE:
+            continue
+        attempt = json.loads(blobs.get(ref.sha256).decode("utf-8"))
+        error = attempt.get("error")
+        if isinstance(error, dict) and attempt.get("completion") is None:
+            kind = _REPLAYED_FAILURES.get(str(error.get("type")), QwenTransportError)
+            failure = (kind, str(error.get("message", "")))
+    return failure
+
+
 class ReplayModel:
     """The model as the ledger recorded it: every logged completion, in order, then the logged
-    failure when the cycle ended in one (a timeout, a transport error, the daily cap).
+    failure when a call ended in one (a timeout, a transport error, the daily cap).
 
     A replayed outage raises the same class of error with the same message, so the contract
     classifies it into the same outcome and the cycle reproduces its decision id; a call with no
     recording left and no recorded failure is a :class:`ReplayMismatch`, as it should be.
+
+    run3-d2: when ``record.majority`` is set, the cycle made up to 3 calls with byte-identical
+    messages (the original, then up to 2 repeats) — one shared, hash-keyed
+    :class:`RecordedChatModel` cannot serve them in order, since a repeat's prompt hashes the same
+    as the original's. Each observation's own call gets its own :class:`RecordedChatModel`
+    (and its own possible terminal failure), served in the order the observations were asked;
+    once one is exhausted (either it decided, or it raised its own recorded failure), the next
+    observation answers the following ``complete()`` call.
     """
 
-    def __init__(self, call: LlmCallRecord, blobs: BlobStore) -> None:
-        self._recorded = RecordedChatModel(replay_calls(call, blobs), model_name=call.model)
-        self._failure: tuple[type[Exception], str] | None = None
-        for ref in call.response_blobs:
-            if ref.media_type != ATTEMPT_MEDIA_TYPE:
-                continue
-            attempt = json.loads(blobs.get(ref.sha256).decode("utf-8"))
-            error = attempt.get("error")
-            if isinstance(error, dict) and attempt.get("completion") is None:
-                kind = _REPLAYED_FAILURES.get(str(error.get("type")), QwenTransportError)
-                self._failure = (kind, str(error.get("message", "")))
+    def __init__(self, record: DecisionRecord, blobs: BlobStore) -> None:
+        observations: list[tuple[RecordedChatModel, tuple[type[Exception], str] | None]] = []
+        for call in decision_calls(record):
+            recorded = RecordedChatModel(replay_calls(call, blobs), model_name=call.model)
+            observations.append((recorded, _terminal_failure(call, blobs)))
+        self._observations = observations
+        self._index = 0
+        self._raised: set[int] = set()
+
+    def _current(self) -> tuple[RecordedChatModel, tuple[type[Exception], str] | None]:
+        return self._observations[self._index]
 
     @property
     def model_name(self) -> str:
-        return self._recorded.model_name
+        return self._current()[0].model_name if self._observations else DEFAULT_MODEL
 
     def complete(
         self,
@@ -1551,17 +1574,28 @@ class ReplayModel:
         temperature: float = 0.0,
         seed: int | None = None,
     ) -> Completion:
-        if self._recorded.remaining == 0 and self._failure is not None:
-            kind, message = self._failure
-            raise kind(message)
-        return self._recorded.complete(
-            messages,
-            json_mode=json_mode,
-            max_tokens=max_tokens,
-            thinking=thinking,
-            temperature=temperature,
-            seed=seed,
-        )
+        while True:
+            if self._index >= len(self._observations):
+                raise ReplayMismatch(
+                    "no recording is left for any observation of this decision; the replayed "
+                    "cycle asked for a call the logged one never made"
+                )
+            recorded, failure = self._current()
+            try:
+                return recorded.complete(
+                    messages,
+                    json_mode=json_mode,
+                    max_tokens=max_tokens,
+                    thinking=thinking,
+                    temperature=temperature,
+                    seed=seed,
+                )
+            except ReplayMismatch:
+                if failure is not None and self._index not in self._raised:
+                    self._raised.add(self._index)
+                    kind, message = failure
+                    raise kind(message) from None
+                self._index += 1
 
 
 class _OverlayBlobs:
@@ -1618,7 +1652,7 @@ def replay_decision(
     triggers = [triggers_by_id[t] for t in record.trigger_ids]
 
     agent = DecisionAgent(
-        model=ReplayModel(record.call, blobs),
+        model=ReplayModel(record, blobs),
         policy=policy_in_force,
         blobs=_OverlayBlobs(blobs),
         clock=ManualClock(record.decided_at),
@@ -1736,18 +1770,27 @@ def _policy_at(before: Sequence[LedgerEvent], loaded: Policy) -> Policy:
 
 
 def _answering_ruling(after: Sequence[LedgerEvent], record: DecisionRecord) -> LedgerEvent | None:
-    """The ruling this decision's cycle logged: its own ruling when it decided; the model-outage
-    flatten when it did not. Anything after the next decision belongs to another cycle."""
+    """The ruling this decision's cycle logged: its own ruling when it named a decision id (a
+    decided cycle, or run3-d2's DISAGREED — both rule under ``record.decision_id``); the
+    model-outage flatten when it did not decide at all. Anything after the next decision belongs
+    to another cycle.
+
+    Checking the ruling's own ``decision_id`` first, rather than branching on
+    ``record.outcome is LlmOutcome.DECIDED``, is what makes this correct for DISAGREED too: that
+    outcome is not DECIDED, but its ruling still carries a real ``decision_id`` (run2-a6's outage
+    flatten never does), so it must be matched the same way a decided cycle's ruling is."""
     for event in after:
         if event.kind is EventKind.DECISION:
             return None
         if event.kind is not EventKind.KERNEL_RULING:
             continue
         payload = event.payload
-        if record.outcome is LlmOutcome.DECIDED:
-            if payload.get("decision_id") == record.decision_id:
-                return event
-        elif payload.get("protective_reason") == ProtectiveReason.LLM_OUTAGE.value:
+        if payload.get("decision_id") == record.decision_id:
+            return event
+        if (
+            record.outcome.is_outage
+            and payload.get("protective_reason") == ProtectiveReason.LLM_OUTAGE.value
+        ):
             return event
     return None
 

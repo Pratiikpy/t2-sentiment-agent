@@ -382,11 +382,11 @@ class AgentArm:
                 if decision is not None
                 else {}
             ),
-            llm_tokens=record.call.usage.total_tokens,
+            llm_tokens=record.total_llm_tokens,
             outcome=record.outcome,
             decided_at=record.decided_at,
             note=f"{record.decision_id} {record.outcome.value}"
-            + ("" if record.call.usage.reported else ", usage unreported"),
+            + ("" if record.all_llm_usage_reported else ", usage unreported"),
         )
 
     def __call__(self, snapshot: PerceptionSnapshot, book: BookState) -> dict[str, float]:

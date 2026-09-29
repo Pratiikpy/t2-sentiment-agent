@@ -8,7 +8,9 @@
 ``blobs/<sha256>``    every blob any event commits to
 ``genesis.json``      the pre-registration, its hash, its OpenTimestamps records, amendments
 ``environment.json``  every environment proof (the Demo-only check before the first order)
-``decisions.json``    every decision: outcome, stance, summary, targets against approved weights
+``decisions.json``    every decision: outcome, stance, summary, targets against approved weights,
+                      token cost across every call the cycle made, and its majority-of-3
+                      cross-check when one ran (run3-d2)
 ``cards/<id>.json``   one :class:`~sentiment_agent.types.DecisionCard` per decision and protective
                       ruling (``site/cards.py``)
 ``orders.json``       every planned order with its preview, clientOid, venue orderId, state, fills
@@ -116,6 +118,7 @@ from sentiment_agent.types import (
     Clock,
     ClosedTrade,
     DecisionEvent,
+    DecisionRecord,
     EnvironmentProof,
     EventKind,
     FeedHealthReport,
@@ -848,6 +851,22 @@ def _approved(ruling: KernelRuling | None, symbol: str) -> dict[str, Any]:
     }
 
 
+def _majority_row(rec: DecisionRecord) -> dict[str, Any] | None:
+    """run3-d2: the majority-of-3 cross-check on a stance ``act`` first answer, when one ran --
+    "decision architecture quality" and "decision explainability" are judged criteria (Track 2),
+    and a cycle that was confirmed (or was not) by 3 answers rather than 1 is exactly that."""
+    majority = rec.majority
+    if majority is None:
+        return None
+    return {
+        "observations": len(majority.observations),
+        "act_count": majority.act_count,
+        "agreed": majority.agreed,
+        "reason": majority.reason,
+        "weight_rule": majority.weight_rule,
+    }
+
+
 def _decisions_doc(record: _Record, bundle: CardBundle) -> dict[str, Any]:
     projection = record.projection
     by_decision = {c.decision_id: c for c in bundle.cards if c.decision_id is not None}
@@ -903,10 +922,11 @@ def _decisions_doc(record: _Record, bundle: CardBundle) -> dict[str, Any]:
                 "changed_by_kernel": ruling.changed_by_kernel if ruling is not None else None,
                 "model": rec.call.model,
                 "thinking": rec.call.thinking.value,
-                "attempts": rec.call.attempts,
-                "tokens": rec.call.usage.total_tokens,
-                "tokens_reported": rec.call.usage.reported,
+                "attempts": rec.total_llm_attempts,
+                "tokens": rec.total_llm_tokens,
+                "tokens_reported": rec.all_llm_usage_reported,
                 "error": rec.call.error,
+                "majority": _majority_row(rec),
             }
         )
     owner_triggers = sum(1 for t in projection.triggers if t.kind is TriggerKind.OWNER_MANUAL)
