@@ -34,6 +34,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
+from types import MappingProxyType
 from typing import Final, Literal
 
 from sentiment_agent.kernel.breaker import book_conditions, most_severe
@@ -864,6 +865,7 @@ def g10_breaker(
     at: datetime,
     policy: Policy,
     venue_unreconciled: Sequence[str] = (),
+    exit_backoff_until: Mapping[str, datetime] = MappingProxyType({}),
 ) -> GuardRuling:
     """The circuit breaker, and the freshness of what an increase would rest on.
 
@@ -877,7 +879,13 @@ def g10_breaker(
     when the latest reconciliation could not read or find a fill, or the venue holds a different
     position, the book this ruling sizes from may not be the venue's, and a weight computed on it
     could breach the per-name cap on the venue. Reductions stay allowed; it lifts at the first
-    sweep without such a discrepancy."""
+    sweep without such a discrepancy.
+
+    ``exit_backoff_until`` (``KernelInputs.exit_backoff_until``, run3-d1) refuses an increase on one
+    symbol only: while its exit is stuck behind a venue-side symbol refusal (paced, not silenced —
+    ``execution/exit_backoff.py``), adding to that same position would only grow what the book
+    cannot yet get flat on. Reductions stay allowed, for the same reason as ``venue_unreconciled``:
+    the position getting smaller is never the problem this guards against."""
     rule = policy.breaker
     demanded, trips = book_conditions(
         book, llm_outage=llm_outage, policy=policy, include_daily_kill=False
@@ -914,6 +922,10 @@ def g10_breaker(
         return _conclude_book(
             GuardId.G10_BREAKER, policy, inputs=inputs, exits=exits, refusals=refusals, ok=ok
         )
+    blocked_since = exit_backoff_until.get(leg.symbol)
+    if blocked_since is not None:
+        inputs["exit_backoff_until"] = blocked_since.isoformat()
+        refusals.append(f"its exit is blocked by the venue until {blocked_since.isoformat()}")
     snapshot_limit = timedelta(minutes=rule.snapshot_max_age_minutes)
     quote_limit = timedelta(seconds=rule.quote_max_age_seconds)
     if snapshot_taken_at is None:

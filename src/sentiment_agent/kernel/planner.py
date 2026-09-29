@@ -354,11 +354,20 @@ def _meets_minimums(qty: Decimal, price: Decimal, spec: InstrumentSpec) -> str |
 class _Planner:
     """Accumulates legs for one plan; reducing legs are emitted before adding legs."""
 
-    def __init__(self, ruling: KernelRuling, book: BookState, inputs: KernelInputs, policy: Policy):
+    def __init__(
+        self,
+        ruling: KernelRuling,
+        book: BookState,
+        inputs: KernelInputs,
+        policy: Policy,
+        *,
+        now: datetime,
+    ):
         self.ruling = ruling
         self.book = book
         self.inputs = inputs
         self.policy = policy
+        self.now = now
         self.reducing: list[OrderIntent] = []
         self.adding: list[OrderIntent] = []
         self.skipped: list[SkippedLeg] = []
@@ -383,6 +392,35 @@ class _Planner:
         spec: InstrumentSpec | None,
         stop: Decimal | None,
     ) -> None:
+        if not purpose.adds_exposure:
+            until = self.inputs.exit_backoff_until.get(ir.symbol)
+            if until is not None:
+                # run3-d1: an identical reduce-only order was already refused as a venue-side
+                # symbol unavailability and is on its backoff schedule (execution/exit_backoff.py).
+                # Re-minting it every cycle is exactly what produced run 2's 74 near-duplicate
+                # rejections on 2026-09-28; skipping it here (a SkippedLeg, not a sent-and-refused
+                # order) is what stops that without pretending the position is not still there —
+                # G10 (kernel/guards.py) separately refuses any new exposure on this symbol for as
+                # long as the episode stays open.
+                if self.now < until:
+                    self.skip(
+                        ir,
+                        f"exit blocked by venue until {until.isoformat()} (backing off after a "
+                        "venue refusal; see execution/exit_backoff.py)",
+                    )
+                    return
+                # The schedule has elapsed. A last-read instrument status that is positively not
+                # "online" is free, already-fetched evidence (KernelInputs.specs, refreshed every
+                # SPECS_EVERY) that a retry would likely fail again; it can only extend the wait,
+                # never justify sending early (exit_backoff.py module docstring: "online" was true
+                # four days before run 2's own block, so it is not sufficient evidence on its own).
+                if spec is not None and spec.status not in (None, "", "online"):
+                    self.skip(
+                        ir,
+                        f"exit backoff elapsed but the last-read instrument status is "
+                        f"{spec.status!r}, not online; waiting for a fresher read",
+                    )
+                    return
         legs = split_quantity(qty, spec) if spec is not None else (qty,)
         target = self.adding if purpose.adds_exposure else self.reducing
         for index, leg_qty in enumerate(legs):
@@ -534,7 +572,7 @@ def plan_orders(
 ) -> OrderPlan:
     """Turn the approved weights of ``ruling`` into orders. Reducing legs first, then adding legs;
     each group in instrument order, split legs in index order."""
-    planner = _Planner(ruling, book, inputs, policy)
+    planner = _Planner(ruling, book, inputs, policy, now=now)
     for ir in ruling.instruments:
         planner.plan(ir)
     intents = (*planner.reducing, *planner.adding)

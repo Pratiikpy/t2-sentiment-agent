@@ -1,0 +1,78 @@
+{
+  "fixture": "loopback_place_symbol_unavailable",
+  "captured_at": "2026-09-29T00:00:00.000000+00:00",
+  "how": "not a fresh loopback capture: the exact error shape read off run 2's own live ledger (public/orders.json, run3-d1), not re-derived from a local server",
+  "bgc": "@bitget-ai/bitget-agent-cli@3.0.0 with @bitget-ai/bitget-agent-sdk@3.0.0",
+  "node": "v22.17.0",
+  "argv": [
+    "order",
+    "--action",
+    "place",
+    "--category",
+    "USDT-FUTURES",
+    "--symbol",
+    "METAUSDT",
+    "--side",
+    "sell",
+    "--orderType",
+    "market",
+    "--qty",
+    "1.7",
+    "--clientOid",
+    "sa0b52936d5e88393d7bbb938907ef9a",
+    "--posSide",
+    "long",
+    "--paper-trading"
+  ],
+  "extra_argv": [
+    "--base-url",
+    "http://127.0.0.1:<port>"
+  ],
+  "served": {
+    "POST /api/v3/trade/place-order": {
+      "status": 400,
+      "body": {
+        "code": "NOT VERIFIED: run 2's ledger records the CLI's own error.code (\"400\", the HTTP status per rest-client.ts:323-331), never Bitget's inner numeric code for this message",
+        "msg": "Parameter METAUSDT_UMCBL does not exist",
+        "requestTime": 1790248948185,
+        "data": null
+      },
+      "source": "the message and the CLI's stderr error object below are copied verbatim from run 2's live ledger, public/orders.json, card prot-c7f026639f9292770e9e386d0f980d35, 2026-09-28T09:16:44.392588Z; the wrapping HTTP envelope (this \"served\" block, \"requests\" below) is reconstructed to match, not itself captured"
+    }
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/v3/trade/place-order",
+      "query": {},
+      "paptrading": "1",
+      "signed": true,
+      "body": {
+        "category": "USDT-FUTURES",
+        "symbol": "METAUSDT",
+        "side": "sell",
+        "orderType": "market",
+        "qty": "1.7",
+        "clientOid": "sa0b52936d5e88393d7bbb938907ef9a",
+        "posSide": "long"
+      }
+    }
+  ],
+  "result": {
+    "exit_code": 1,
+    "stdout": null,
+    "stderr": {
+      "ok": false,
+      "error": {
+        "type": "BitgetApiError",
+        "code": "400",
+        "category": "unknown",
+        "message": "HTTP 400 from Bitget: Parameter METAUSDT_UMCBL does not exist",
+        "suggestion": "Retry later or verify endpoint parameters.",
+        "retryable": false,
+        "endpoint": "POST /api/v3/trade/place-order"
+      },
+      "timestamp": "2026-09-28T09:16:44.392588Z"
+    }
+  }
+}

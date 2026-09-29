@@ -50,6 +50,7 @@ from sentiment_agent.execution.environment import (
     DRY_RUN_FLAG,
     PAPER_FLAG,
     READ_ONLY_FLAG,
+    VENUE_SYMBOL_UNAVAILABLE,
     DemoCredentials,
     EnvironmentRefused,
     base_child_env,
@@ -505,6 +506,20 @@ def test_a_local_refusal_is_labelled_local(clock: ManualClock) -> None:
     outcome = _place_with(fixture_result("local_paper_and_read_only"), clock)
     assert isinstance(outcome, VenueRejection)
     assert outcome.category == "local"
+
+
+def test_a_venue_symbol_unavailable_refusal_is_labelled_for_the_backoff_pacer(
+    clock: ManualClock,
+) -> None:
+    """run3-d1: the exact shape run 2's ledger recorded 74 times on 2026-09-28. Bitget's own SDK
+    category for it is "unknown" (its catch-all); tagging it here is what lets
+    ``execution/exit_backoff.py`` pace retries instead of resending every cycle."""
+    outcome = _place_with(fixture_result("loopback_place_symbol_unavailable"), clock)
+    assert isinstance(outcome, VenueRejection)
+    assert outcome.category == VENUE_SYMBOL_UNAVAILABLE
+    assert not outcome.retryable  # Bitget's own flag; the backoff pacer does not trust it either
+    assert outcome.code == "400"
+    assert "Parameter METAUSDT_UMCBL does not exist" in outcome.message
 
 
 def test_a_tampered_approval_is_refused_before_bgc_runs(clock: ManualClock) -> None:

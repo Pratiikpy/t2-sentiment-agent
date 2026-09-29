@@ -379,6 +379,7 @@ class RiskKernel:
                 at=now,
                 policy=policy,
                 venue_unreconciled=inputs.venue_unreconciled,
+                exit_backoff_until=inputs.exit_backoff_until,
             )
         if GuardId.G11_ELIGIBILITY in applied:
             # Eligibility only (universe, online, spec): a candidate of zero means there is no

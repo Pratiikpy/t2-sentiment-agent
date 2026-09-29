@@ -36,6 +36,7 @@ from sentiment_agent.execution.environment import (
     confirm_paptrading_header,
     failure_of,
     is_key_refusal,
+    is_venue_symbol_unavailable,
     load_demo_credentials,
     mentions_environment_mismatch,
     prove_environment,
@@ -230,6 +231,47 @@ def test_a_parameter_error_is_not_a_key_refusal() -> None:
     failure = failure_of(fixture_result("loopback_live_negative_param"))
     assert failure is not None
     assert not is_key_refusal(failure)
+
+
+def test_a_venue_symbol_unavailable_refusal_is_not_a_key_refusal() -> None:
+    """run3-d1: run 2's own 2026-09-28 shape ('Parameter METAUSDT_UMCBL does not exist') used to
+    match ``_KEY_REFUSAL_TEXT`` through its dropped 'does not exist' clause. It never reached
+    :func:`is_key_refusal` from an order send (only the live-negative probe calls it), but the
+    regex was wrong on its own terms: this is the venue refusing a *contract*, not a *key*."""
+    failure = failure_of(fixture_result("loopback_place_symbol_unavailable"))
+    assert failure is not None
+    assert not is_key_refusal(failure)
+    assert is_venue_symbol_unavailable(failure)
+
+
+def test_is_venue_symbol_unavailable_is_specific_to_its_own_message_shape() -> None:
+    """Neither an unrelated 400 nor the 40099 environment mismatch is called a symbol
+    unavailability, and the classification survives whichever concrete symbol Bitget names."""
+    balance = failure_of(fixture_result("loopback_place_rejected_balance"))
+    assert balance is not None
+    assert not is_venue_symbol_unavailable(balance)
+    mismatch = failure_of(fixture_result("loopback_live_negative_40099"))
+    assert mismatch is not None
+    assert not is_venue_symbol_unavailable(mismatch)
+    other_symbol = failure_of(
+        BgcResult(
+            exit_code=1,
+            stdout=None,
+            stderr={
+                "ok": False,
+                "error": {
+                    "type": "BitgetApiError",
+                    "code": "400",
+                    "category": "unknown",
+                    "message": "HTTP 400 from Bitget: Parameter MSTRRWAUSDT_UMCBL does not exist",
+                    "retryable": False,
+                },
+            },
+            duration_ms=1,
+        )
+    )
+    assert other_symbol is not None
+    assert is_venue_symbol_unavailable(other_symbol)
 
 
 def test_http_200_auth_codes_arrive_as_authentication_errors() -> None:

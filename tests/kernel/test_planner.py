@@ -375,6 +375,31 @@ def test_a_flip_is_a_close_then_an_open_with_reducing_legs_first() -> None:
     assert open_.stop_loss_price == Decimal("103.98")
 
 
+def test_a_flip_on_a_blocked_symbol_opens_nothing() -> None:
+    """run3-d1's other half: a blocked symbol must refuse new exposure, and a flip's "open" leg
+    *is* new exposure (``Leg.hold_ceiling`` is 0 on the far side of a flip). G10 already refuses
+    any increase on a symbol named in ``exit_backoff_until`` (kernel/guards.py); this checks that
+    refusal actually reaches the plan through the kernel's own ceiling arithmetic, not just the
+    guard ruling in isolation, and that what is left of the flip (a plain close) is itself paced
+    like any other exit on the same symbol."""
+    held = position(NVDA, "3.00", last_increase_at=T0 - timedelta(hours=30))
+    b = book(positions=[held, position(BTC, "0.0030")], marks={NVDA: "100", BTC: "83176.5"})
+    until = T0 + timedelta(minutes=10)
+    inp = inputs(
+        (NVDA, BTC),
+        demo={NVDA: FLAT[NVDA], BTC: demo_quote(BTC)},
+        live={NVDA: _flat_inputs().live_quotes[NVDA], BTC: live_quote(BTC)},
+        exit_backoff_until={NVDA: until},
+    )
+    ruling, plan = _ruled({NVDA: -0.02, BTC: 0.05}, b, inp)
+    nvda = ruling.instrument(NVDA)
+    assert nvda is not None
+    assert nvda.approved_weight == 0.0, "G10 refused the open half; nothing to flip to"
+    assert [(i.symbol, i.purpose) for i in plan.intents] == [(BTC, OrderPurpose.INCREASE)]
+    assert [s.symbol for s in plan.skipped] == [NVDA]
+    assert "exit blocked by venue" in plan.skipped[0].reason
+
+
 def test_a_flip_inside_the_minimum_hold_keeps_only_the_close() -> None:
     held = position(NVDA, "3.00", last_increase_at=T0 - timedelta(hours=2))
     b = book(positions=[held], marks={NVDA: "100"})
@@ -417,6 +442,74 @@ def test_protective_rulings_plan_protective_exits() -> None:
         (NVDA, Side.SELL, Decimal("3.00"), OrderPurpose.PROTECTIVE_EXIT),
     ]
     assert all(i.decision_id is None and i.reduce_only for i in plan.intents)
+
+
+def test_a_blocked_exit_is_skipped_not_resent_every_cycle() -> None:
+    """run3-d1: reproduces the shape of run 2's 2026-09-28 defect at the planner level. NVDA's
+    exit is paced by an active backoff episode; BTC's is not, and still goes out unchanged —
+    a block is per symbol, not book-wide."""
+    held = [position(NVDA, "3.00"), position(BTC, "-0.0030")]
+    b = book(positions=held, marks={NVDA: "100", BTC: "83176.5"}, equity="9800", day_open="10000")
+    until = T0 + timedelta(minutes=10)
+    inp = inputs(
+        (NVDA, BTC),
+        demo={NVDA: FLAT[NVDA], BTC: demo_quote(BTC)},
+        exit_backoff_until={NVDA: until},
+    )
+    k, _ = kernel()
+    ruling = k.protective(book=b, inputs=inp, breaker=breaker_state())
+    assert ruling is not None
+    plan = plan_orders(ruling, b, inp, P, now=T0)
+    assert [(i.symbol, i.purpose) for i in plan.intents] == [(BTC, OrderPurpose.PROTECTIVE_EXIT)]
+    assert [s.symbol for s in plan.skipped] == [NVDA]
+    assert "exit blocked by venue" in plan.skipped[0].reason
+    assert until.isoformat() in plan.skipped[0].reason
+
+
+def test_a_blocked_exit_is_sent_once_its_schedule_elapses() -> None:
+    held = position(NVDA, "3.00")
+    b = book(positions=[held], marks={NVDA: "100"}, equity="9800", day_open="10000")
+    until = T0 + timedelta(minutes=10)
+    inp = inputs((NVDA,), demo={NVDA: FLAT[NVDA]}, exit_backoff_until={NVDA: until})
+    k, _ = kernel()
+    ruling = k.protective(book=b, inputs=inp, breaker=breaker_state())
+    assert ruling is not None
+    still_waiting = plan_orders(ruling, b, inp, P, now=until - timedelta(seconds=1))
+    assert still_waiting.intents == ()
+    assert [s.symbol for s in still_waiting.skipped] == [NVDA]
+    due = plan_orders(ruling, b, inp, P, now=until)
+    assert [(i.symbol, i.purpose) for i in due.intents] == [(NVDA, OrderPurpose.PROTECTIVE_EXIT)]
+    assert due.skipped == ()
+
+
+def test_a_stale_not_online_status_extends_the_wait_past_the_schedule() -> None:
+    """The schedule has elapsed, but the last-read instrument status is not "online": the planner
+    waits for a fresher read instead of sending (execution/exit_backoff.py: the status probe can
+    only add delay, never remove it)."""
+    held = position(NVDA, "3.00")
+    b = book(positions=[held], marks={NVDA: "100"}, equity="9800", day_open="10000")
+    until = T0
+    inp = inputs(
+        (NVDA,),
+        demo={NVDA: FLAT[NVDA]},
+        specs={NVDA: spec(NVDA, status="paused")},
+        exit_backoff_until={NVDA: until},
+    )
+    k, _ = kernel()
+    ruling = k.protective(book=b, inputs=inp, breaker=breaker_state())
+    assert ruling is not None
+    plan = plan_orders(ruling, b, inp, P, now=T0)
+    assert plan.intents == ()
+    assert "not online" in plan.skipped[0].reason
+    # An "online" status at the same instant sends normally.
+    online = inputs(
+        (NVDA,),
+        demo={NVDA: FLAT[NVDA]},
+        specs={NVDA: spec(NVDA, status="online")},
+        exit_backoff_until={NVDA: until},
+    )
+    sent = plan_orders(ruling, b, online, P, now=T0)
+    assert [(i.symbol, i.purpose) for i in sent.intents] == [(NVDA, OrderPurpose.PROTECTIVE_EXIT)]
 
 
 def test_a_guard_forced_exit_inside_a_decision_is_protective() -> None:

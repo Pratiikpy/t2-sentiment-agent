@@ -64,12 +64,14 @@ from sentiment_agent.execution.environment import (
     HOLD_MODES,
     PAPER_FLAG,
     READ_ONLY_FLAG,
+    VENUE_SYMBOL_UNAVAILABLE,
     BgcFailure,
     DemoCredentials,
     EnvironmentRefused,
     account_from_assets,
     base_child_env,
     failure_of,
+    is_venue_symbol_unavailable,
     result_blob,
     result_mentions_environment_mismatch,
 )
@@ -922,11 +924,19 @@ class BgcTransport:
                 at=now,
                 reason=f"the venue already knows this clientOid ({failure.message})",
             )
+        category = "local" if failure.local else (failure.category or failure.type)
+        if is_venue_symbol_unavailable(failure):
+            # run3-d1: Bitget's own category for this shape is "unknown" (its catch-all), which
+            # gives the executor and the backoff pacer (execution/exit_backoff.py) nothing to key
+            # on. Naming it here, once, is what lets a reduce-only order refused this way be paced
+            # instead of resent every cycle (public/orders.json, run 2, 2026-09-28: 74 identical
+            # resends in ~6 hours before the same request filled).
+            category = VENUE_SYMBOL_UNAVAILABLE
         return VenueRejection(
             client_oid=intent.client_oid,
             code=failure.code,
             message=failure.message,
-            category="local" if failure.local else (failure.category or failure.type),
+            category=category,
             retryable=failure.retryable,
             at=now,
             blob=blob,

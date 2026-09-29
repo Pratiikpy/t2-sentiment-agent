@@ -68,6 +68,7 @@ from sentiment_agent.execution.environment import (
     prove_environment,
 )
 from sentiment_agent.execution.executor import Executor
+from sentiment_agent.execution.exit_backoff import ExitEpisode, blocked_exit_episodes
 from sentiment_agent.execution.orders import OrderTracker
 from sentiment_agent.execution.reconcile import Reconciler
 from sentiment_agent.execution.simulated import SimulatedVenue
@@ -601,6 +602,7 @@ class App:
             moves = {s: f.demo_index_move_bps_3h for s, f in snapshot.features.items()}
         return KernelInputs(
             venue_unreconciled=self.venue_unreconciled(),
+            exit_backoff_until={s: e.next_retry_at for s, e in self.exit_episodes().items()},
             at=at,
             demo_quotes={s: q for s, q in demo.items() if q.source is PriceSource.DEMO},
             live_quotes={s: q for s, q in live.items() if q.source is PriceSource.LIVE},
@@ -608,6 +610,17 @@ class App:
             demo_index_move_bps_3h=moves,
             snapshot_id=None if snapshot is None else snapshot.snapshot_id,
             snapshot_taken_at=None if snapshot is None else snapshot.taken_at,
+        )
+
+    def exit_episodes(self) -> dict[str, ExitEpisode]:
+        """run3-d1: every symbol whose most recent reduce-only order is still stuck behind a
+        venue-side symbol refusal, recomputed fresh from the ledger every call (the same pattern as
+        :meth:`venue_unreconciled`: no separate state to fall out of sync with a restart).
+        DRYRUN never sends, so it never has one."""
+        if self.mode is RunMode.DRYRUN:
+            return {}
+        return blocked_exit_episodes(
+            self.projection.submissions, self.projection.rejections, self.projection.acks
         )
 
     def venue_unreconciled(self) -> tuple[str, ...]:

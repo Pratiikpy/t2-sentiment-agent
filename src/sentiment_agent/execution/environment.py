@@ -151,12 +151,37 @@ PROBE_TIMEOUT_S: Final = 90.0
 ENVIRONMENT_MISMATCH_CODE: Final = "40099"
 _ENVIRONMENT_MISMATCH_TEXT = re.compile(r"environment\s+is\s+incorrect", re.IGNORECASE)
 _KEY_REFUSAL_TEXT = re.compile(
-    r"access[_ ]?key|api ?key|passphrase|signature|sign error|does not exist|not exist"
-    r"|permission|whitelist|timestamp",
+    r"access[_ ]?key|api ?key|passphrase|signature|sign error|permission|whitelist|timestamp",
     re.IGNORECASE,
 )
+"""What the *key or its route* being wrong looks like. ``"does not exist"`` and ``"not exist"``
+were dropped from this pattern on 2026-09-29 (run3-d1): Bitget answers an order on a symbol whose
+contract is not currently listed with ``HTTP 400 "Parameter <SYMBOL>_UMCBL does not exist"``
+(measured on run 2's ledger, ``public/orders.json``, 74 rejections for METAUSDT and MSTRUSDT on
+2026-09-28 09:16-15:11 UTC; the identical request filled at 16:06 UTC), and that phrase matched
+this pattern, so :func:`is_key_refusal` would have called a venue-side symbol refusal a credential
+refusal if it were ever reached from an order send (it is not: this pattern is read only by the
+live-negative probe in :func:`prove_environment`, never by the order path). See
+:data:`_VENUE_SYMBOL_UNAVAILABLE_TEXT` for that failure's own, narrower pattern."""
 _KEY_REFUSAL_HTTP: Final = frozenset({"400", "401", "403"})
 _ENV_KEY = re.compile(r"^[A-Z_][A-Z0-9_]*$")
+
+VENUE_SYMBOL_UNAVAILABLE: Final = "venue_symbol_unavailable"
+"""``VenueRejection.category`` for :func:`is_venue_symbol_unavailable` (run3-d1). Distinct from
+Bitget's own ``"unknown"`` category (the SDK's catch-all for an error it does not itself classify,
+``rest-client.ts``) and from :data:`ENVIRONMENT_MISMATCH_CODE`: this is neither an auth failure nor
+a permanent rejection of the order, it is the venue saying the *contract parameter* it derived for
+this symbol does not currently exist."""
+_VENUE_SYMBOL_UNAVAILABLE_TEXT = re.compile(
+    r"^HTTP 400 from Bitget: Parameter \S+ does not exist$", re.IGNORECASE
+)
+"""Bitget's exact shape for "this contract is not listed right now" (measured on run 2's ledger,
+2026-09-28: ``"HTTP 400 from Bitget: Parameter METAUSDT_UMCBL does not exist"`` and
+``"...Parameter MSTRRWAUSDT_UMCBL does not exist"`` — the venue's own internal contract id, not
+necessarily our ``--symbol`` argument). Anchored to the SDK's exact prefix
+(``environment.py`` module docstring: ``"HTTP {status} from Bitget: {msg}"``,
+``rest-client.ts:323-331``) so it cannot also match an unrelated sentence that happens to contain
+the words "does not exist"."""
 
 
 class EnvironmentRefused(RuntimeError):  # noqa: N818 - name fixed by DESIGN.md §18
@@ -420,6 +445,24 @@ def is_key_refusal(failure: BgcFailure) -> bool:
         failure.type == "BitgetApiError"
         and failure.code in _KEY_REFUSAL_HTTP
         and bool(_KEY_REFUSAL_TEXT.search(failure.message))
+    )
+
+
+def is_venue_symbol_unavailable(failure: BgcFailure) -> bool:
+    """The venue refused an order because the *contract for this symbol* does not currently exist.
+
+    A venue-side symbol unavailability (run3-d1): not a credential failure (:func:`is_key_refusal`
+    is false for it, since 2026-09-29), not 40099 (:attr:`BgcFailure.environment_mismatch` is false
+    for it: the message shape is disjoint), and — the reason this project backs off instead of
+    treating it as final — not necessarily a permanent rejection either. Run 2's own record is the
+    evidence: 74 rejections of this exact shape for METAUSDT (72) and MSTRUSDT (2) between
+    2026-09-28 09:16 and 15:11 UTC, then an identical request filled at 16:06 UTC the same day
+    (``public/orders.json``). Bitget gives no explanation in the message for why the contract
+    parameter it derived is temporarily missing (a tokenized-stock listing gap outside some trading
+    window is the working theory; NOT VERIFIED against Bitget's own docs).
+    """
+    return failure.type == "BitgetApiError" and bool(
+        _VENUE_SYMBOL_UNAVAILABLE_TEXT.search(failure.message)
     )
 
 
@@ -876,6 +919,7 @@ __all__ = [
     "REDACTED",
     "REQUIRED_SECTIONS",
     "SDK_PACKAGE",
+    "VENUE_SYMBOL_UNAVAILABLE",
     "BgcFailure",
     "DemoCredentials",
     "EnvironmentRefused",
@@ -885,6 +929,7 @@ __all__ = [
     "confirm_paptrading_header",
     "failure_of",
     "is_key_refusal",
+    "is_venue_symbol_unavailable",
     "load_demo_credentials",
     "mentions_environment_mismatch",
     "prove_environment",

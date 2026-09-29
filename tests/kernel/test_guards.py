@@ -567,6 +567,7 @@ def _g10(
     demo: Quote | None = None,
     snapshot_at: datetime | None = T0,
     unreconciled: tuple[str, ...] = (),
+    exit_backoff_until: dict[str, datetime] | None = None,
 ) -> GuardRuling:
     return g10_breaker(
         leg,
@@ -578,6 +579,7 @@ def _g10(
         at=T0,
         policy=P,
         venue_unreconciled=unreconciled,
+        exit_backoff_until=exit_backoff_until or {},
     )
 
 
@@ -599,6 +601,26 @@ def test_g10_refuses_every_increase_while_the_book_is_not_reconciled_to_the_venu
     _passed(_g10(REDUCE, unreconciled=why))  # a reduction is never blocked
     assert _g10(None, unreconciled=why).status is GuardStatus.FIRED
     assert "venue_unreconciled" not in _g10().inputs, "a reconciled book leaves no trace"
+
+
+def test_g10_refuses_only_the_increase_on_a_symbol_whose_exit_is_blocked_by_the_venue() -> None:
+    """run3-d1: while METAUSDT (here, NVDA — G10's test symbol) is stuck behind a venue-side
+    symbol refusal, G10 refuses growing that same position but never blocks shrinking it, exactly
+    like ``venue_unreconciled`` — the difference is this refusal names one symbol, not the book."""
+    until = T0 + timedelta(minutes=30)
+    blocked = {NVDA: until}
+    refused = _g10(exit_backoff_until=blocked)
+    _fired_increase(refused, OPEN_LONG)
+    assert until.isoformat() in refused.reason
+    _passed(_g10(REDUCE, exit_backoff_until=blocked))  # a reduction is never blocked
+    _passed(_g10(CLOSE, exit_backoff_until=blocked))  # neither is a full close
+    assert _g10(None, exit_backoff_until=blocked).status is GuardStatus.PASSED, (
+        "the book-level ruling ignores a per-symbol block: it is not book-wide like "
+        "venue_unreconciled"
+    )
+    # A different symbol's block does not touch this one.
+    _passed(_g10(exit_backoff_until={"MSTRUSDT": until}))
+    assert "exit_backoff_until" not in _g10().inputs, "no active block leaves no trace"
 
 
 @pytest.mark.parametrize(

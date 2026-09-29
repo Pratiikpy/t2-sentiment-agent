@@ -249,6 +249,8 @@ def inputs(
     index_moves: Mapping[str, float | None] | None = None,
     snapshot_at: datetime | None = T0,
     at: datetime = T0,
+    venue_unreconciled: tuple[str, ...] = (),
+    exit_backoff_until: Mapping[str, datetime] | None = None,
 ) -> KernelInputs:
     names = tuple(symbols)
     return KernelInputs(
@@ -261,6 +263,8 @@ def inputs(
         else dict.fromkeys(names, 30.0),
         snapshot_id="snap-1",
         snapshot_taken_at=snapshot_at,
+        venue_unreconciled=venue_unreconciled,
+        exit_backoff_until=dict(exit_backoff_until) if exit_backoff_until is not None else {},
     )
 
 

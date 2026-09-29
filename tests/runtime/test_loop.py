@@ -200,6 +200,109 @@ def test_the_health_file_every_tick_and_a_health_event_every_hour(rig: Rig) -> N
     assert len(rig.events(EventKind.HEALTH)) == 2
 
 
+def test_a_blocked_exit_shows_on_the_health_beat_and_notes_its_edges(rig: Rig) -> None:
+    """run3-d1, end to end through the loop: a symbol whose exit the venue refuses as a symbol
+    unavailability shows up on the live health beat while it is stuck, gets exactly one NOTE when
+    it starts and one when it clears (not one per rejection), and disappears from the beat once
+    the venue accepts the identical order. The ledger events here are appended directly (as the
+    real ``Executor``/``bgc`` path would append them) so the test needs no PAPER credentials or a
+    scripted CLI to reach the exact shape run 2's own record has."""
+    from helpers import make_intent
+    from sentiment_agent.hashing import content_hash
+    from sentiment_agent.runtime.health import read_health
+    from sentiment_agent.types import OrderPurpose, OrderSubmitted, Side, VenueAck, VenueRejection
+
+    def submit(ruling_id: str, at: datetime) -> OrderSubmitted:
+        intent = make_intent(
+            symbol="METAUSDT",
+            side=Side.SELL,
+            purpose=OrderPurpose.PROTECTIVE_EXIT,
+            ruling_id=ruling_id,
+        )
+        submitted = OrderSubmitted(
+            client_oid=intent.client_oid,
+            intent=intent,
+            approval_hash=content_hash("approval"),
+            submitted_at=at,
+            argv=("order", "--action", "place", "--symbol", "METAUSDT"),
+        )
+        rig.app.log(EventKind.ORDER_SUBMITTED, submitted)
+        return submitted
+
+    # _health (not tick()) on purpose: it is the one method that reads exit_episodes() and writes
+    # the beat, and calling it directly avoids dragging a scripted decision cycle into a test about
+    # the alarm, not the trigger schedule.
+    first = submit("r1", rig.clock.now())
+    rig.app.log(
+        EventKind.ORDER_REJECTED,
+        VenueRejection(
+            client_oid=first.client_oid,
+            code="400",
+            message="HTTP 400 from Bitget: Parameter METAUSDT_UMCBL does not exist",
+            category="venue_symbol_unavailable",
+            retryable=False,
+            at=rig.clock.now(),
+            blob=None,
+        ),
+    )
+
+    def notes(marker: str) -> list[str]:
+        return [n["text"] for n in rig.events(EventKind.NOTE) if marker in n["text"]]
+
+    rig.loop._health(rig.clock.now(), [])
+    beat = read_health(rig.app.paths.health)
+    assert beat is not None
+    detail = beat.detail
+    assert detail is not None
+    assert "EXIT BLOCKED" in detail
+    assert "METAUSDT" in detail
+    assert len(notes("exit blocked by venue:")) == 1
+
+    rig.clock.set(_at(15, 11))
+    second = submit("r2", rig.clock.now())
+    rig.app.log(
+        EventKind.ORDER_REJECTED,
+        VenueRejection(
+            client_oid=second.client_oid,
+            code="400",
+            message="HTTP 400 from Bitget: Parameter METAUSDT_UMCBL does not exist",
+            category="venue_symbol_unavailable",
+            retryable=False,
+            at=rig.clock.now(),
+            blob=None,
+        ),
+    )
+    rig.loop._health(rig.clock.now(), [])
+    # Still one "started" note: the second rejection updates the same episode, not a new one.
+    assert len(notes("exit blocked by venue:")) == 1
+    beat = read_health(rig.app.paths.health)
+    assert beat is not None
+    detail = beat.detail
+    assert detail is not None
+    assert "2 attempt" in detail
+
+    rig.clock.set(_at(16, 6))
+    cleared = submit("r3", rig.clock.now())
+    rig.app.log(
+        EventKind.ORDER_ACK,
+        VenueAck(
+            client_oid=cleared.client_oid,
+            venue_order_id="12345",
+            acked_at=rig.clock.now(),
+            blob=None,
+        ),
+    )
+    rig.loop._health(rig.clock.now(), [])
+    beat = read_health(rig.app.paths.health)
+    assert beat is not None
+    assert not beat.detail or "EXIT BLOCKED" not in beat.detail
+    cleared_notes = notes("exit blocked by venue cleared:")
+    assert len(cleared_notes) == 1
+    # 2 rejections; the clearing ack is not itself counted as an attempt.
+    assert "2 attempt" in cleared_notes[0]
+    assert "cleared at" in cleared_notes[0]
+
+
 def test_the_daily_anchor_stamps_the_head_once_a_day(workdir: Path) -> None:
     rig = _rig(workdir, datetime(2026, 9, 25, 23, 58, tzinfo=UTC), script=[flat()])
     try:

@@ -71,6 +71,7 @@ from sentiment_agent.events.triggers import (
     UNCONDITIONAL_KINDS,
 )
 from sentiment_agent.execution.environment import EnvironmentRefused
+from sentiment_agent.execution.exit_backoff import ExitEpisode
 from sentiment_agent.hashing import content_hash
 from sentiment_agent.kernel.approval import ApprovalError
 from sentiment_agent.kernel.breaker import next_utc_midnight
@@ -241,6 +242,9 @@ class RunLoop:
         self._feeds: FeedHealthReport | None = self._replay_feeds()
         """The feed health as of the newest snapshot, rebuilt from every logged snapshot so a
         restart continues the same streaks (:mod:`sentiment_agent.perception.feeds` is pure)."""
+        self._exit_episodes: dict[str, ExitEpisode] = app.exit_episodes()
+        """run3-d1: rebuilt at startup from the ledger (:meth:`App.exit_episodes` is pure) so a
+        restart mid-episode neither re-raises a note for one already open nor drops the alarm."""
         self._probe_worker: threading.Thread | None = None
         self._probe_result: ToolkitProbe | str | None = None
         self.last_card: DecisionCard | None = None
@@ -1040,17 +1044,37 @@ class RunLoop:
 
     def _health(self, now: datetime, did: list[str]) -> None:
         app = self._app
+        episodes = app.exit_episodes()
+        self._sync_exit_episodes(episodes, now)
+        detail = "; ".join(
+            part for part in (summary_line(self._feeds), _exit_alarm_text(episodes)) if part
+        )
         beat = beat_for(
             app,
             iteration=self._iteration,
             last_decision_at=self._last_decision_at,
-            detail=summary_line(self._feeds),
+            detail=detail,
         )
         write_health(app.paths.health, beat)
         if _due(self._last_health_event, now, HEALTH_EVENT_EVERY):
             app.log(EventKind.HEALTH, beat)
             self._last_health_event = now
             did.append("health_event")
+
+    def _sync_exit_episodes(self, current: dict[str, ExitEpisode], now: datetime) -> None:
+        """run3-d1: one ``NOTE`` when a symbol's exit first gets stuck, one when it clears — not
+        one per attempt (the failure this fixes: run 2, 2026-09-28, 74 rejections in under 6 hours
+        for what was one continuous episode). The health beat (:func:`_exit_alarm_text`) carries the
+        live state in between; this only logs the two edges, the same raise/clear shape
+        :mod:`sentiment_agent.perception.feeds` uses for a feed alarm."""
+        previous = self._exit_episodes
+        for symbol, episode in current.items():
+            if symbol not in previous:
+                self._app.note(f"exit blocked by venue: {episode.summary()}")
+        for symbol, episode in previous.items():
+            if symbol not in current:
+                self._app.note(f"exit blocked by venue cleared: {episode.summary(cleared_at=now)}")
+        self._exit_episodes = dict(current)
 
     # ============================================================================================
     # The card
@@ -1110,6 +1134,15 @@ def _first_seq_index(appended: Sequence[LedgerEvent], snapshot_id: str) -> int:
 
 def _due(last: datetime | None, now: datetime, every: timedelta) -> bool:
     return last is None or now - last >= every
+
+
+def _exit_alarm_text(episodes: dict[str, ExitEpisode]) -> str:
+    """run3-d1: one line for the health file and ``t2sa status``, empty when nothing is blocked —
+    the same convention as :func:`~sentiment_agent.perception.feeds.summary_line`."""
+    if not episodes:
+        return ""
+    lines = "; ".join(e.summary() for _, e in sorted(episodes.items()))
+    return f"EXIT BLOCKED: {lines}"
 
 
 def _pending_anchors(anchors: Sequence[AnchorRecord]) -> list[AnchorRecord]:

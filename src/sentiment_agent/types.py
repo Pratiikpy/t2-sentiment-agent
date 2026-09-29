@@ -1374,6 +1374,17 @@ class KernelInputs(Model):
     """Why the latest reconciliation could not confirm the book is the venue's (a fill it could not
     read or find, a position that differs). Non-empty refuses every increase (G10) until a sweep
     comes back without them."""
+    exit_backoff_until: dict[str, UtcDatetime] = Field(default_factory=dict)
+    """run3-d1: symbols whose most recent reduce-only order was refused as a venue-side symbol
+    unavailability (``execution.environment.VENUE_SYMBOL_UNAVAILABLE``) and has not since been
+    accepted, each mapped to when a real retry may next be sent
+    (``execution.exit_backoff.blocked_exit_episodes``). A symbol's presence here — not the time it
+    names — refuses every increase on it (G10), the same way ``venue_unreconciled`` refuses every
+    increase book-wide; reductions stay allowed, since the whole point is to keep trying to get
+    flat. The planner (``kernel/planner.py``) reads the time to decide whether *this* cycle is the
+    one that actually sends the exit, instead of resending an identical refused order every cycle
+    (run 2, 2026-09-28: 74 such resends in under 6 hours; DESIGN.md is silent on this because it was
+    not a known failure mode until then)."""
 
     @model_validator(mode="after")
     def _keyed_and_separated(self) -> "KernelInputs":
