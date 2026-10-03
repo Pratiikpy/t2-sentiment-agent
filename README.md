@@ -16,31 +16,42 @@ Market Sentiment Agent.
 
 ## Status
 
-**Run 1** has traded on Bitget Demo since 2026-09-24 17:06:23 UTC. Genesis hash
-`ebbf607a8fe199bccc0f612ededf2a6902e4884a38d21fbfea498dff7da453a5`, timestamped with
-OpenTimestamps, pins the code commit, the dependency locks, the policy and the metric definitions
-before the first decision. Starting equity 49,999.98 USDT. No order was placed in it. The agent ticks every 30 seconds and decides on pre-registered heartbeats (the
-US open, each funding settlement) and on event triggers.
+**Run 2 is the scored record.** It has traded on Bitget UTA Demo since **2026-09-28 00:07 UTC**
+from this code (commit `5c838fd`), over a pre-registered scoring window that closes
+**2026-10-07 00:00 UTC**. Genesis hash
+`fb66b6bf40e9229407cdd62266cfe180994c38eb96f18d5c8bca983323ccd3c0` pins the code, the dependency
+locks, the policy and the metric definitions before the first decision, and declares, against run
+1, every change and the evidence for it (`src/sentiment_agent/run2.py`; table in
+[DESIGN.md](DESIGN.md)): nine code and prompt fixes (d1-d9) and eight policy amendments (a1-a8).
 
-**Run 2** is prepared on this branch and not started. Its genesis will declare, against run 1,
-every change and the evidence for it (`src/sentiment_agent/run2.py`; table in
-[DESIGN.md](DESIGN.md)): nine code and prompt fixes (d1-d9, among them crowd and calendar triggers
-that could never fire in run 1, a declared invalidation that must cite a fact, funding counted in
-the scored equity, a system prompt that sizes by the evidence, and no new position at even odds or
-below) and seven policy amendments (a1-a7: funding triggers on every name with a
-level floor, net and crypto-beta caps, a pre-registered scoring window closed by G2, a lapsing
-losing-streak trip, an outage that flattens only on the third failure, and stops set at twice each
-name's Demo-live drift at the same loss per name).
+- Live record, republished hourly from the log: **https://t2-sentiment-agent-run2.vercel.app** —
+  every decision card, the kernel's ruling per guard, the governed book against the same model
+  ungoverned, a fixed-rule crowd fade, rival sentiment agents, BTC held, flat, and a 1,000-seed
+  coin-flip band.
+- **Run 1** (2026-09-24 17:06 UTC to 2026-09-27) stays published as it closed:
+  https://t2-sentiment-agent-live.vercel.app.
+- What the data services answered: Bitget's own `bitget-signal` and `bitget-mcp-server`
+  `do_query` have failed on Bitget's side for most of both runs; the agent reads their upstreams
+  (Binance, alternative.me) itself on a labelled surface when both are empty (run2-d3), and every
+  failed call is in the log as failed.
 
-- Live record, republished hourly from the log: https://t2-sentiment-agent-live.vercel.app
-- Check it yourself: `t2sa verify` (hash chain and head anchor), `t2sa status`, and
-  `scripts/recompute.py` for every published figure.
-- What the data services actually answered in run 1 (`validation/run2/run1_feed_outage.json`,
-  recomputed from its ledger): Bitget's public market API 38,617 of 38,733 calls;
-  `bitget-mcp-server` 1,592 of 2,808, and from 2026-09-25 08:33 UTC only 144 of 1,356;
-  `bitget-signal`'s hosted server 0 of 939, every answer an empty envelope while its upstreams
-  answered directly. Run 2 reads those upstreams itself on a labelled surface when both services
-  are empty (run2-d3), and every failed call is in the log as failed.
+### Verify it in 60 seconds
+
+No install for the first two; plain Python for the third.
+
+```bash
+R=https://t2-sentiment-agent-run2.vercel.app
+# 1. The scored metrics and counts, computed from the log
+curl -s "$R/summary.json" | jq '{scoring_window, metrics: (.metrics | {total_return, sharpe_ann, max_drawdown, win_rate, n_closed_trades}), counts}'
+# 2. The genesis hash, and the ledger heads already confirmed in a Bitcoin block (OpenTimestamps)
+curl -s "$R/genesis.json" | jq '{hash, bitcoin_confirmed: [.anchors[] | select(.record.status == "upgraded") | .seq]}'
+# 3. Every head of the record, signed with the operator's Ed25519 key, checked against the key
+#    committed here and against the published chain (git clone this repository first)
+python scripts/verify_heads.py "$R" validation/run2/signed_heads.json
+```
+
+The full check of the chain itself, every figure on the page recomputed from the log:
+`t2sa verify`, `t2sa status` and `scripts/recompute.py`.
 
 ## From event to order
 
