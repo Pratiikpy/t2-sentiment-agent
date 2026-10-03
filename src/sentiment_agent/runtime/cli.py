@@ -55,7 +55,13 @@ from sentiment_agent.analysis.baselines import run_baselines
 from sentiment_agent.analysis.metrics import book_arm, within_window
 from sentiment_agent.analysis.mirror import live_mirror, weekend_counterfactual
 from sentiment_agent.analysis.simcheck import SimulatorCheck, simulator_check
-from sentiment_agent.analysis.twin import governed_replica, twin_report, ungoverned_arm
+from sentiment_agent.analysis.twin import (
+    governed_replica,
+    guard_attribution,
+    guard_lifted_arm,
+    twin_report,
+    ungoverned_arm,
+)
 from sentiment_agent.book.projection import ORDER_EVENT_KINDS, Projection
 from sentiment_agent.clock import ManualClock, VenueClock
 from sentiment_agent.crowd.adapters import CompositeCrowd
@@ -2103,6 +2109,13 @@ def full_analysis(
         twin = twin_report(
             decisions, rulings, governed, ungoverned, human_takeovers=takeovers, sim=sim
         )
+        # Every guard that bound is lifted on its own over the same drafts, so the page can say
+        # which guard saved or cost how much over the whole path, not only per intervention.
+        bound = {i.guard for i in twin.interventions}
+        lifted = {
+            g: guard_lifted_arm(sim, decisions, inputs, g, start=start, until=until) for g in bound
+        }
+        twin = twin.model_copy(update={"by_guard": guard_attribution(twin, lifted)})
         arms.extend([ungoverned, governed])
     else:
         notes.append("no ruled decision yet: the twin is not computed")

@@ -24,7 +24,10 @@ from sentiment_agent.analysis.twin import (
     GOVERNED_REPLICA_SPEC,
     UNGOVERNED_SPEC,
     governed_replica,
+    guard_attribution,
     guard_counts,
+    guard_lifted_arm,
+    lifted_spec,
     twin_report,
     ungoverned_arm,
     violated_guards,
@@ -277,3 +280,50 @@ def test_the_last_intervention_runs_to_the_end_of_the_record() -> None:
     # Window 13:00 -> 19:00 (the arms' last mark): first closes at 14:00 (200) and 19:00 (194).
     assert item.pnl_ungoverned == pytest.approx(0.05 * (194 / 200 - 1) - 0.0007 * 0.05)
     assert arm.marks[-1].at == WED + timedelta(hours=6)
+
+
+def test_guard_attribution_from_the_interventions_and_a_lifted_arm() -> None:
+    """G9 refused NVDA at d1, and NVDA fell 3% afterwards: G9 prevented a loss. Lifting G9 alone
+    lets the NVDA leg through, so the lifted replica ends lower than the full one."""
+    decisions, given, rulings = _scenario()
+    sim = _sim()
+    governed = governed_replica(sim, decisions, given, ci_resamples=0)
+    ungoverned = ungoverned_arm(sim, decisions, given, ci_resamples=0)
+    report = twin_report(decisions, rulings, governed, ungoverned, human_takeovers=0, sim=sim)
+    assert report.governed_total_return == governed.metrics.total_return
+
+    lifted = guard_lifted_arm(sim, decisions, given, GuardId.G9_GROUNDING, ci_resamples=0)
+    assert GuardId.G9_GROUNDING not in lifted.spec.guards
+    assert set(lifted.spec.guards) == set(GOVERNED_REPLICA_SPEC.guards) - {GuardId.G9_GROUNDING}
+    assert lifted.metrics.total_return < governed.metrics.total_return
+
+    (row,) = guard_attribution(report, {GuardId.G9_GROUNDING: lifted})
+    (item,) = report.interventions
+    assert row.guard is GuardId.G9_GROUNDING
+    assert row.n_interventions == 1
+    assert row.prevented_loss == pytest.approx(max(0.0, item.pnl_governed - item.pnl_ungoverned))
+    assert row.prevented_loss > 0
+    assert row.forgone_gain == 0
+    assert row.lifted_total_return == lifted.metrics.total_return
+    assert row.lifted_max_drawdown == lifted.metrics.max_drawdown
+
+
+def test_guard_attribution_without_a_lifted_arm_keeps_the_marginal_figures() -> None:
+    decisions, given, rulings = _scenario()
+    sim = _sim()
+    governed = governed_replica(sim, decisions, given, ci_resamples=0)
+    ungoverned = ungoverned_arm(sim, decisions, given, ci_resamples=0)
+    report = twin_report(decisions, rulings, governed, ungoverned, human_takeovers=0, sim=sim)
+    (row,) = guard_attribution(report)
+    assert row.lifted_total_return is None
+    assert row.lifted_sharpe_ann is None
+    # a guard that never bound gets no row
+    assert {r.guard for r in guard_attribution(report)} == {GuardId.G9_GROUNDING}
+
+
+def test_lifted_spec_drops_exactly_one_guard() -> None:
+    spec = lifted_spec(GuardId.G4_STOP)
+    assert spec.arm_id == "twin_lifted_G4_stop"
+    assert GuardId.G4_STOP not in spec.guards
+    assert len(spec.guards) == len(GOVERNED_REPLICA_SPEC.guards) - 1
+    assert spec.arm_id != UNGOVERNED_SPEC.arm_id

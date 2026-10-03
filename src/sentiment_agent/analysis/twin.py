@@ -66,6 +66,7 @@ from sentiment_agent.types import (
     ArmResult,
     ArmSpec,
     DecisionRecord,
+    GuardAttribution,
     GuardId,
     GuardRuling,
     GuardStatus,
@@ -155,9 +156,11 @@ def governed_replica(
     start: datetime | None = None,
     until: datetime | None = None,
     ci_resamples: int = DEFAULT_RESAMPLES,
+    spec: ArmSpec = GOVERNED_REPLICA_SPEC,
 ) -> ArmResult:
     """The same drafts under every guard, simulated like :func:`ungoverned_arm` (module docstring).
-    An outage is replayed as a proposal of zero for every universe symbol: the kernel's flatten."""
+    An outage is replayed as a proposal of zero for every universe symbol: the kernel's flatten.
+    ``spec`` carries the guards in force; :func:`guard_lifted_arm` passes every guard but one."""
     schedule = []
     contexts = []
     for record, given in _aligned(decisions, inputs):
@@ -177,13 +180,81 @@ def governed_replica(
             )
         )
     return sim.run(
-        GOVERNED_REPLICA_SPEC,
+        spec,
         schedule,
         contexts=contexts,
         start=start,
         until=until,
         ci_resamples=ci_resamples,
     )
+
+
+def lifted_spec(guard: GuardId) -> ArmSpec:
+    """The governed replica's spec with ``guard`` lifted and every other guard in force."""
+    if guard not in GOVERNED_REPLICA_SPEC.guards:
+        raise ValueError(f"{guard.value} is not a guard of the governed replica")
+    return ArmSpec(
+        arm_id=f"twin_lifted_{guard.value}",
+        kind=ArmKind.OURS_GOVERNED,
+        title=f"The agent, governed, {guard.value} lifted",
+        description=f"The governed replica's drafts under every guard but {guard.value}, "
+        "simulated exactly like the replica, so the difference is that one guard.",
+        provenance="src/sentiment_agent/analysis/twin.py (this repository, MIT)",
+        uses_llm=True,
+        guards=tuple(g for g in GOVERNED_REPLICA_SPEC.guards if g is not guard),
+    )
+
+
+def guard_lifted_arm(
+    sim: ArmSimulator,
+    decisions: Sequence[DecisionRecord],
+    inputs: Sequence[KernelInputs],
+    guard: GuardId,
+    *,
+    start: datetime | None = None,
+    until: datetime | None = None,
+    ci_resamples: int = DEFAULT_RESAMPLES,
+) -> ArmResult:
+    """The governed replica with one guard lifted (beyond tare's all-or-nothing A/B, S2 field
+    research, ``research/s2-field/projects/68_tare.md``): the whole-path effect of that guard,
+    stops, kills and the gross cap included, which the marginal per-intervention figures leave
+    out."""
+    return governed_replica(
+        sim,
+        decisions,
+        inputs,
+        start=start,
+        until=until,
+        ci_resamples=ci_resamples,
+        spec=lifted_spec(guard),
+    )
+
+
+def guard_attribution(
+    report: TwinReport, lifted: Mapping[GuardId, ArmResult] | None = None
+) -> tuple[GuardAttribution, ...]:
+    """Per guard that bound at least once, in guard order: how many interventions it bound and
+    what they prevented and cost (marginal, as in :func:`twin_report`), and, when ``lifted`` has
+    its arm, the replica's return, drawdown and Sharpe with that guard lifted."""
+    lifted = lifted or {}
+    out: list[GuardAttribution] = []
+    for guard in GUARD_ORDER:
+        own = [i for i in report.interventions if i.guard is guard]
+        if not own:
+            continue
+        arm = lifted.get(guard)
+        out.append(
+            GuardAttribution(
+                guard=guard,
+                n_interventions=len(own),
+                prevented_loss=sum(max(0.0, i.pnl_governed - i.pnl_ungoverned) for i in own),
+                forgone_gain=sum(max(0.0, i.pnl_ungoverned - i.pnl_governed) for i in own),
+                lifted_total_return=None if arm is None else arm.metrics.total_return,
+                lifted_max_drawdown=None if arm is None else arm.metrics.max_drawdown,
+                lifted_sharpe_ann=None if arm is None else arm.metrics.sharpe_ann,
+            )
+        )
+    return tuple(out)
 
 
 def _effective_ceiling(ruling: GuardRuling) -> float | None:
@@ -306,6 +377,7 @@ def twin_report(
         max_drawdown_ungoverned=ungoverned.metrics.max_drawdown,
         human_takeovers=human_takeovers,
         interventions=tuple(interventions),
+        governed_total_return=governed.metrics.total_return,
     )
 
 
@@ -321,7 +393,10 @@ __all__ = [
     "GOVERNED_REPLICA_SPEC",
     "UNGOVERNED_SPEC",
     "governed_replica",
+    "guard_attribution",
     "guard_counts",
+    "guard_lifted_arm",
+    "lifted_spec",
     "twin_report",
     "ungoverned_arm",
     "violated_guards",

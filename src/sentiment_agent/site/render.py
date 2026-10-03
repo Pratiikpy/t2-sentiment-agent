@@ -1043,12 +1043,61 @@ def _twin(ex: Export) -> str:
             numeric=(3, 4, 5, 6),
             wide=True,
         )
+        body += _twin_by_guard(report)
     return section(
         "twin",
         "Governed vs ungoverned",
         "The model's draft before the kernel, simulated on the same Demo marks and costs: what "
         "the kernel's interventions prevented and what they cost.",
         body,
+    )
+
+
+def _twin_by_guard(report: TwinReport) -> str:
+    """Which guard saved or cost how much: per guard, the interventions it bound (marginal figures)
+    and the replica re-run with that guard alone lifted (whole-path figures)."""
+    if not report.by_guard:
+        return ""
+    base = report.governed_total_return
+    rows = []
+    for item in report.by_guard:
+        lifted = item.lifted_total_return
+        effect = None if lifted is None or base is None else base - lifted
+        rows.append(
+            [
+                h(item.guard.value),
+                h(str(item.n_interventions)),
+                h(pct(item.prevented_loss, 3)),
+                h(pct(item.forgone_gain, 3)),
+                h(pct(item.prevented_loss - item.forgone_gain, 3)),
+                h(pct(lifted, 3)),
+                h(pct(item.lifted_max_drawdown, 3)),
+                h(pct(effect, 3)),
+            ]
+        )
+    lead = (
+        "<h3>Per guard</h3>"
+        '<p class="muted">Each guard that bound at least once. Prevented and forgone are the '
+        "interventions it bound, priced from the decision to the next one. The last three columns "
+        "re-run the governed replica with only that guard lifted, over the whole path"
+        + (f" (the replica with every guard: {h(pct(base, 3))})" if base is not None else "")
+        + "; the guard's effect is the replica's return minus the lifted one, so a positive figure "
+        "means the guard earned its keep.</p>"
+    )
+    return lead + table(
+        [
+            "guard",
+            "bound",
+            "prevented",
+            "forgone",
+            "net",
+            "return, lifted",
+            "max DD, lifted",
+            "guard's effect",
+        ],
+        rows,
+        numeric=(1, 2, 3, 4, 5, 6, 7),
+        wide=True,
     )
 
 

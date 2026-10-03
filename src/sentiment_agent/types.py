@@ -2139,6 +2139,24 @@ class TwinIntervention(Model):
     violations_prevented: tuple[GuardId, ...]
 
 
+class GuardAttribution(Model):
+    """One guard's share of what the kernel did (analysis/twin.py ``guard_attribution``).
+
+    The first three figures add up the interventions this guard bound, priced as in the twin
+    report (marginal, each leg holding the rest of the book as it was). The ``lifted_*`` figures
+    come from a whole arm: the same drafts under every guard **but this one**, simulated like the
+    governed replica, so they carry every interaction the marginal figures leave out (stops,
+    kills, the gross cap). ``None`` when that arm was not run."""
+
+    guard: GuardId
+    n_interventions: int = Field(ge=0)
+    prevented_loss: float
+    forgone_gain: float
+    lifted_total_return: float | None = None
+    lifted_max_drawdown: float | None = None
+    lifted_sharpe_ann: float | None = None
+
+
 class TwinReport(Model):
     n_decisions: int = Field(ge=0)
     n_interventions: int = Field(ge=0)
@@ -2151,6 +2169,11 @@ class TwinReport(Model):
     max_drawdown_ungoverned: float
     human_takeovers: int = Field(ge=0)
     interventions: tuple[TwinIntervention, ...]
+    governed_total_return: float | None = None
+    """The governed replica's total return, the baseline every ``by_guard`` lifted arm is read
+    against. ``None`` in reports exported before per-guard attribution existed."""
+    by_guard: tuple[GuardAttribution, ...] = ()
+    """Per guard that bound at least once, in guard order (``analysis/twin.py``)."""
 
 
 class CardOrder(Model):
