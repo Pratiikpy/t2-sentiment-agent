@@ -1,18 +1,76 @@
 # t2-sentiment-agent
 
-A market-sentiment trading agent for Bitget AI Base Camp S2, Track 2 (Agentic Trading), sub-theme
-Market Sentiment Agent.
+**Qwen decides. A risk kernel that can only reduce stands between it and the venue. Bitget's own
+Agent Hub places every order on Bitget Demo. One hash-chained log proves all of it.**
 
-- **Qwen decides.** `qwen3.8-max` reads live crowd positioning, Fear & Greed, news and screened
-  social text, and proposes a target book with a thesis, an invalidation and "what the crowd
-  believes vs what we do" for every position. "Flat, with reasons" is a valid answer.
-- **A risk kernel that can only reduce** stands between the decision and the venue: eight
-  pre-registered guards, each answering a measured failure of the paper venue, plus three structural
-  checks. It can shrink or refuse what the model asks for; it can never add to it.
-- **Bitget's own Agent Hub places every order** (`bgc --paper-trading`) on Bitget UTA Demo, each one
-  previewed with `--dry-run` first and reconciled against the venue's order history.
-- **One hash-chained log** records every input, decision, ruling, order and fill. Everything
-  published is computed from it, and `scripts/recompute.py` lets anyone check the numbers.
+A Market Sentiment Agent for Bitget AI Base Camp S2, Track 2 (Agentic Trading). It reads what the
+crowd is doing (funding, long/short skew, open interest, Fear & Greed, news and screened social
+text) on 14 Bitget perpetuals, and `qwen3.8-max` decides the whole book at once: where to fade a
+crowded trade, hedge, cut, or stay flat with written reasons. Every decision carries a thesis, an
+invalidation and "what the crowd believes vs what we do", and every number in it must resolve to a
+logged fact.
+
+**Live record: https://t2-sentiment-agent-run2.vercel.app** — every decision card, the kernel's
+ruling guard by guard, the venue order ids, and the same model ungoverned beside it.
+
+## The record, in numbers
+
+Run 2, Bitget UTA Demo, pre-registered window 2026-09-28 00:00 to 2026-10-07 00:00 UTC. Figures
+below are the 2026-10-05 05:04 UTC export; the page republishes hourly from the log and
+`scripts/recompute.py` recomputes every one.
+
+| | |
+|---|---|
+| Decisions by the model | **46** — 17 act, 10 hold, 15 flat with reasons, 4 model outages (no rule traded in its place) |
+| Orders sent to Bitget Demo through Agent Hub | **95**, each previewed with `--dry-run` first; 22 fills, 7 closed trades |
+| Return / max drawdown | **−0.02% / −0.37%** (90% bootstrap band −0.61% to +0.64%; three days of hourly marks cannot separate skill from luck, and the page says so) |
+| Sharpe (annualised) / win rate | −0.31 ± 7.8 / 28.6% on 7 trades — descriptive, not inferential |
+| What the kernel did | changed **20 of 46** decisions; 72 protective rulings; 0 human takeovers |
+| The same model, ungoverned | **34.1%** of its drafts broke a guard; the kernel's cuts prevented 0.039% of equity in losses and forwent 0.026% in gains |
+| Fixed-rule crowd fade, no model, same clock | **−0.65%**, 69 trades |
+| Coin flip, 1,000 seeds, same venue | median **−0.24%** |
+| Rival sentiment agents, same snapshots, same simulator | lexicon trader −0.21% (with the crowd) and −0.09% (against it); S2 sentiment-fusion entry −0.03%; S2 Fear & Greed entry never traded |
+| Same fills marked at live prices | +0.13%, largest hourly Demo-to-live gap 8.5bps: the Demo result is not a sandbox artefact |
+
+The quantitative half of the score is flat and we say so. What the record shows is the half that
+is hard to fake: a model that stands aside 15 times with reasons, a kernel that cut a third of the
+drafts that would have broken a rule, nothing added by any deterministic code, and every line
+reproducible from the log.
+
+## Event → decision → execution, one card
+
+[Open a decision card](https://t2-sentiment-agent-run2.vercel.app) from the timeline. Each shows,
+in order: what woke the agent and which sources answered; the text the model saw, with quarantined
+items marked; Qwen's thesis, invalidation and crowd-vs-us; every guard's ruling, with its ceiling
+and the measurement it rests on; the `--dry-run` payload, the `clientOid`, the venue `orderId` and
+the fills; and the ledger rows and blob hashes that prove each line.
+
+## Why this design
+
+- **The model is the decision-maker, and nothing else is.** Every target comes from Qwen. The
+  kernel's rules are types, not conventions: a ruling that adds exposure, turns a side, or cuts a
+  weight without naming the guard cannot be constructed (`types.py`, `tests/contract/`).
+- **Eleven guards, each answering a measured failure of the venue.** UTA Demo freezes US-equity perps
+  at weekends, its mark price has jumped 5.4% from its index, and its spreads are wider than live;
+  each guard cites the measurement in `validation/` and a test fails if the policy drifts from it.
+- **Pre-registered before the first order.** The policy, prompts, code commit, metric definitions
+  and the no-edge envelope are hashed into a genesis posted on X before trading, with every change
+  against run 1 declared (d1–d9, a1–a8). Ledger heads are Ed25519-signed and anchored to Bitcoin
+  through OpenTimestamps; five are already block-confirmed.
+- **Bitget's own tools, measured.** Agent Hub (`bgc`) sends every order; `bitget-signal` and
+  `bitget-mcp-server` were wired in and have failed on Bitget's side for most of both runs, so the
+  agent reads their upstreams on a labelled surface and logs every failed call as failed.
+
+## Honest limits
+
+- The return is indistinguishable from zero and the Sharpe band spans −15 to +8. Nine days is not a
+  track record.
+- The red team of the sentiment input (HeyArka and AgentDojo attack strings, a coordinated pump) is
+  built and tested but was not run on this export; its grade is published whatever it shows.
+- The genesis's own OpenTimestamps stamp failed on a client bug (recorded as failed, not hidden);
+  later ledger heads are anchored.
+- Both Bitget data services were down for most of the run; the agent's view of the crowd came
+  mostly from the upstreams they wrap.
 
 ## Status
 
