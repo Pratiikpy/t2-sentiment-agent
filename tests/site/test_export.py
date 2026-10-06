@@ -65,6 +65,7 @@ REQUIRED = (
     "summary.json",
     "verify.md",
     "deck.html",
+    "whitepaper.html",
 )
 
 DRIVE_PATH = re.compile(

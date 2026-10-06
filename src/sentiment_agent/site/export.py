@@ -1480,6 +1480,15 @@ def _deck_html() -> bytes:
     return (Path(__file__).parent / "templates" / "deck.html").read_bytes()
 
 
+def _whitepaper_html() -> bytes:
+    """The whitepaper (``WHITEPAPER.md`` at the repository root, shipped with the package as a
+    template; a test holds the two copies equal), rendered into the site's stylesheet."""
+    from sentiment_agent.site.render import render_whitepaper
+
+    text = (Path(__file__).parent / "templates" / "WHITEPAPER.md").read_text(encoding="utf-8")
+    return render_whitepaper(text).encode("utf-8")
+
+
 def _verify_md(summary: Mapping[str, Any], genesis: Mapping[str, Any]) -> bytes:
     ledger = summary["ledger"]
     mode = summary["mode"] or "empty"
@@ -1665,6 +1674,7 @@ def export_public(
         stage.json("summary.json", summary)
         stage.write("verify.md", _verify_md(summary, genesis))
         stage.write("deck.html", _deck_html())
+        stage.write("whitepaper.html", _whitepaper_html())
 
         findings = stage.scan(extra_paths=[target.parent, ledger.path.parent, blobs.root])
         if findings:

@@ -490,6 +490,7 @@ def page(title: str, body: str, *, nav: bool, mode: str | None) -> str:
     nav_html = ""
     if nav:
         links = "".join(f'<a href="#{h(a)}">{h(t)}</a>' for a, t in SECTIONS)
+        links += '<a href="whitepaper.html">Whitepaper</a><a href="deck.html">Proof deck</a>'
         nav_html = (
             f'<nav class="sections" aria-label="Sections"><div class="wrap">{links}</div></nav>'
         )
@@ -1700,6 +1701,7 @@ def _verify(ex: Export) -> str:
         ("replay.json", "the venue-integrity replay"),
         ("cards/index.json", "every decision card"),
         ("deck.html", "the proof deck: sixteen slides of evidence from these files"),
+        ("whitepaper.html", "the whitepaper: every feature, guard and proof, by judged line"),
     ]
     rows = [[f'<a href="{h(name)}">{h(name)}</a>', h(text)] for name, text in files]
     body = (
@@ -1717,6 +1719,19 @@ def _verify(ex: Export) -> str:
         "</ol>" + table(["file", "what it is"], rows)
     )
     return section("verify", "Verify", "Nothing here needs to be taken on trust.", body)
+
+
+def render_whitepaper(markdown_text: str) -> str:
+    """The whitepaper, rendered into the site's own stylesheet so it reads like the record it
+    cites and needs nothing from outside the folder."""
+    from sentiment_agent.site.markdown import render_markdown
+
+    body = (
+        '<p class="jump"><a href="index.html">&larr; the record</a> &middot; '
+        '<a href="deck.html">the proof deck</a></p>'
+        f'<article class="prose">{render_markdown(markdown_text)}</article>'
+    )
+    return page("t2-sentiment-agent: whitepaper", body, nav=False, mode=None)
 
 
 def render_index(ex: Export) -> str:

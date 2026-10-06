@@ -273,3 +273,14 @@ footer { color: var(--ink-3); font-size: 0.82rem; padding: 20px 0 40px; }
   nav.sections, .theme-toggle { display: none; }
   section.block { break-inside: avoid; }
 }
+
+/* The whitepaper page (render_whitepaper): long-form prose in the record's own tokens. */
+article.prose { max-width: 860px; }
+article.prose h1 { font-size: 1.9rem; line-height: 1.15; margin: 0 0 12px; }
+article.prose h2 { font-size: 1.35rem; margin: 40px 0 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+article.prose h3 { font-size: 1.08rem; margin: 26px 0 8px; }
+article.prose p, article.prose li { line-height: 1.55; }
+article.prose blockquote { margin: 14px 0; padding: 4px 0 4px 18px; border-left: 3px solid var(--accent); color: var(--ink-2); }
+article.prose table { margin: 12px 0 18px; }
+article.prose pre { overflow-x: auto; }
+article.prose hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
