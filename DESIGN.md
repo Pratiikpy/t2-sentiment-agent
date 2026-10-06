@@ -6,11 +6,13 @@ decision and the venue. Bitget's own Agent Hub CLI (`bgc --paper-trading`) place
 Bitget UTA Demo. Every input, decision, ruling, order and fill is written to one hash-chained log,
 and everything a judge reads is computed from that log.
 
-**Status.** Pre-genesis. No order has been placed and no Qwen call has been made. The contract
-(`src/sentiment_agent/types.py`, `policy.py`, `hashing.py`, `clock.py`) and the test harness are
-built and pass `ruff`, `mypy --strict` and 102 contract tests (`tests/contract/`), including one
-that reads every policy number back from the evidence in `validation/` (§18, M0). The other modules
-below are specified and being built against that contract.
+**Status.** Built and run. Run 1 (2026-09-24 to 09-27) and run 2 (2026-09-28 to 10-07, the scored
+record) traded on Bitget UTA Demo from this code; the contract (`src/sentiment_agent/types.py`,
+`policy.py`, `hashing.py`, `clock.py`), every module below and the test harness pass `ruff`,
+`mypy --strict` and 2,996 tests, including the 90 in `tests/contract/` and the one that reads every
+policy number back from the evidence in `validation/` (§18, M0). This document was written as the
+specification and is kept as the design record; where a section describes a plan, the record on the
+published page is what happened.
 
 Working name `t2-sentiment-agent` until the owner names it. Python package `sentiment_agent`.
 
@@ -1590,7 +1592,7 @@ The counts are recomputed by `scripts/replay_triggers.py` from run 1's published
 holds the genesis declaration, the policy basis and that file to the same figures, and checks that
 the replay reproduces the 2 heartbeat decisions run 1 actually took.
 
-**Seven amendments, seven hashes.** The amendments are applied in order (`policy.RUN2_AMENDMENTS`),
+**Eight amendments, eight hashes.** The amendments are applied in order (`policy.RUN2_AMENDMENTS`),
 each producing a policy with its own hash, and the genesis declares them as a chain from run 1's
 policy (`55ff779b…`) to policy v2; `Genesis` refuses a chain that skips a link. The policies
 between are never run. A test holds each amendment to the fields it declares and nothing else, and

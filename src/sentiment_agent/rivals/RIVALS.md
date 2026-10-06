@@ -33,7 +33,17 @@ Code: `rivals/registry.py` (the roster, the shared rules, the three Season-2 ent
 
 ## Results
 
-### Head to head on the paper window: PENDING
+### Head to head on the paper window: run 2 results
+
+Run on run 2's recorded snapshots and published in `arms_summary.json` (export of 2026-10-05
+05:04 UTC; the page republishes hourly): lexicon follow −0.210% (56 trades, max DD −0.324%),
+lexicon fade −0.090% (58, −0.432%), Season-2 entry A (Fear & Greed confluence) never traded,
+Season-2 entry B (sentiment and news fusion) −0.026% (10, −0.036%); our governed book −0.020% (7,
+−0.369%), the governed replica −0.001%. The finBERT and TradingAgents arms and entry C need an
+approved token budget and are not in this export. The table below is the plan as written before
+the window and is kept as such.
+
+### Head to head on the paper window: the plan, as pre-registered
 
 No arm has been run on the real record, because the record does not exist yet: the paper window
 starts when the owner creates the Demo key (DESIGN.md §21), and until then no `PAPER` snapshot has

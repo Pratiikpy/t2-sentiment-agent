@@ -1473,6 +1473,13 @@ def _summary_doc(
     }
 
 
+def _deck_html() -> bytes:
+    """The proof deck, a fixed page shipped with the package: sixteen slides of evidence read from
+    this record's own files, published beside them as ``deck.html`` so a judge reaches it from the
+    page without leaving the site."""
+    return (Path(__file__).parent / "templates" / "deck.html").read_bytes()
+
+
 def _verify_md(summary: Mapping[str, Any], genesis: Mapping[str, Any]) -> bytes:
     ledger = summary["ledger"]
     mode = summary["mode"] or "empty"
@@ -1657,6 +1664,7 @@ def export_public(
         )
         stage.json("summary.json", summary)
         stage.write("verify.md", _verify_md(summary, genesis))
+        stage.write("deck.html", _deck_html())
 
         findings = stage.scan(extra_paths=[target.parent, ledger.path.parent, blobs.root])
         if findings:

@@ -177,7 +177,7 @@ changes against run 1, and why, is declared in its genesis (DESIGN.md §24): the
 trigger kinds are evaluated on the full snapshot (`run2-d1`), a failing or hollow source is an
 alarm (`run2-d2`), a reading both Bitget data services leave empty is read from the upstream they
 wrap (`run2-d3`), the prompt names Binance USD-M as the market of the crowd-positioning
-figures (`run2-d4`), and policy v2 amends policy v1 six times: the funding z-score trigger covers
+figures (`run2-d4`), and policy v2 amends policy v1 eight times: the funding z-score trigger covers
 every instrument (`run2-a1`) and needs a funding level (`run2-a2`); G3 caps the net weight at 10%
 and the crypto-beta names at 7.5% (`run2-a3`); the record is scored over the window below, and
 at its end G2 closes every leg (`run2-a4`); the losing-streak trip lapses after 24 hours

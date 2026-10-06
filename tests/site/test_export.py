@@ -64,6 +64,7 @@ REQUIRED = (
     "replay.json",
     "summary.json",
     "verify.md",
+    "deck.html",
 )
 
 DRIVE_PATH = re.compile(

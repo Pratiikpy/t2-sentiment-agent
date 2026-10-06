@@ -1699,6 +1699,7 @@ def _verify(ex: Export) -> str:
         ("environment.json", "the environment proofs"),
         ("replay.json", "the venue-integrity replay"),
         ("cards/index.json", "every decision card"),
+        ("deck.html", "the proof deck: sixteen slides of evidence from these files"),
     ]
     rows = [[f'<a href="{h(name)}">{h(name)}</a>', h(text)] for name, text in files]
     body = (
