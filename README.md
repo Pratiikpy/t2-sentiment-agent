@@ -10,10 +10,13 @@ at once: fade a crowded trade, hedge, cut, or stay flat with written reasons. Ev
 thesis, an invalidation tied to a logged fact, and "what the crowd believes vs what we do". Nothing
 deterministic ever adds exposure.
 
-**Live record:** https://t2-sentiment-agent-run2.vercel.app — every decision card, the kernel's
-ruling guard by guard, the venue order ids, and the same model ungoverned beside it ·
-**Whitepaper:** [WHITEPAPER.md](WHITEPAPER.md) · **Proof deck:** `/deck.html` on the live record
-(sixteen slides of evidence) · **Design:** [DESIGN.md](DESIGN.md) · **Runbook:** [RUNBOOK.md](RUNBOOK.md)
+**[Open the live record](https://t2-sentiment-agent-run2.vercel.app)** — every decision card, the
+kernel's ruling guard by guard, the venue order ids, and the same model ungoverned beside it ·
+**[Proof deck](https://t2-sentiment-agent-run2.vercel.app/deck.html)**, sixteen slides of evidence ·
+**[Whitepaper](https://t2-sentiment-agent-run2.vercel.app/whitepaper.html)**
+([Markdown](WHITEPAPER.md)) · [Design](DESIGN.md) · [Runbook](RUNBOOK.md)
+
+![The live record's overview: 46 decisions, 95 orders sent through Bitget Agent Hub to UTA Demo, the kernel's 20 cuts, return, drawdown and Sharpe with their bootstrap bands beside a no-edge envelope.](docs/img/record-overview.png)
 
 ---
 
@@ -36,6 +39,8 @@ the 2026-10-05 05:04 UTC export; the page republishes hourly from the log and
 | Rival sentiment agents, same snapshots, same simulator | lexicon trader −0.21% (with the crowd) and −0.09% (against it); a Season-2 sentiment-fusion entry −0.03%; a Season-2 Fear & Greed entry never traded |
 | Same fills marked at live prices | **+0.13%**; largest hourly Demo-to-live gap 8.5bps |
 
+![Equity of the governed agent against flat, BTC held, a fixed-rule crowd fade, 1,000 coin flips as a band, rival sentiment agents, the ungoverned twin and the live-price mirror.](docs/img/equity-vs-every-arm.png)
+
 The quantitative half of the score is flat and we say so. What the record shows is the half that is
 hard to fake: a model that stood aside 15 times with reasons, a kernel that cut a third of the
 drafts that would have broken a rule, nothing added by any deterministic code, and every line
@@ -45,6 +50,8 @@ reproducible from the log.
 
 Card [`dec-c8701963…`](https://t2-sentiment-agent-run2.vercel.app/cards/dec-c8701963b5930c3551aec635d15abaa7.html),
 2026-09-28 06:08 UTC, the first trade of run 2:
+
+![A decision card: what Qwen decided, the thesis and invalidation tied to logged facts, what the crowd believes against what we do, and the grounding report.](docs/img/decision-card.png)
 
 - **Trigger:** `funding_zscore:MSTRUSDT`, z −4.86. The sources that answered and those that did not
   are listed; 419 text items were shown, 1 withheld by quarantine.
@@ -124,6 +131,10 @@ measurement:
 | G5 daily kill · G6 turnover · G7 fee budget | −1.5% a day flattens; 2 orders a name a day, 24h minimum hold; no new exposure past 7bps a day in fees | the envelope; taker 0.06% on all 14 |
 | G8 taker only · G9 grounding | no opening above a 20bps spread; an ungrounded number cannot add | Demo spreads 0.1–6.6bps |
 | G10 breaker · G11 eligibility | drawdown 2.5% → reduce-only, 4% → halt; stale data cannot open; venue minimums and splits | the envelope; `universe_probe.json` |
+
+![The guard funnel: 135 legs proposed, 50 asking to add exposure, 45 cut, 0 refused; 22 model orders planned, previewed and sent, 19 filled; every guard's binding, fired and passed counts.](docs/img/guard-funnel.png)
+
+![Governed against ungoverned: intervention rate, prevented loss, forgone gain, the ungoverned violation rate of 34.1%, drawdowns and 0 human takeovers.](docs/img/governed-vs-ungoverned.png)
 
 In run 2 the guards bound 46 legs on 20 decisions (G6 24, G11 8, G3 7, G10 5, G1 1, G9 1), a
 forced exit fired on an 80bps Demo-live gap, and a venue stop fired on the MSTR short on 2 Oct.
