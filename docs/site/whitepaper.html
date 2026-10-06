@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src &#x27;none&#x27;; style-src &#x27;unsafe-inline&#x27;; script-src &#x27;unsafe-inline&#x27;; img-src data:; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;"><meta name="referrer" content="no-referrer"><meta name="color-scheme" content="light dark"><title>t2-sentiment-agent: whitepaper</title><style>/* t2-sentiment-agent public record. Inlined into every page by site/render.py: no external request. */
+:root {
+  color-scheme: light;
+  --bg: #f7f7f4;
+  --panel: #ffffff;
+  --panel-2: #f1f1ec;
+  --ink: #16181d;
+  --ink-2: #4a4f5a;
+  --ink-3: #5f6572; /* 4.95:1 on the lightest panel, AA for small text (was #737987, 3.69:1) */
+  --rule: #dcdcd4;
+  --accent: #0b5cad;
+  --accent-ink: #ffffff;
+  --good: #1d7a3e;
+  --good-bg: #e3f3e8;
+  --bad: #b3261e;
+  --bad-bg: #fbe7e5;
+  --warn: #8a5a00;
+  --warn-bg: #fdf1d8;
+  --muted-bg: #ececec;
+  --c-ours: #0b5cad;
+  --c-1: #6b7280;
+  --c-2: #c2410c;
+  --c-3: #7c3aed;
+  --c-4: #0f766e;
+  --c-5: #b91c1c;
+  --c-6: #a16207;
+  --c-7: #be185d;
+  --band: rgba(107, 114, 128, 0.16);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --ink: #e8eaef;
+    --ink-2: #b4bac6;
+    --ink-3: #8b92a1;
+    --rule: #2c313c;
+    --accent: #6aa9ff;
+    --accent-ink: #0b1220;
+    --good: #5fd18a;
+    --good-bg: #13301f;
+    --bad: #ff8a80;
+    --bad-bg: #3a1614;
+    --warn: #f5c35b;
+    --warn-bg: #33270d;
+    --muted-bg: #262b35;
+    --c-ours: #6aa9ff;
+    --c-1: #9aa3b2;
+    --c-2: #fb923c;
+    --c-3: #b39bff;
+    --c-4: #34d3c0;
+    --c-5: #ff7a7a;
+    --c-6: #e7b949;
+    --c-7: #f472b6;
+    --band: rgba(154, 163, 178, 0.18);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-2: #1e222b;
+  --ink: #e8eaef;
+  --ink-2: #b4bac6;
+  --ink-3: #8b92a1;
+  --rule: #2c313c;
+  --accent: #6aa9ff;
+  --accent-ink: #0b1220;
+  --good: #5fd18a;
+  --good-bg: #13301f;
+  --bad: #ff8a80;
+  --bad-bg: #3a1614;
+  --warn: #f5c35b;
+  --warn-bg: #33270d;
+  --muted-bg: #262b35;
+  --c-ours: #6aa9ff;
+  --c-1: #9aa3b2;
+  --c-2: #fb923c;
+  --c-3: #b39bff;
+  --c-4: #34d3c0;
+  --c-5: #ff7a7a;
+  --c-6: #e7b949;
+  --c-7: #f472b6;
+  --band: rgba(154, 163, 178, 0.18);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 var(--sans);
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover, a:focus-visible { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+.hash { font-family: var(--mono); font-size: 0.82em; word-break: break-all; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+header.top {
+  background: var(--panel);
+  border-bottom: 1px solid var(--rule);
+}
+header.top .wrap {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  padding-top: 18px; padding-bottom: 14px;
+}
+.brand { flex: 1 1 360px; min-width: 0; }
+.brand h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.01em; }
+.brand p { margin: 4px 0 0; color: var(--ink-2); font-size: 0.93rem; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.theme-toggle {
+  border: 1px solid var(--rule); background: var(--panel-2); color: var(--ink);
+  border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 0.85rem; cursor: pointer;
+}
+
+nav.sections {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--rule);
+}
+nav.sections .wrap { display: flex; gap: 4px; overflow-x: auto; padding-top: 6px; padding-bottom: 6px; }
+nav.sections a {
+  white-space: nowrap; padding: 5px 10px; border-radius: 999px; color: var(--ink-2);
+  font-size: 0.88rem;
+}
+nav.sections a:hover { background: var(--panel-2); color: var(--ink); text-decoration: none; }
+
+main { padding: 18px 0 40px; }
+section.block {
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 12px;
+  padding: 18px 18px 14px; margin: 16px 0; scroll-margin-top: 56px;
+}
+section.block > h2 { margin: 0 0 4px; font-size: 1.12rem; }
+section.block > .lede { margin: 0 0 14px; color: var(--ink-2); font-size: 0.93rem; max-width: 78ch; }
+h3 { font-size: 0.98rem; margin: 18px 0 8px; }
+h4 { font-size: 0.9rem; margin: 14px 0 6px; color: var(--ink-2); }
+p { margin: 6px 0 10px; }
+.small { font-size: 0.85rem; color: var(--ink-2); }
+.muted { color: var(--ink-3); }
+
+.banner {
+  border-radius: 10px; padding: 12px 14px; margin: 16px 0 0; font-size: 0.93rem;
+  border: 1px solid var(--rule);
+}
+.banner.warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.banner.good { background: var(--good-bg); color: var(--good); border-color: transparent; }
+.banner.bad { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+.banner strong { color: inherit; }
+
+.badge {
+  display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 0.76rem;
+  font-weight: 600; letter-spacing: 0.02em; background: var(--muted-bg); color: var(--ink-2);
+  white-space: nowrap; vertical-align: 1px;
+}
+.badge.good { background: var(--good-bg); color: var(--good); }
+.badge.bad { background: var(--bad-bg); color: var(--bad); }
+.badge.warn { background: var(--warn-bg); color: var(--warn); }
+.badge.accent { background: var(--accent); color: var(--accent-ink); }
+.chip {
+  display: inline-block; border: 1px solid var(--rule); border-radius: 6px; padding: 0 6px;
+  font-size: 0.78rem; margin: 1px 3px 1px 0; color: var(--ink-2); background: var(--panel-2);
+  white-space: nowrap;
+}
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 10px; }
+.kpi { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.kpi .label { font-size: 0.78rem; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.kpi .value { font-size: 1.35rem; font-weight: 650; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.kpi .note { font-size: 0.78rem; color: var(--ink-3); margin-top: 2px; }
+
+.table-wrap { overflow-x: auto; margin: 6px 0 10px; border: 1px solid var(--rule); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { background: var(--panel-2); font-weight: 600; color: var(--ink-2); font-size: 0.8rem; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.wrap-text { min-width: 16ch; max-width: 56ch; }
+
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline > li {
+  display: grid; grid-template-columns: 150px 1fr; gap: 4px 14px;
+  border-top: 1px solid var(--rule); padding: 12px 0;
+}
+.timeline > li:first-child { border-top: 0; }
+.timeline .when { font-size: 0.84rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.step { background: var(--panel-2); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+.step .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); }
+.step .body { font-size: 0.87rem; overflow-wrap: anywhere; }
+.timeline .open { grid-column: 2; font-size: 0.86rem; }
+
+.chart-wrap { overflow-x: auto; }
+.chart { width: 100%; min-width: 560px; height: auto; display: block; }
+table.wide { min-width: 680px; }
+.chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .axis-label { fill: var(--ink-3); font: 11px var(--sans); }
+.chart .band { fill: var(--band); stroke: none; }
+.chart .line { fill: none; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.chart .line.ours { stroke-width: 3; }
+.chart .line.dashed { stroke-dasharray: 5 4; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 4px; padding: 0; list-style: none; font-size: 0.84rem; }
+.legend li { display: flex; align-items: center; gap: 6px; }
+.swatch { width: 18px; height: 4px; border-radius: 2px; display: inline-block; }
+.swatch.band { height: 10px; background: var(--band); }
+.s-ours { stroke: var(--c-ours); background: var(--c-ours); }
+.s-1 { stroke: var(--c-1); background: var(--c-1); }
+.s-2 { stroke: var(--c-2); background: var(--c-2); }
+.s-3 { stroke: var(--c-3); background: var(--c-3); }
+.s-4 { stroke: var(--c-4); background: var(--c-4); }
+.s-5 { stroke: var(--c-5); background: var(--c-5); }
+.s-6 { stroke: var(--c-6); background: var(--c-6); }
+.s-7 { stroke: var(--c-7); background: var(--c-7); }
+
+.bars { display: grid; gap: 6px; margin: 8px 0 12px; }
+.bar-row { display: grid; grid-template-columns: minmax(120px, 34%) 1fr 64px; gap: 10px; align-items: center; font-size: 0.86rem; }
+.bar-track { background: var(--panel-2); border-radius: 6px; height: 14px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 6px; }
+.bar-fill.bad { background: var(--bad); }
+.bar-fill.good { background: var(--good); }
+.bar-fill.warn { background: var(--warn); }
+.bar-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 12px; }
+.grid-2 > *, .timeline > li > *, .crowd > *, .kpis > * { min-width: 0; }
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 6px 0 10px; font-size: 0.88rem; }
+dl.facts dt { color: var(--ink-2); }
+dl.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+details { border: 1px solid var(--rule); border-radius: 8px; padding: 6px 10px; margin: 6px 0; background: var(--panel); }
+details > summary { cursor: pointer; font-size: 0.9rem; font-weight: 600; overflow-wrap: anywhere; }
+section.block p, section.block li, .banner { overflow-wrap: anywhere; }
+details[open] > summary { margin-bottom: 6px; }
+details.inline { border: 0; padding: 0; margin: 4px 0 0; background: none; }
+details.inline > summary { font-weight: 500; font-size: 0.8rem; color: var(--accent); }
+pre {
+  background: var(--panel-2); border-radius: 8px; padding: 10px 12px; overflow-x: auto;
+  font: 0.8rem/1.45 var(--mono); margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+blockquote.text {
+  margin: 6px 0; padding: 8px 12px; border-left: 3px solid var(--rule); background: var(--panel-2);
+  border-radius: 0 8px 8px 0; font-size: 0.88rem; overflow-wrap: anywhere;
+}
+blockquote.text.withheld { border-left-color: var(--bad); }
+.target { border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; margin: 10px 0; }
+.target header { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; margin-bottom: 4px; }
+.target header strong { font-size: 1rem; }
+.crowd { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 8px; margin: 6px 0; }
+.crowd > div { background: var(--panel-2); border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; }
+.crowd .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); }
+
+footer { color: var(--ink-3); font-size: 0.82rem; padding: 20px 0 40px; }
+
+@media (max-width: 720px) {
+  body { font-size: 14.5px; }
+  .timeline > li { grid-template-columns: 1fr; }
+  .timeline .open { grid-column: 1; }
+  .flow { grid-template-columns: 1fr; }
+  section.block { padding: 14px 12px 10px; border-radius: 10px; }
+  .kpi .value { font-size: 1.18rem; }
+  .bar-row { grid-template-columns: minmax(90px, 40%) 1fr 52px; }
+  th, td { padding: 6px 8px; }
+}
+@media print {
+  nav.sections, .theme-toggle { display: none; }
+  section.block { break-inside: avoid; }
+}
+
+/* The whitepaper page (render_whitepaper): long-form prose in the record's own tokens. */
+article.prose { max-width: 860px; }
+article.prose h1 { font-size: 1.9rem; line-height: 1.15; margin: 0 0 12px; }
+article.prose h2 { font-size: 1.35rem; margin: 40px 0 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+article.prose h3 { font-size: 1.08rem; margin: 26px 0 8px; }
+article.prose p, article.prose li { line-height: 1.55; }
+article.prose blockquote { margin: 14px 0; padding: 4px 0 4px 18px; border-left: 3px solid var(--accent); color: var(--ink-2); }
+article.prose table { margin: 12px 0 18px; }
+article.prose pre { overflow-x: auto; }
+article.prose hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
+</style><script>/* t2-sentiment-agent public record: the theme toggle. Inlined by site/render.py; no network. */
+(function () {
+  "use strict";
+  var KEY = "t2sa-theme";
+  var root = document.documentElement;
+  function stored() {
+    try { return window.localStorage.getItem(KEY); } catch (e) { return null; }
+  }
+  function remember(value) {
+    try { window.localStorage.setItem(KEY, value); } catch (e) { /* private mode */ }
+  }
+  function effective() {
+    var set = root.getAttribute("data-theme");
+    if (set === "light" || set === "dark") { return set; }
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function label(button) {
+    button.textContent = effective() === "dark" ? "Light theme" : "Dark theme";
+    button.setAttribute("aria-label", "Switch to the " + (effective() === "dark" ? "light" : "dark") + " theme");
+  }
+  var saved = stored();
+  if (saved === "light" || saved === "dark") { root.setAttribute("data-theme", saved); }
+  document.addEventListener("DOMContentLoaded", function () {
+    var button = document.getElementById("theme-toggle");
+    if (!button) { return; }
+    button.hidden = false;
+    label(button);
+    button.addEventListener("click", function () {
+      var next = effective() === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      remember(next);
+      label(button);
+    });
+  });
+}());
+</script></head><body><header class="top"><div class="wrap"><div class="brand"><h1>t2-sentiment-agent</h1><p>A Market Sentiment Agent for Bitget AI Base Camp S2, Track 2. Qwen decides; a risk kernel that can only reduce gates every order; Bitget&#x27;s Agent Hub places paper orders on UTA Demo.</p></div><div class="meta"><button type="button" class="theme-toggle" id="theme-toggle" hidden>Theme</button></div></div></header><main><div class="wrap"><p class="jump"><a href="index.html">&larr; the record</a> &middot; <a href="deck.html">the proof deck</a></p><article class="prose"><h1 id="t2-sentiment-agent-a-market-sentiment-agent-whose-every-order-can-be-audited">t2-sentiment-agent: A Market Sentiment Agent Whose Every Order Can Be Audited</h1>
+<p><em>Whitepaper. Bitget AI Base Camp, Season 2. Track 2, Agentic Trading, sub-theme Market Sentiment Agent. Every figure is read from the published record of run 2 (export of 2026-10-05 05:04 UTC, ledger head <code>6e549b63…</code>) or from a file in this repository, and is named where it is used.</em></p>
+<p><strong>Live record:</strong> https://t2-sentiment-agent-run2.vercel.app · <strong>Proof deck:</strong> <code>/deck.html</code> on the same site · <strong>Code:</strong> https://github.com/Pratiikpy/t2-sentiment-agent</p>
+<hr>
+<h2 id="1-abstract">1. Abstract</h2>
+<p><strong>In one line: a language model makes every trading decision; a risk kernel that can only reduce stands between it and Bitget; and every step is in one hash-chained log that anyone can recompute.</strong></p>
+<p>t2-sentiment-agent reads what the crowd is doing on 14 Bitget USDT perpetuals (BTC, the S&amp;P 500 and Nasdaq-100 indices, and 11 US-stock perps: MSTR, HOOD, CRCL, SNDK, COIN, TSLA, GOOGL, META, NVDA, AMZN, AAPL): funding against its 90-settlement norm, long/short skew, open interest, taker flow, the Fear &amp; Greed index, news and screened social text. <code>qwen3.8-max</code> decides the whole book at once: where to fade a crowded trade, hedge, cut, or stay flat with written reasons. Every target carries a thesis, an invalidation tied to a logged fact, a horizon of at least 24 hours and "what the crowd believes vs what we do".</p>
+<p>Between that decision and the venue stands a kernel of eleven guards, each answering a failure of Bitget's Demo venue that was measured before the guard was written. The kernel can shrink, refuse or close; it cannot add, turn a side, or change a weight without naming the guard that did it, because the ruling type refuses to be constructed otherwise. Bitget's own Agent Hub CLI sends every order to Bitget UTA Demo, previewed with <code>--dry-run</code> first.</p>
+<p>Run 2 traded from 2026-09-28 00:07 UTC under a policy, prompt set, code commit and metric definitions hashed into a genesis before the first decision. At the export: <strong>46 model decisions</strong> (17 act, 10 hold, 15 flat with reasons, 4 outages where no rule traded in its place), <strong>95 orders sent through Agent Hub</strong> (22 fills, 7 closed trades), <strong>the kernel changed 20 decisions and issued 72 protective rulings, 0 human takeovers.</strong> Return −0.02%, max drawdown −0.37%, Sharpe −0.31 with a standard error of 7.8: indistinguishable from zero, labelled descriptive, and said so. The same model run ungoverned on the same marks would have broken a guard on 34.1% of its drafts. A fixed-rule crowd fade with no model lost 0.65%; the coin-flip null lost 0.24% at its median, and the governed replica beat 76.4% of 1,000 seeds.</p>
+<p>The product is not the return. It is a record on which every claim about an autonomous agent can be checked: who decided, what the rules allowed, what they prevented and cost, and whether any of it was changed after the fact.</p>
+<hr>
+<h2 id="2-what-the-handbook-asks-and-where-it-is-answered">2. What the handbook asks, and where it is answered</h2>
+<table><thead><tr><th>Handbook, Track 2</th><th>Answered by</th><th>Where to look</th></tr></thead><tbody><tr><td>"The LLM is the primary trading decision-maker … autonomously place orders with risk controls"</td><td>Qwen proposes every target; the kernel only reduces; Agent Hub places the order</td><td>§4, §5, §6; every decision card</td></tr><tr><td>"Runnable Demo + a complete event → decision → execution flow"</td><td><code>t2sa replay</code> re-runs any recorded cycle without a key and asserts the same ruling; the static page walks each cycle</td><td>§9; <code>/#timeline</code></td></tr><tr><td>Market Sentiment Agent: "FOMO detection → contrarian hedge; sentiment top detection; reduce before overheating"</td><td>Crowding features per instrument; the model is asked for crowd-vs-us; the kernel's reductions are visible per guard</td><td>§3, §4.3</td></tr><tr><td>"Paper trading log (actually run during competition period)"</td><td>Two runs on Bitget UTA Demo, 24 Sep → 27 Sep and 28 Sep → 7 Oct, in a hash-chained ledger</td><td>§7; <code>/ledger.jsonl</code></td></tr><tr><td>"Paper trading Sharpe, max drawdown, win rate"</td><td>Pre-registered metric definitions, bootstrap bands, recomputed by a standard-library script</td><td>§8.1; <code>scripts/recompute.py</code></td></tr><tr><td>"Decision explainability"</td><td>118 decision cards: trigger, sources, text shown, thesis, every guard's ruling, dry-run payload, venue order id, fills, ledger rows</td><td>§9.1</td></tr><tr><td>"Agent architecture quality"</td><td>Typed contracts, a kernel invariant enforced by constructors, 2,996 tests that never touch the network</td><td>§5, §11</td></tr><tr><td>"Risk control layer effectiveness"</td><td>Governed/ungoverned twin, guard funnel, a venue stop that fired, a forced exit on an 80bps Demo-live gap</td><td>§8.2, §8.3</td></tr><tr><td>"Incremental value over fixed-rule or Human + AI baselines"</td><td>Same-clock baselines: flat, BTC held, fixed-rule crowd fade, 1,000 coin flips, rival sentiment agents</td><td>§8.4</td></tr><tr><td>Toolkit: <code>bitget-signal</code>, <code>bitget-mcp-server</code>, Agent Hub, <code>--paper-trading</code>, <code>dryRun</code></td><td>All wired; Agent Hub is the only order path; the two data services measured and found down</td><td>§10</td></tr></tbody></table>
+<hr>
+<h2 id="3-the-signal-crowds-overreach">3. The signal: crowds overreach</h2>
+<p>A crowded position is fragile. The agent measures crowding per instrument from Bitget's own market data and from the crowd's words:</p>
+<table><thead><tr><th>Feature</th><th>Source</th><th>Read</th></tr></thead><tbody><tr><td>Funding z-score</td><td>Bitget v3 funding history, 90 settlements</td><td>how far the current rate sits from the instrument's own norm</td></tr><tr><td>Funding level</td><td>same</td><td>a 7.5bp floor, so a z-score on a near-zero rate cannot fire (policy a2)</td></tr><tr><td>Long/short account and position ratios, taker buy/sell ratio</td><td>Bitget v3, read through <code>bitget-signal</code> first, then the upstream it wraps</td><td>who is on which side, and whether size agrees with count</td></tr><tr><td>Open-interest change</td><td>Bitget v3</td><td>a one-hour jump past the trailing 99th percentile</td></tr><tr><td>Price stretch</td><td>Bitget v3 candles</td><td>distance from the instrument's mean</td></tr><tr><td>Fear &amp; Greed</td><td>alternative.me through <code>bitget-signal</code>, then direct</td><td>crypto-wide mood entering or leaving an extreme (≤25, ≥76)</td></tr><tr><td>Coordinated stories</td><td>RSS, X and Reddit text, clustered by 4-word shingles</td><td>a story carried by three or more sources inside two hours</td></tr><tr><td>Earnings and filings</td><td>an equity calendar and insider-filing feed</td><td>an event inside 24 hours for a held name</td></tr></tbody></table>
+<p>Every item of text is somebody else's words. It passes a quarantine (replacement on detection, spotlighting with delimiters, the defences AgentDojo measured) before the model sees it, and withheld items are marked on the card. One decision card records "one withheld item carried a prompt injection attempt; noted as market noise, not acted upon."</p>
+<p><strong>What wakes the agent.</strong> Heartbeats at 00:00, 08:00 and 16:00 UTC and at the US cash open; events when funding passes 2σ, Fear &amp; Greed enters an extreme, open interest jumps, a coordinated cluster forms, or an earnings report falls inside 24 hours. One event per kind and instrument per 240 minutes; at most 8 event decisions a day. The cadences are pre-registered.</p>
+<hr>
+<h2 id="4-the-decision-the-model-and-only-the-model">4. The decision: the model, and only the model</h2>
+<h3 id="4-1-one-call-for-the-whole-book">4.1 One call for the whole book</h3>
+<p>Each decision is one <code>qwen3.8-max</code> call that sees a snapshot of all 14 instruments, every figure with its source and health, and the book as the venue reports it. The model answers in a typed contract (<code>LlmDecision</code>): a stance (act, hold, flat with reasons), and for each target a weight, a thesis, an invalidation, a confidence, the evidence it rests on, what the crowd believes and what we believe. A target of 1 is 5% of equity.</p>
+<h3 id="4-2-grounding">4.2 Grounding</h3>
+<p>Every number in a thesis, invalidation or view must resolve to a fact in the snapshot within 2%. A number that does not is deleted, and under guard G9 an ungrounded figure may not add exposure. The invalidation must cite a fact that was shown (policy d5). Under policy d8, an opening at confidence 0.5 or below is refused by the contract itself: "even odds" is not a reason to pay fees.</p>
+<h3 id="4-3-flat-is-an-answer">4.3 Flat is an answer</h3>
+<p>"Flat, with reasons" is a valid output. It was the model's answer in 15 of its 42 completed decisions. The first decision of run 2 (card <code>dec-c43080e5…</code>) is one:</p>
+<blockquote><p>"Three names show funding z-scores beyond the extreme reference (CRCLUSDT, SNDKUSDT, METAUSDT) … but none has a second independent positioning measure to confirm. Coordinated social clusters are all promotional spam. No thesis clears the fee hurdle at even-odds confidence."</p></blockquote>
+<p>Its rejected alternatives (short CRCL, short SNDK) are on the card with the reason each was passed.</p>
+<h3 id="4-4-an-outage-is-not-a-decision">4.4 An outage is not a decision</h3>
+<p>Four decisions were lost to model timeouts or transport errors. No deterministic rule trades in the model's place; under policy a6 the book is flattened on the third failed decision in a row.</p>
+<hr>
+<h2 id="5-the-kernel-eleven-guards-that-can-only-reduce">5. The kernel: eleven guards that can only reduce</h2>
+<h3 id="5-1-the-invariant-enforced-by-types">5.1 The invariant, enforced by types</h3>
+<p>For every instrument the kernel takes the model's proposed weight as the reference and returns an approved weight that has the reference's sign or is zero, and is no larger in magnitude. A ruling that adds exposure, turns a side, or changes a weight without naming the guard that bound it cannot be constructed: <code>InstrumentRuling._only_reduce</code> (<code>types.py</code>) raises, and <code>tests/contract/</code> holds the cases. The only object the executor accepts is an <code>ApprovedOrder</code>, which can be minted by one function in <code>kernel/approval.py</code> and nowhere else (a private token; a source scan test fails if the token is referenced anywhere else). It is immutable, unpicklable, and bound by hash to the intent and the ruling that produced it.</p>
+<p>Every guard is evaluated on every ruling; none short-circuits; a missing input fails closed for any increase. Reductions are never blocked.</p>
+<h3 id="5-2-the-guards-and-what-each-one-answers">5.2 The guards and what each one answers</h3>
+<p>Every threshold cites a measurement in <code>validation/</code>, and <code>tests/contract/test_policy_evidence.py</code> fails if the policy drifts from it.</p>
+<table><thead><tr><th>Guard</th><th>Rule</th><th>The measurement it answers</th></tr></thead><tbody><tr><td>G1 venue integrity</td><td>refuse or exit when Demo's mark is &gt;3% from its index, Demo's last is beyond the per-instrument p99 gap from live, or the index has stopped moving while the session is open</td><td>BTCUSDT Demo mark 65.6% from index on 2026-06-29; BTCPERP 5.4% on 2026-09-23; per-name p99 gaps (<code>demo_integrity.json</code>, <code>fade_demo.json</code>)</td></tr><tr><td>G2 weekend freeze</td><td>US-equity and index legs flat from Friday 20:00 to Monday 00:00 UTC, pre-flattened at 19:45</td><td>Demo's equity perps barely move at weekends (0.1–1.5bps an hour) while live moves 5.6–29bps; MSTR +5bps on Demo against +204bps live, 2026-09-19 (<code>weekend_vol.json</code>, <code>fade_demo2.txt</code>)</td></tr><tr><td>G3 size</td><td>≤5% a name, ≤25% gross, ≤10% net; MSTR+COIN+HOOD+CRCL ≤7.5% together</td><td>a no-edge 25%-gross book's worst drawdown was −2.48% (<code>envelope_clean.json</code>)</td></tr><tr><td>G4 stop</td><td>a venue stop on every opening: the wider of 4% and twice the p99 Demo-live gap (HOOD 7.66%, SNDK 6.96%, MSTR 6.32%)</td><td>the same gaps</td></tr><tr><td>G5 daily kill</td><td>−1.5% from the 00:00 UTC equity flattens the book until the next day</td><td>the envelope</td></tr><tr><td>G6 turnover</td><td>≤2 model orders a name a day; no increase or flip within 24h of the last unless the model declares its invalidation fired</td><td>the author's prior study of turnover cost</td></tr><tr><td>G7 fee budget</td><td>no new exposure once fees reach 7bps a day or 20bps a window</td><td>taker fee 0.06% on all 14 names (<code>universe_probe.json</code>)</td></tr><tr><td>G8 taker only</td><td>market orders only; no opening when Demo's spread is over 20bps</td><td>Demo spreads 0.1–6.6bps in the survey; 46.6bps seen once on MSTR, and the guard fired</td></tr><tr><td>G9 grounding</td><td>an ungrounded number may not add exposure</td><td>§4.2</td></tr><tr><td>G10 breaker</td><td>drawdown 2.5% → reduce-only, 4% → halt; four losing trades → reduce-only (lapses after 24h); a stale snapshot or quote cannot open; an unreconciled venue cannot increase</td><td>the envelope's worst case; the breaker ported from ARGUS</td></tr><tr><td>G11 eligibility</td><td>universe only, online on Demo, above <code>minOrderQty</code> and <code>minOrderAmount</code>, split above <code>maxMarketOrderQty</code></td><td><code>universe_probe.json</code></td></tr></tbody></table>
+<h3 id="5-3-what-the-kernel-did-in-run-2">5.3 What the kernel did in run 2</h3>
+<p>Of 135 legs the model proposed, 50 asked to add exposure: 5 were approved in full, 45 were cut, 0 refused outright. Exposure asked +19.31%, approved +15.46%. The guards that bound: G6 turnover 24, G11 eligibility 8, G3 size 7, G10 breaker 5, G1 venue integrity 1, G9 grounding 1. Outside decisions, the protective loop issued 72 rulings (71 venue integrity, 1 weekend freeze).</p>
+<p>Two rulings a judge can read in full:</p>
+<ul><li><strong>A cut</strong> (<code>dec-e69542…</code>, 2026-09-29 16:01 UTC). The model asked to keep three shorts and open TSLA and META at 2.5% each, "about 17.3% of equity gross". G3 fired at book level: "the 10% net cap: side 12.27% over the 10% cap: held 7.27% kept, new exposure 5.00% scaled by 0.5456". Both new legs went to 1.36%. The reason is the ruling.</li><li><strong>A forced exit</strong> (<code>dec-250d69…</code>, 2026-09-28 14:29 UTC). The model asked to hold META long; G1 found Demo's last 80.0bps from live, beyond the measured p99 of 67.2bps, and set the ceiling to zero.</li></ul>
+<p>A venue stop also fired: the MSTR short opened at 159.78 was closed by Bitget's own <code>pos_loss_market</code> order <code>1489909291328884736</code> on 2026-10-02 13:32 UTC at 169.71, the widened G4 stop doing exactly what it was set to do.</p>
+<hr>
+<h2 id="6-execution-bitget-s-agent-hub-and-nothing-else">6. Execution: Bitget's Agent Hub, and nothing else</h2>
+<p>Every order goes through the pinned <code>@bitget-ai/bitget-agent-cli@3.0.0</code> (<code>bgc</code>), run as a child process with an environment built from scratch. Every argument list carries <code>--paper-trading</code>; the transport refuses one that does not. Each order is previewed with <code>--dry-run</code> (logged as <code>ORDER_PREVIEW</code>, with the exact payload the CLI would send) and then sent; the venue's <code>orderId</code> is logged against the agent's <code>clientOid</code>, which is derived from the intent hash. Openings carry a preset stop (<code>strategy_order place</code>); reductions are <code>reduceOnly</code>.</p>
+<p><strong>Environment proof before the first order.</strong> The key file must declare Demo; the installed SDK must send <code>paptrading: 1</code>; a Demo account read must succeed (code 00000); and a live read with the same key must be refused (code 40099, "exchange environment is incorrect"). The proof type cannot report <code>passed</code> unless every check passed. Two passed proofs are in the ledger (seq 2 at 00:07:47 UTC on 28 Sep, and seq 4246 after a restart on 4 Oct).</p>
+<p><strong>Reconciliation.</strong> Fills are polled within 60s of a send, swept every 15 minutes, and the full history is read daily; fills are de-duplicated by execution id; a discrepancy is logged, never corrected, and an unreconciled venue stops any increase (G10).</p>
+<p><strong>What the venue did.</strong> 95 orders were sent. 21 were acknowledged and filled, plus one venue-originated stop fill. 74 were rejected by Bitget, and 72 of those are one protective exit of a 1.7-contract META long, retried every five minutes from 09:16 to 15:11 UTC on 28 Sep, each refused with <code>Parameter METAUSDT_UMCBL does not exist</code>; the position was closed by the model's own decision at 16:06. The retries are in the record as rejections, and the cause on Bitget's side is an open question we name rather than hide.</p>
+<hr>
+<h2 id="7-the-record-pre-registered-chained-signed-anchored">7. The record: pre-registered, chained, signed, anchored</h2>
+<p><strong>Genesis.</strong> Before the first decision, a genesis event (seq 0, 2026-09-28 00:07:44 UTC, hash <code>fb66b6bf…</code>) committed the policy (<code>eaee6d5a…</code>, policy-v2), the three prompt files by hash, the code commit (<code>5c838fd</code>), both dependency lock files by hash, the 14-symbol universe, the eight metric definitions, the scoring window (28 Sep 00:00 to 7 Oct 00:00 UTC), and the expected envelope of a no-edge book on this venue. The X post carrying the genesis hash was made before the first order.</p>
+<p><strong>Declared changes.</strong> Run 2 follows run 1 (genesis <code>ebbf607a…</code>, policy-v1), and declares every difference: nine code and prompt fixes (d1–d9) and eight policy amendments (a1–a8), each with the evidence file that motivated it and a test in <code>tests/contract/test_run2_declaration.py</code> that the amendment changes only what it declares. A policy change that is not declared is refused at start-up.</p>
+<p><strong>Chain.</strong> Every event is <code>sha256(canonical({seq, ts, kind, mode, payload, blobs, prev_hash}))</code>, written by a single process under an exclusive lock, with a head sidecar. 4,540 events at the export: 1,888 snapshots, 144 hourly marks, 95 order previews, 22 fills, 74 rejections, 72 protective actions, 671 reconciliations.</p>
+<p><strong>Signatures and anchors.</strong> Twelve ledger heads are signed with an Ed25519 key whose public half is committed (<code>keys/ledger_signing.pub</code>); <code>scripts/verify_heads.py</code> checks them against the published chain. Daily heads go to OpenTimestamps; six carry a Bitcoin block attestation (the first at blocks 969,072–969,098), seven are pending, and the genesis's own stamp failed on a client bug and is recorded as failed.</p>
+<hr>
+<h2 id="8-results">8. Results</h2>
+<h3 id="8-1-the-scored-metrics">8.1 The scored metrics</h3>
+<p>Pre-registered definitions, recomputed from <code>equity_hourly.csv</code> and <code>trades.csv</code> by <code>scripts/recompute.py</code> (standard library only; exit 1 on any mismatch):</p>
+<table><thead><tr><th>Metric</th><th>Run 2 (to 2026-10-05 05:04 UTC)</th><th>90% block-bootstrap band</th></tr></thead><tbody><tr><td>Total return</td><td>−0.020%</td><td>−0.605% to +0.644%</td></tr><tr><td>Max drawdown</td><td>−0.369%</td><td>−0.785% to −0.236%</td></tr><tr><td>Sharpe, annualised</td><td>−0.31 (standard error 7.8)</td><td>−15.4 to +8.5</td></tr><tr><td>Sortino, annualised</td><td>−0.55</td><td>−18.5 to +17.8</td></tr><tr><td>Win rate</td><td>28.6% on 7 closed trades</td><td>—</td></tr><tr><td>Turnover / fees</td><td>0.31x / 9.22 USDT</td><td>—</td></tr></tbody></table>
+<p>Pure noise gives an annualised Sharpe standard error of about 11 over this many hours. The number is reported because the handbook asks for it, and labelled for what it is. The pre-registered envelope of a no-edge book put the median return at −3.5bps and the median drawdown at −0.45%; the agent sat inside it.</p>
+<h3 id="8-2-governed-against-ungoverned-what-the-rules-were-worth">8.2 Governed against ungoverned: what the rules were worth</h3>
+<p>The model's draft before the kernel, simulated on the same Demo marks with the same cost model:</p>
+<table><thead><tr><th></th><th>Governed (replica)</th><th>Ungoverned</th></tr></thead><tbody><tr><td>Return</td><td>−0.001%</td><td>+0.046%</td></tr><tr><td>Max drawdown</td><td>−0.383%</td><td>−0.406%</td></tr><tr><td>Drafts that broke a guard</td><td>—</td><td><strong>34.1%</strong></td></tr><tr><td>Prevented loss / forgone gain</td><td>+0.039% / +0.026% of equity</td><td></td></tr><tr><td>Human takeovers</td><td>0</td><td></td></tr></tbody></table>
+<p>The kernel cost 2.6bps of gain and saved 3.9bps of loss over nine days; more to the point, a third of what the model would have sent unaided broke a rule it had been given.</p>
+<h3 id="8-3-the-record-is-not-a-sandbox-artefact">8.3 The record is not a sandbox artefact</h3>
+<p>The same fills marked at Bitget's live prices return +0.131% against −0.020% on Demo marks; the largest hourly gap between the two is 8.5bps. Our own 21 priced fills landed a median 0.4bps <em>better</em> than the cost model assumed (95th percentile 7.3bps worse). Every baseline is ranked against the governed replica, which is costed exactly as they are, never against the live book.</p>
+<h3 id="8-4-same-clock-same-snapshots-same-simulator-the-baselines">8.4 Same clock, same snapshots, same simulator: the baselines</h3>
+<table><thead><tr><th>Arm</th><th>Return</th><th>Sharpe</th><th>Max DD</th><th>Trades</th></tr></thead><tbody><tr><td><strong>The agent, governed</strong></td><td>−0.020%</td><td>−0.31</td><td>−0.369%</td><td>7</td></tr><tr><td>Flat</td><td>0</td><td>—</td><td>0</td><td>0</td></tr><tr><td>BTC held at our gross</td><td>+0.047%</td><td>1.95</td><td>−0.113%</td><td>0</td></tr><tr><td>Crowd fade, fixed rule, no model</td><td><strong>−0.650%</strong></td><td>−15.67</td><td>−0.650%</td><td>69</td></tr><tr><td>Coin flip, median of 1,000 seeds</td><td>−0.244%</td><td>−4.53</td><td>−0.503%</td><td>19</td></tr><tr><td>Lexicon sentiment trader, with the crowd</td><td>−0.210%</td><td>−3.48</td><td>−0.324%</td><td>56</td></tr><tr><td>Lexicon sentiment trader, against the crowd</td><td>−0.090%</td><td>−1.47</td><td>−0.432%</td><td>58</td></tr><tr><td>Season-2 entry: Fear &amp; Greed with long/short confluence</td><td>0 (never traded)</td><td>—</td><td>0</td><td>0</td></tr><tr><td>Season-2 entry: sentiment and news signal fusion</td><td>−0.026%</td><td>−6.50</td><td>−0.036%</td><td>10</td></tr></tbody></table>
+<p>The governed replica beat 76.4% of the coin-flip seeds on return and 76.5% on Sharpe. The rule it replaces, a funding and long/short fade with no model, lost 0.65% on 69 trades; the model's restraint, 15 flats and 10 holds, is where its value showed. The rival agents run on the same recorded snapshots under the same venue guards, see their own books, and read the raw text our quarantine withheld; their text scorers were first measured on 2,388 labelled financial tweets (<code>rivals/RIVALS.md</code>). Two further rivals (a finBERT-weighted trader and a TradingAgents-style chain on Qwen) are built and run only with an approved token budget; they are not in this export.</p>
+<hr>
+<h2 id="9-explainability-and-verification">9. Explainability and verification</h2>
+<h3 id="9-1-the-decision-card">9.1 The decision card</h3>
+<p>One card per decision, abstention and protective ruling (118 at the export). Each shows: what woke the agent and which sources answered; the text the model was shown, with quarantined items marked; the thesis, invalidation, crowd-vs-us and rejected alternatives; the grounding report per number; every guard's ruling with its status, ceiling, reason and the measurement it rests on; the dry-run payload; the <code>clientOid</code>; the venue <code>orderId</code>; fills and realised P&amp;L; and the ledger sequence numbers and blob hashes that prove each line.</p>
+<p>Card <code>dec-c8701963…</code> (28 Sep 06:08 UTC) is the first trade: trigger <code>funding_zscore:MSTRUSDT</code> (z −4.86); thesis on META, "funding_z_live = −11.49 is extraordinarily far below the extreme reference of −2 … the most crowded short in the universe"; invalidation "funding_z_live moves back above zero"; approved as asked; META buy 1.70 → venue <code>1488348258885812225</code>, filled 732.53; MSTR buy 7.92 → <code>1488348265357623297</code>, filled 157.64; closed at 16:06 for −24.04 and −9.75 USDT. A losing trade, fully accounted for.</p>
+<h3 id="9-2-three-ways-to-check-it-without-trusting-us">9.2 Three ways to check it without trusting us</h3>
+<ol><li><code>scripts/recompute.py public/</code> verifies the chain from <code>ledger.jsonl</code> and rebuilds every metric from the equity and trade files; exit 1 on any mismatch.</li><li><code>t2sa replay --public public/ --decision &lt;id&gt;</code> re-runs a recorded cycle without a key: the logged snapshot, the recorded completion, the kernel, the planner, and asserts it reproduces the logged ruling and intent hashes.</li><li><code>scripts/verify_heads.py &lt;site&gt; validation/run2/signed_heads.json</code> checks twelve signed heads against the committed public key and the published chain; <code>ots verify</code> checks the anchors.</li></ol>
+<p>The page also replays a recorded venue-integrity refusal (Demo BTCPERP 5.38% from its index on 2026-09-23) labelled as a replay, so a judge can see G1 fire without waiting for the venue to misbehave.</p>
+<hr>
+<h2 id="10-bitget-s-toolkit-used-and-measured">10. Bitget's toolkit, used and measured</h2>
+<table><thead><tr><th>Surface</th><th>Used for</th><th>Measured</th></tr></thead><tbody><tr><td><strong>Agent Hub <code>bgc</code></strong> (pinned 3.0.0)</td><td>the only order path: <code>order place --dry-run</code> (95 previews), <code>order place</code> (21 acknowledged), <code>order detail</code> / <code>fills</code> / <code>history</code>, <code>position info</code>, <code>strategy_order place</code> / <code>open</code> / <code>cancel</code> (stops), <code>account_overview</code>, <code>raw getAccountAssets</code> for the environment proof</td><td>14 verbs used, 13 healthy in the last probe</td></tr><tr><td><strong>Bitget public v3 market API</strong></td><td>funding, open interest, long/short, taker ratio, candles, books; Demo reads carry <code>paptrading: 1</code></td><td>7 endpoints used, 5 healthy</td></tr><tr><td><strong><code>bitget-signal</code></strong> (MCP)</td><td>the first source for Fear &amp; Greed, long/short, taker ratio, open interest, Reddit trending and news</td><td>7 tools wired; <strong>0 answered</strong> in run 2 (hollow envelopes from the first snapshot); logged as failed, read from the upstreams each tool names (policy d3)</td></tr><tr><td><strong><code>bitget-mcp-server</code></strong></td><td>the first source for crypto futures positioning and the equity calendar and insider filings</td><td>11 entries wired; 1 healthy (<code>guide</code>); every <code>do_query</code> answered 503 or "Session not found" from 3 Oct</td></tr><tr><td><strong>Agentic account (OAuth)</strong></td><td>not used, with the reason on the page: Track 2 runs on a Demo API key, and the Agentic account trades live funds</td><td></td></tr><tr><td><strong>GetAgent Playbook</strong></td><td>a signal-only replica of the policy is built (<code>playbook/</code>, 18 modules, parity tests); not published, as it needs the <code>llm_bounded</code> runtime and a Playbook key</td><td></td></tr></tbody></table>
+<p>The coverage matrix on the page lists all 134 rows: every surface, used or not, with its last health and where it shows. Feed health lists every failing source since when, with its last error.</p>
+<hr>
+<h2 id="11-engineering">11. Engineering</h2>
+<ul><li>2,996 tests (93 files); none touches the network, a credential, the model or a non-Python child process, and <code>tests/conftest.py</code> makes each of those a failure rather than a convention.</li><li><code>mypy --strict</code> and <code>ruff</code> clean; <code>scripts/check_all.py</code> runs all of it.</li><li>90 contract tests: the only-reduce invariant, the unforgeable <code>ApprovedOrder</code>, the environment proof that cannot pass unearned, NaN and infinity refused at any depth, <code>model_construct</code> banned from source, every policy number tied to its measurement, every run-2 amendment changing only what it declares, and no file pointing a reader at a private repository.</li><li>48,389 lines of source, 47,527 of tests.</li><li>Provenance: modules ported from the author's ARGUS project (grounding, quarantine, novelty, the breaker, the minimum-of-ceilings kernel, order states, the ledger lock and anchor pattern, the Qwen client and budget) are listed in <code>NOTICE.md</code> with the source commit; vendored attack corpora (HeyArka, AgentDojo) carry their MIT licences.</li></ul>
+<hr>
+<h2 id="12-limits-stated">12. Limits, stated</h2>
+<ul><li><strong>The return is zero within noise.</strong> −0.02% with a band of ±0.6%; seven trades; a Sharpe band from −15 to +8. Nine days is not a track record and the page says so on every metric.</li><li><strong>Both Bitget data services were down for the whole run.</strong> The agent's view of the crowd came from the upstreams they wrap, on a labelled surface. The toolkit matrix reports 0 of 7 and 1 of 11.</li><li><strong>The red team is built, tested and not run on this export.</strong> It injects the HeyArka and AgentDojo attack strings and a coordinated pump into recorded snapshots and grades every arm against its clean decision; it calls Qwen, so it runs only with an approved token budget. The page says "not computed" rather than showing a stale grade.</li><li><strong>72 venue rejections of one protective exit.</strong> Bitget Demo refused the same META close every five minutes for six hours; the model closed the position itself. The rejections are in the log.</li><li><strong>The genesis's own OpenTimestamps stamp failed</strong> on a client bug; later heads are anchored and six are block-confirmed.</li><li><strong>The Playbook replica is built from policy-v1,</strong> the run-1 policy, and has not been published.</li></ul>
+<hr>
+<h2 id="13-what-comes-next">13. What comes next</h2>
+<p>Run the red team under an approved budget and publish its grade; move the same policy to a Bitget Agentic sub-account with a small live allocation and a 30-day pre-registered window; publish the Playbook replica once the runtime it needs is enabled; and keep every change declared in the next genesis.</p>
+<hr>
+<p><em>Reproduce: <code>pip install -e ".[dev]"</code>, <code>python scripts/check_all.py</code>; <code>python scripts/recompute.py public/</code> against a downloaded copy of the site; <code>t2sa replay --public public/ --decision dec-c8701963b5930c3551aec635d15abaa7</code>.</em></p></article></div></main><footer><div class="wrap">Every figure on this page is read from a published file in this folder and can be recomputed with <code>python scripts/recompute.py public/</code>. Static page: no request leaves it.</div></footer></body></html>
