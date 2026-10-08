@@ -22,7 +22,7 @@ from sentiment_agent.sources.bitget_data import (
     _earnings_items,
 )
 from sentiment_agent.sources.mcp_http import DATA_MCP_URL, StreamableHttpMcp, parse_instant
-from sentiment_agent.types import SourceHealth, ToolkitSurface
+from sentiment_agent.types import SourceCall, SourceHealth, ToolkitSurface
 from sources.replay import RecordedHttp, Session, call_key, load_json, load_session
 
 DATA = load_session("data_session.json")
@@ -571,10 +571,23 @@ def live() -> BitgetDataService:
     )
 
 
+def _skip_if_upstream_down(*calls: SourceCall) -> None:
+    """Skip, not fail, when Bitget's hosted service answers with a 5xx page.
+
+    These tests check that the service still has the shape this repository reads. A 503 says the
+    service is down, not that its shape drifted, so it is reported as a skip with the reason; any
+    other failure still fails.
+    """
+    for call in calls:
+        if call.health is SourceHealth.ERROR and "status 5" in (call.error or ""):
+            pytest.skip(f"bitget-mcp-server is down: {call.error}")
+
+
 @pytest.mark.live_public
 def test_live_fear_greed_fields_and_scales(live: BitgetDataService) -> None:
     crypto, crypto_label, crypto_call = live.crypto_fear_greed()
     market, market_label, market_call = live.market_fear_greed()
+    _skip_if_upstream_down(crypto_call, market_call)
     assert crypto_call.health is SourceHealth.OK, crypto_call.error
     assert market_call.health is SourceHealth.OK, market_call.error
     assert crypto is not None
@@ -588,6 +601,7 @@ def test_live_fear_greed_fields_and_scales(live: BitgetDataService) -> None:
 @pytest.mark.live_public
 def test_live_btc_positioning_answers(live: BitgetDataService) -> None:
     reading, calls = live.derivatives("BTCUSDT")
+    _skip_if_upstream_down(*calls)
     assert all(c.health is SourceHealth.OK for c in calls), [(c.source, c.error) for c in calls]
     assert reading.retail_long_short_ratio is not None
     assert len(reading.open_interest_history) >= 25
@@ -600,6 +614,8 @@ def test_live_calendar_answers_for_all_eleven(live: BitgetDataService) -> None:
     since = datetime.now(UTC) - timedelta(days=60)
     for symbol in UNDERLYING:
         _, call = live.earnings(symbol)
+        _skip_if_upstream_down(call)
         assert call.health is SourceHealth.OK, (symbol, call.error)
         _, filings = live.insider_filings(symbol, since=since)
+        _skip_if_upstream_down(filings)
         assert filings.health in (SourceHealth.OK, SourceHealth.EMPTY), (symbol, filings.error)
