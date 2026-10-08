@@ -1,5 +1,5 @@
 # t2-sentiment-agent
-
+ 
 **Qwen decides. A risk kernel that can only reduce stands between it and the venue. Bitget's own
 Agent Hub places every order on Bitget Demo. One hash-chained log proves all of it.**
 
