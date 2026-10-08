@@ -516,6 +516,14 @@ def test_live_facade_mood_and_positioning() -> None:
         ),
     )
     mood, calls = toolkit.mood()
+    if mood.crypto_fear_greed is None:
+        # A 5xx from the hosted service is an outage, not drift in what it returns: skip with the
+        # reason. Any other reason for the missing reading still fails below.
+        down = [
+            c for c in calls if c.health is SourceHealth.ERROR and "status 5" in (c.error or "")
+        ]
+        if down:
+            pytest.skip(f"the hosted data services are down: {down[0].error}")
     assert mood.crypto_fear_greed is not None, [(c.source, c.health, c.error) for c in calls]
     assert mood.market_fear_greed is not None
     reading, positioning = toolkit.derivatives("BTCUSDT")
